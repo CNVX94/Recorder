@@ -19,9 +19,13 @@ try:  # píxeles físicos en todo el proceso: así los rectángulos de monitor c
 except Exception:
     pass
 
-MODEL, LANG = "small", "es"   # tiny | base | small | medium  (small = balance en CPU)
-MIN_SEC, MAX_SEC = 3, 12      # corta el chunk en un silencio tras MIN_SEC, o forzado a MAX_SEC
+LANG = "es"
+MODELS = ["small", "medium", "base", "tiny", "large-v3-turbo"]  # en i7-1255U: small 3x tiempo real, medium 1.2x
+BEAM = 5                      # 1 = greedy (rápido); 5 = más preciso, ~1.5x más lento
+MIN_SEC, MAX_SEC = 8, 20      # corta el chunk en una pausa tras MIN_SEC, o forzado a MAX_SEC (más contexto = mejor texto)
+PAUSE_SEC = 0.6               # silencio que cuenta como pausa entre frases
 SILENCE = 150                 # RMS int16 bajo el cual se considera silencio
+CAP_COOLDOWN = 15             # segundos mínimos entre capturas por palabra clave
 FRAMES = 1024
 CONFIG = pathlib.Path(__file__).with_name("config.json")
 DEFAULT_DEV = "(predeterminado de Windows)"
@@ -33,9 +37,19 @@ DEFAULTS = {
     "out_dev": "",   # nombre WASAPI de la salida a capturar; "" = predeterminada
     "mic_dev": "",   # nombre WASAPI del micrófono; "" = predeterminado
     "screen": 0,     # 0 = todas las pantallas; 1..n = monitor n
+    "model": "small",  # aplica al reiniciar
+    # contexto que se le da a Whisper para que escriba bien nombres y términos técnicos
+    "vocab": "Daily de desarrollo de software. Términos: API Core, API Gateway, PWA, QA, IIS, SQL Server, Axon, TPR, "
+             "manifiesto, flete, programa de embarques, transportista, operador, recolección, UPS, pedido, cajas, "
+             "server 14, server 20, puerto 7100, 7200. Bruno, Chris, Richi.",
+    # frases que Whisper inventa en silencios/ruido; se comparan sin acentos ni mayúsculas
+    "ignore": ["suscríbete", "próximo vídeo", "gracias por ver", "hasta la próxima", "subtítulos", "amara.org",
+               "gracias por estar aquí"],
+    # correcciones personales tras transcribir (mal -> bien), palabra completa, sin distinguir mayúsculas
+    "fixes": {"cuba": "QA", "ayayas": "IIS"},
 }
 cfg = {**DEFAULTS, **(json.loads(CONFIG.read_text("utf-8")) if CONFIG.exists() else {})}
-state, lock = {"md": None, "pa": None, "cap": None, "paused": False}, threading.Lock()
+state, lock = {"md": None, "pa": None, "cap": None, "paused": False, "last_cap": 0.0}, threading.Lock()
 levels = {"out": 0.0, "mic": 0.0}  # RMS int16 del último frame de cada fuente (medidores)
 
 
@@ -50,6 +64,26 @@ def find_keywords(text, keywords):
 
 def rms(pcm):
     return float(np.sqrt(np.mean(pcm.astype(np.float32) ** 2)))
+
+
+def clean(segs, ignore):
+    """Une segmentos descartando los dudosos (sin voz / baja confianza) y las frases de la lista `ignore`."""
+    keep = [s.text.strip() for s in segs if s.no_speech_prob < 0.6 and s.avg_logprob > -1.0]
+    bad = [normalize(h) for h in ignore if h.strip()]
+    return " ".join(t for t in keep if t and not any(h in normalize(t) for h in bad)).strip()
+
+
+def fix(text, fixes):
+    """Correcciones personales: reemplaza palabra completa, sin distinguir mayúsculas."""
+    for wrong, right in fixes.items():
+        text = re.sub(rf"\b{re.escape(wrong)}\b", right, text, flags=re.I)
+    return text
+
+
+def parse_fixes(s):
+    """'cuba=QA; ayayas=IIS' -> {'cuba': 'QA', 'ayayas': 'IIS'}"""
+    pairs = (p.split("=", 1) for p in s.split(";") if "=" in p)
+    return {k.strip().lower(): v.strip() for k, v in pairs if k.strip()}
 
 
 def bars(v, n=8):
@@ -143,21 +177,23 @@ def open_stream(p, kind):
 
 def capture_thread(kind, s, rate, ch, chunks, ui, stop):
     try:
-        tail = max(1, int(0.4 * rate / FRAMES))  # ~0.4 s para detectar pausa
+        tail = max(1, int(PAUSE_SEC * rate / FRAMES))  # frames que deben estar en silencio para cortar
         buf = []
         while not stop.is_set():
             raw = np.frombuffer(s.read(FRAMES, exception_on_overflow=False), np.int16)
-            levels[kind] = rms(raw)
+            lvl = levels[kind] = rms(raw)
             if state["paused"] or (kind == "mic" and not cfg["mic"]):
                 buf = []  # los medidores siguen vivos, pero no se transcribe
                 continue
             if not buf:
-                t0 = time.time()  # el loopback bloquea en read() hasta que suena algo: la hora es la del 1er frame
+                t0 = None
+            if t0 is None and lvl > SILENCE:
+                t0 = time.time()  # la hora de la nota es la del primer frame con voz, no del silencio previo
             buf.append(raw)
             secs = len(buf) * FRAMES / rate
             if (secs >= MIN_SEC and rms(np.concatenate(buf[-tail:])) < SILENCE) or secs >= MAX_SEC:
                 pcm, buf = np.concatenate(buf), []
-                if rms(pcm) > SILENCE:  # no mandar silencio a whisper (alucina)
+                if t0 is not None and rms(pcm) > SILENCE:  # no mandar silencio a whisper (alucina)
                     chunks.put((t0, kind, to_16k(pcm, rate, ch)))
     except Exception as e:
         ui.put(("status", f"Error audio ({kind}): {e!r}"))
@@ -181,24 +217,28 @@ def start_capture(chunks, ui):
 
 def transcribe_thread(chunks, ui, stop):
     try:
-        ui.put(("status", f"Cargando modelo {MODEL}…"))
+        ui.put(("status", f"Cargando modelo {cfg['model']}…"))
         from faster_whisper import WhisperModel
-        model = WhisperModel(MODEL, device="cpu", compute_type="int8")
+        model = WhisperModel(cfg["model"], device="cpu", compute_type="int8")
         ui.put(("status", "● Escuchando"))
         while not stop.is_set():
             try:
                 t0, kind, audio = chunks.get(timeout=0.5)
             except queue.Empty:
                 continue
-            segs, _ = model.transcribe(audio, language=LANG, beam_size=1, vad_filter=True)
-            text = " ".join(s.text.strip() for s in segs).strip()
+            segs, _ = model.transcribe(audio, language=LANG, beam_size=BEAM, vad_filter=True,
+                                       condition_on_previous_text=False, initial_prompt=cfg["vocab"] or None)
+            text = fix(clean(segs, cfg["ignore"]), cfg["fixes"])
             if not text:
                 continue
             stamp = dt.datetime.fromtimestamp(t0).strftime("%H:%M:%S")
             hits = find_keywords(text, cfg["keywords"])
             line = f"- **{stamp}** {'🎤 ' if kind == 'mic' else ''}{text}"
-            if hits:  # ponytail: la captura llega ~chunk+inferencia tarde; ring buffer de pantallas si molesta
+            if hits and time.time() - state["last_cap"] > CAP_COOLDOWN:
+                state["last_cap"] = time.time()  # ponytail: la captura llega ~chunk+inferencia tarde; ring buffer si molesta
                 line += f"\n  - 📸 `{', '.join(hits)}` → ![]({screenshot(hits[0])})"
+            else:
+                hits = []
             write_md(line)
             ui.put(("line", stamp, kind, text, hits))
     except Exception as e:
@@ -260,6 +300,9 @@ def main():
         screens = screen_labels()
         v = {"notes_dir": tk.StringVar(value=cfg["notes_dir"]), "caps_dir": tk.StringVar(value=cfg["caps_dir"]),
              "keywords": tk.StringVar(value=", ".join(cfg["keywords"])), "mic": tk.BooleanVar(value=cfg["mic"]),
+             "vocab": tk.StringVar(value=cfg["vocab"]), "model": tk.StringVar(value=cfg["model"]),
+             "ignore": tk.StringVar(value=", ".join(cfg["ignore"])),
+             "fixes": tk.StringVar(value="; ".join(f"{k}={r}" for k, r in cfg["fixes"].items())),
              "out_dev": tk.StringVar(value=cfg["out_dev"] or DEFAULT_DEV),
              "mic_dev": tk.StringVar(value=cfg["mic_dev"] or DEFAULT_DEV),
              "screen": tk.StringVar(value=screens[cfg["screen"] if cfg["screen"] < len(screens) else 0])}
@@ -286,12 +329,16 @@ def main():
         row(0, "Carpeta de notas (.md)", v["notes_dir"], True)
         row(1, "Carpeta de capturas", v["caps_dir"], True)
         row(2, "Palabras clave (coma)", v["keywords"])
-        choice(3, "Salida a capturar  🔊", v["out_dev"], wasapi_devices(state["pa"], "out"))
-        choice(4, "Micrófono  🎤", v["mic_dev"], wasapi_devices(state["pa"], "mic"))
-        choice(5, "Pantalla a capturar  📸", v["screen"], screens[1:], first=screens[0])
+        row(3, "Vocabulario / contexto", v["vocab"])
+        row(4, "Frases a ignorar (coma)", v["ignore"])
+        row(5, "Correcciones (mal=bien; …)", v["fixes"])
+        choice(6, "Salida a capturar  🔊", v["out_dev"], wasapi_devices(state["pa"], "out"))
+        choice(7, "Micrófono  🎤", v["mic_dev"], wasapi_devices(state["pa"], "mic"))
+        choice(8, "Pantalla a capturar  📸", v["screen"], screens[1:], first=screens[0])
+        choice(9, "Modelo Whisper (al reiniciar)", v["model"], MODELS[1:], first=MODELS[0])
         tk.Checkbutton(win, text="Transcribir también mi micrófono  🎤", variable=v["mic"], bg=BG, fg=FG,
                        selectcolor=PANEL, activebackground=BG, activeforeground=FG,
-                       font=("Segoe UI", 10)).grid(row=6, column=0, columnspan=2, sticky="w", padx=12, pady=6)
+                       font=("Segoe UI", 10)).grid(row=10, column=0, columnspan=2, sticky="w", padx=12, pady=6)
 
         def save():
             move_notes(v["notes_dir"].get().strip())
@@ -299,7 +346,9 @@ def main():
             changed = devs != {k: cfg[k] for k in devs}
             cfg.update(notes_dir=v["notes_dir"].get().strip(), caps_dir=v["caps_dir"].get().strip(), mic=v["mic"].get(),
                        keywords=[k.strip() for k in v["keywords"].get().split(",") if k.strip()],
-                       screen=screens.index(v["screen"].get()), **devs)
+                       vocab=v["vocab"].get().strip(), screen=screens.index(v["screen"].get()),
+                       model=v["model"].get(), fixes=parse_fixes(v["fixes"].get()),
+                       ignore=[k.strip() for k in v["ignore"].get().split(",") if k.strip()], **devs)
             CONFIG.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), "utf-8")
             if changed:  # reabre los streams con los dispositivos nuevos, sin reiniciar la app
                 state["cap"].set()
@@ -308,7 +357,7 @@ def main():
             path_lbl.config(text=str(state["md"]))
             win.destroy()
 
-        tk.Button(win, text="Guardar", command=save, **BTN).grid(row=7, column=1, sticky="e", pady=(6, 12))
+        tk.Button(win, text="Guardar", command=save, **BTN).grid(row=11, column=1, sticky="e", pady=(6, 12))
 
     def toggle_pause():
         state["paused"] = not state["paused"]
@@ -342,6 +391,16 @@ def main():
 
 def selftest():
     import tempfile
+    from types import SimpleNamespace as S
+    segs = [S(text=" Hola equipo. ", no_speech_prob=0.1, avg_logprob=-0.3),
+            S(text="¡Suscríbete!", no_speech_prob=0.1, avg_logprob=-0.3),          # alucinación conocida
+            S(text="mitalaka mitalaka", no_speech_prob=0.1, avg_logprob=-1.4),      # baja confianza
+            S(text="ruido", no_speech_prob=0.9, avg_logprob=-0.2),                  # sin voz
+            S(text="Falta probar el flujo.", no_speech_prob=0.2, avg_logprob=-0.5)]
+    assert clean(segs, DEFAULTS["ignore"]) == "Hola equipo. Falta probar el flujo."
+    assert fix("Desplegamos en Cuba y en el ayayas.", {"cuba": "QA", "ayayas": "IIS"}) == "Desplegamos en QA y en el IIS."
+    assert fix("incubadora", {"cuba": "QA"}) == "incubadora"                  # solo palabra completa
+    assert parse_fixes(" cuba = QA ; ayayas=IIS; basura ; =x") == {"cuba": "QA", "ayayas": "IIS"}
     assert find_keywords("Hay un BLOQUEO con la base", ["bloqueo"]) == ["bloqueo"]
     assert find_keywords("bloqueos varios", ["bloqueo"]) == []            # palabra completa
     assert find_keywords("acción tomada", ["accion"]) == ["accion"]       # ignora acentos
