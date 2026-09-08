@@ -5,6 +5,7 @@ from typing import Callable
 from ...config.schema import AppConfig
 from ...filters.lexicon import format_fixes, parse_fixes
 from ...filters.pipeline import TextPipeline
+from ...filters.samples import random_sample
 from ..theme import ACC, BG, BTN_STYLE, DIM, ENTRY_STYLE, ERR, FG, LABEL_STYLE, PANEL, SUCCESS
 
 
@@ -214,9 +215,6 @@ class TuningDialog(tk.Toplevel):
 
         test_row = tk.Frame(sandbox, bg=BG)
         test_row.pack(fill="x")
-        tk.Entry(test_row, textvariable=self.var_test_input, **ENTRY_STYLE).pack(
-            side="left", fill="x", expand=True, ipady=4
-        )
         btn_test = tk.Button(
             test_row,
             text="⚡ Probar Reglas",
@@ -228,6 +226,20 @@ class TuningDialog(tk.Toplevel):
             padx=8,
         )
         btn_test.pack(side="right", padx=(8, 0))
+        btn_random = tk.Button(
+            test_row,
+            text="🎲 Frase de ejemplo",
+            command=self._random_sample,
+            bg=PANEL,
+            fg=FG,
+            relief="flat",
+            font=("Segoe UI", 9),
+            padx=8,
+        )
+        btn_random.pack(side="right", padx=(8, 0))
+        tk.Entry(test_row, textvariable=self.var_test_input, **ENTRY_STYLE).pack(
+            side="left", fill="x", expand=True, ipady=4
+        )
 
         self.lbl_test_status = tk.Label(
             sandbox,
@@ -279,6 +291,20 @@ class TuningDialog(tk.Toplevel):
             if c not in current:
                 current.append(c)
         self.var_ignore.set(", ".join(current))
+        self._run_test()
+
+    def _random_sample(self):
+        """Genera una frase de ejemplo con el glosario escrito ahora mismo en el dialogo."""
+        ignore_list = [x.strip() for x in self.var_ignore.get().split(",") if x.strip()]
+        fixes_dict = parse_fixes(self.var_fixes.get())
+        self.var_test_input.set(
+            random_sample(
+                self.var_vocab.get(),
+                fixes_dict,
+                ignore_list,
+                self.config.keywords,
+            )
+        )
         self._run_test()
 
     def _run_test(self):

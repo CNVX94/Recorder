@@ -36,8 +36,33 @@
 3. **Configurar el atajo rápido `daily` en PowerShell:**
    Para abrir la aplicación escribiendo simplemente `daily` desde cualquier terminal, agrega esta función a tu perfil de PowerShell (`notepad $PROFILE`):
    ```powershell
-   function daily { python "C:\Users\desarrollo 6\Documents\GitHub\Recorder\recorder.py" $args }
+   function daily { python "$HOME\Documents\GitHub\Recorder\recorder.py" $args }
    ```
+
+4. **Crear tu configuracion a partir de la plantilla:**
+   ```powershell
+   Copy-Item config.example.json config.json
+   ```
+
+---
+
+## ⚙️ Configuracion
+
+Toda la configuracion vive en `config.json`, en la raiz del proyecto. **Ese archivo esta en `.gitignore` y nunca se sube**, porque guarda tu vocabulario, tus rutas y tus dispositivos. Lo que si se publica es `config.example.json`, una plantilla generica que puedes copiar.
+
+Una vez copiada, editala desde la propia aplicacion con los botones ⚙️ Opciones y 🎯 Calibrar. No hace falta tocar el JSON a mano.
+
+La plantilla omite a proposito `notes_dir` y `caps_dir`. Al faltar esos campos, la aplicacion usa tu carpeta `Documentos\Dailies`. Anadelos solo si quieres otra ubicacion.
+
+| Campo | Que hace |
+| :--- | :--- |
+| `vocab` | Contexto que se le pasa a Whisper antes de oir. Aqui van los terminos y nombres de tu equipo. Es lo que mas mejora la transcripcion. |
+| `keywords` | Palabras que disparan una captura de pantalla. Evita muletillas como *aqui* o *este*, se dicen constantemente. |
+| `fixes` | Sustituciones palabra por palabra tras transcribir, para lo que Whisper confunda siempre igual. |
+| `ignore` | Frases fantasma que Whisper inventa en los silencios. La lista de fabrica cubre las mas comunes en espanol. |
+| `model` | Modelo de Whisper. `small` va en tiempo real en un portatil sin GPU; `medium` es mas preciso pero se retrasa. |
+| `screen` | Monitor del que se captura. `0` son todas las pantallas juntas. |
+| `no_speech_threshold`, `logprob_threshold`, `compression_ratio_threshold` | Umbrales anti-alucinaciones. Se ajustan desde 🎯 Calibrar, que ademas trae un sandbox para probarlos. |
 
 ---
 
@@ -71,7 +96,8 @@ El proyecto está diseñado bajo una arquitectura limpia por capas y un pipeline
 
 ```
 Recorder/
-├── config.json                     # Configuración persistente del usuario
+├── config.example.json             # Plantilla recomendada (esta si se sube)
+├── config.json                     # Tu configuracion personal (ignorada por git)
 ├── recorder.py                     # Entrypoint principal y ejecutor de selftest
 │
 ├── recorder/                       # Paquete principal

@@ -4,6 +4,7 @@ from .blacklist import contains_blacklisted_phrase, filter_blacklisted_segments
 from .lexicon import fix, parse_fixes, format_fixes
 from .keywords import find_keywords
 from .pipeline import clean_segments, TextPipeline
+from .samples import extract_terms, random_sample, sample_kinds
 
 __all__ = [
     "normalize",
@@ -17,4 +18,7 @@ __all__ = [
     "find_keywords",
     "clean_segments",
     "TextPipeline",
+    "extract_terms",
+    "random_sample",
+    "sample_kinds",
 ]

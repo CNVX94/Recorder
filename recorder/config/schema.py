@@ -21,12 +21,9 @@ class AppConfig:
     model: str = "small"  # tiny, base, small, medium, large-v3-turbo
     beam_size: int = 5
 
-    # Vocabulario de contexto (Initial prompt) para guiar términos técnicos y nombres
-    vocab: str = (
-        "Daily de desarrollo de software. Términos: API Core, API Gateway, PWA, QA, IIS, SQL Server, "
-        "Axon, TPR, manifiesto, flete, programa de embarques, transportista, operador, recolección, "
-        "UPS, pedido, cajas, server 14, server 20, puerto 7100, 7200. Bruno, Chris, Richi."
-    )
+    # Vocabulario de contexto (Initial prompt) para guiar terminos tecnicos y nombres.
+    # Vacio a proposito: cada usuario pone el suyo. Ver config.example.json.
+    vocab: str = ""
 
     # Frases fantasma que Whisper inventa en silencios/ruido (lista negra)
     ignore: List[str] = dataclasses.field(
@@ -43,13 +40,9 @@ class AppConfig:
         ]
     )
 
-    # Correcciones personales post-transcripción: palabra completa (mal -> bien)
-    fixes: Dict[str, str] = dataclasses.field(
-        default_factory=lambda: {
-            "cuba": "QA",
-            "ayayas": "IIS",
-        }
-    )
+    # Correcciones personales post-transcripcion: palabra completa (mal -> bien).
+    # Vacio a proposito: se llena con lo que tu Whisper confunda. Ver config.example.json.
+    fixes: Dict[str, str] = dataclasses.field(default_factory=dict)
 
     # Umbrales heurísticos anti-alucinaciones
     no_speech_threshold: float = 0.6  # Descartar si probabilidad de no-voz >= umbral

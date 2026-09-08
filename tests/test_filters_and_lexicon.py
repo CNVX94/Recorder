@@ -44,10 +44,10 @@ class TestFiltersAndLexicon(unittest.TestCase):
         self.assertEqual(filter_blacklisted_segments(segs, blacklist), ["Hola a todos", "Vamos a comenzar"])
 
     def test_lexicon_fixes(self):
-        fixes = {"cuba": "QA", "ayayas": "IIS", "axon": "Axon"}
-        text = "Subimos a cuba y reiniciamos el ayayas para revisar axon."
+        fixes = {"cuba": "QA", "ayayas": "IIS", "yenkins": "Jenkins"}
+        text = "Subimos a cuba y reiniciamos el ayayas para revisar yenkins."
         result = fix(text, fixes)
-        self.assertEqual(result, "Subimos a QA y reiniciamos el IIS para revisar Axon.")
+        self.assertEqual(result, "Subimos a QA y reiniciamos el IIS para revisar Jenkins.")
 
         # Palabra completa respetada
         self.assertEqual(fix("incubadora", {"cuba": "QA"}), "incubadora")

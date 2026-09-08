@@ -14,9 +14,9 @@ La Fase 3 busca separar a los participantes **dentro** del canal `out`, para que
 Markdown diga *quién* dijo la frase y no solo *cuándo*:
 
 ```markdown
-- **09:14:22** **Bruno**: El manifiesto ya quedó separado por pedido.
-- **09:14:41** 🎤 Falta probar el flujo de embarques.
-- **09:15:03** **Chris**: Eso lo revisamos a nivel viaje, no a nivel PE.
+- **09:14:22** **Ana**: El endpoint de pedidos ya quedó desplegado.
+- **09:14:41** 🎤 Falta probar el flujo completo en el entorno de pruebas.
+- **09:15:03** **Luis**: Eso lo revisamos a nivel de servicio, no de base de datos.
 ```
 
 ---

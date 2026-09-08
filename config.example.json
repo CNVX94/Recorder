@@ -1,0 +1,35 @@
+{
+  "keywords": [
+    "pendiente",
+    "bloqueo",
+    "captura",
+    "acuerdo",
+    "riesgo"
+  ],
+  "mic": true,
+  "out_dev": "",
+  "mic_dev": "",
+  "screen": 0,
+  "model": "small",
+  "beam_size": 5,
+  "vocab": "Daily de desarrollo de software. Términos: backend, frontend, endpoint, despliegue, sprint, incidencia, base de datos, entorno de pruebas, integración continua. Nombres del equipo: Ana, Luis, Marta.",
+  "ignore": [
+    "suscríbete",
+    "próximo vídeo",
+    "gracias por ver",
+    "hasta la próxima",
+    "subtítulos",
+    "amara.org",
+    "gracias por estar aquí",
+    "dale like",
+    "nos vemos en el próximo"
+  ],
+  "fixes": {
+    "yenkins": "Jenkins",
+    "reyis": "Redis"
+  },
+  "no_speech_threshold": 0.6,
+  "logprob_threshold": -1.0,
+  "compression_ratio_threshold": 2.4,
+  "repetition_penalty": 1.1
+}

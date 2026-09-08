@@ -2,6 +2,8 @@
 *.py[cod]
 .venv/
 venv/
+# Configuracion personal: nunca se sube. Usa config.example.json como plantilla.
 config.json
+!config.example.json
 *.wav
 *.mp3

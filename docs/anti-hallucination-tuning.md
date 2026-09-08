@@ -52,7 +52,7 @@ Desde la ventana principal de la aplicación, haz clic en **🎯 Calibrar**:
 | [ suscríbete, gracias por ver, amara.org, hasta la próxima...       ] |
 |                                                                       |
 | 3. Correcciones de léxico personal (mal=bien; ...):                   |
-| [ cuba=QA; ayayas=IIS; axon=Axon; richi=Richi                       ] |
+| [ cuba=QA; ayayas=IIS; yenkins=Jenkins; reyis=Redis                 ] |
 |                                                                       |
 | 4. Umbrales Heurísticos:                                              |
 |    Filtro silencio (no_speech_prob > X):        [---O-------] 0.60    |
@@ -60,8 +60,9 @@ Desde la ventana principal de la aplicación, haz clic en **🎯 Calibrar**:
 |    Anti-bucles repetición (ratio compresión):   [-------O---] 2.40    |
 |                                                                       |
 | 🧪 Sandbox de Prueba en Vivo:                                         |
-| [ Desplegamos en cuba y en el ayayas. ¡Suscríbete! ] [⚡ Probar Reglas]|
-| ⛔ DESCARTADA: Contiene una frase de la lista negra                   |
+| [ Revisa cuba porque Ana no responde. ]                               |
+|                        [🎲 Frase de ejemplo] [⚡ Probar Reglas]         |
+| ✅ ACEPTADA: "Revisa QA porque Ana no responde."                     |
 |                                                                       |
 |                                      [Cancelar] [💾 Guardar Calibración]
 +-----------------------------------------------------------------------+
@@ -79,3 +80,20 @@ Desde la ventana principal de la aplicación, haz clic en **🎯 Calibrar**:
    * Escribe la frase en la caja de prueba y presiona **`⚡ Probar Reglas`**. Podrás ver si la regla funciona exactamente como esperas antes de guardarla.
 5. **Guardar:**
    * Al hacer clic en **`💾 Guardar Calibración`**, los cambios se guardan en `config.json` y se aplican en caliente a las transcripciones en curso sin necesidad de reiniciar la app.
+
+---
+
+## 🎲 Frases de ejemplo automaticas
+
+El boton **🎲 Frase de ejemplo** arma una frase de prueba usando tu propio glosario, en lugar de obligarte a inventar ejemplos a mano. Toma los terminos del campo de vocabulario, las palabras mal oidas del diccionario de correcciones, las frases de la lista negra y tus palabras clave, y los combina en una frase con forma de daily.
+
+Cada pulsacion ejercita al azar uno de los cuatro caminos del pipeline:
+
+| Camino | Que comprueba | Resultado esperado |
+| :--- | :--- | :--- |
+| `limpia` | Que una frase normal no se descarte por error. | ACEPTADA sin cambios. |
+| `clave` | Que tus palabras clave disparen la captura. | ACEPTADA con captura. |
+| `correccion` | Que el diccionario sustituya el termino mal oido. | ACEPTADA y corregida. |
+| `alucinacion` | Que la lista negra atrape la frase fantasma. | DESCARTADA. |
+
+Solo se ofrecen los caminos que tengas configurados. Si aun no has escrito correcciones, no saldran frases de ese tipo. Las frases se generan con lo que hay **escrito en ese momento** en el dialogo, no con lo ultimo guardado, asi que puedes probar un cambio antes de confirmarlo.
