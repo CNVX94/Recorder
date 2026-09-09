@@ -12,12 +12,13 @@
 
 * 🔊 **Captura de Salida + Micrófono (WASAPI Loopback):** Captura el audio de tus reuniones sin necesidad de cables virtuales (Virtual Audio Cable). Muestra medidores de nivel de volumen en vivo (`🔊 █░   🎤 █░`).
 * ⚡ **Transcripción Rápida con IA (faster-whisper):** Ejecución eficiente en CPU mediante cuantización `int8` (modelos `tiny`, `base`, `small`, `medium`, `large-v3-turbo`).
-* 📸 **Capturas de Pantalla Automáticas:** Al escuchar palabras clave configuradas (*"bloqueo"*, *"pendiente"*, *"captura"*, etc.), toma una captura del monitor seleccionado y la incrusta directamente en el archivo Markdown.
+* 📸 **Capturas de Pantalla Automáticas:** Al escuchar palabras clave configuradas (*"bloqueo"*, *"pendiente"*, *"captura"*, etc.), toma una captura de todas las pantallas, de un monitor o **solo de la ventana de una aplicación** (p. ej. Teams, aunque esté tapada por otras ventanas) y la incrusta directamente en el archivo Markdown.
 * 🎯 **Fine-Tuning Anti-Alucinaciones & Léxico Personal:**
   * **Filtro de Silencios / Ruido:** Descarte automático de fórmulas típicas de YouTube (*"suscríbete"*, *"amara.org"*, etc.).
   * **Anti-Bucles:** Detector de repeticiones continuas mediante análisis de compresión zlib (`compression_ratio`).
   * **Diccionario Fonético:** Sustituciones automáticas para jerga técnica o siglas de tu equipo (`cuba` ➔ `QA`, `ayayas` ➔ `IIS`).
   * **🧪 Sandbox en Vivo:** Prueba tus reglas interactivamente en la interfaz antes de guardarlas.
+* 🧹 **Síntesis de Notas:** Genera versiones agrupadas por tramos de reloj (5, 15, 30 o 60 min), con las líneas del mismo turno unidas en párrafos y el relleno corto descartado. **Nunca modifica la nota original**: cada síntesis es un archivo nuevo que registra de qué original salió.
 * 📝 **Salida Markdown Atómica:** Genera un archivo diario (ej: `daily_2026-09-08_14-30.md`) con soporte para pausar (`⏸`), reanudar (`▶`) y trasladar la carpeta de notas en caliente.
 
 ---
@@ -62,7 +63,17 @@ La plantilla omite a proposito `notes_dir` y `caps_dir`. Al faltar esos campos, 
 | `ignore` | Frases fantasma que Whisper inventa en los silencios. La lista de fabrica cubre las mas comunes en espanol. |
 | `model` | Modelo de Whisper. `small` va en tiempo real en un portatil sin GPU; `medium` es mas preciso pero se retrasa. |
 | `screen` | Monitor del que se captura. `0` son todas las pantallas juntas. |
+| `window` | Título de la ventana de aplicación que se captura en lugar de la pantalla (vacío = usar `screen`). Se elige desde ⚙ Opciones. |
 | `no_speech_threshold`, `logprob_threshold`, `compression_ratio_threshold` | Umbrales anti-alucinaciones. Se ajustan desde 🎯 Calibrar, que ademas trae un sandbox para probarlos. |
+
+### Capturar solo una ventana (p. ej. Teams)
+
+En ⚙ Opciones, el selector **Qué capturar 📸** lista, además de las pantallas, las ventanas abiertas (`Ventana: Reunión semanal | Microsoft Teams`). El botón 🔄 vuelve a leer la lista. Al elegir una ventana:
+
+* Se captura **solo esa ventana, aunque esté tapada por otras o en otro monitor**, sin traerla al frente ni robar el foco (`PrintWindow` con `PW_RENDERFULLCONTENT`). Puedes seguir trabajando en el resto de monitores.
+* Se guarda su título en `window`. Como Teams cambia el título con cada chat o reunión, al capturar vale cualquier ventana abierta de la **misma aplicación** (el último tramo del título: `Microsoft Teams`); si hay varias, la que esté más arriba.
+* Si la ventana **no está abierta o está minimizada**, se captura lo que diga `screen` (todas las pantallas o el último monitor elegido). Nunca falla ni interrumpe la transcripción.
+* Algunas ventanas no se dejan dibujar así y salen en negro. En ese caso se recorta lo que haya visible en su rectángulo de pantalla (si otra ventana la tapa, saldrá esa).
 
 ---
 
@@ -83,8 +94,8 @@ La plantilla omite a proposito `notes_dir` y `caps_dir`. Al faltar esos campos, 
 
 ### 2. Controles de la Interfaz
 
-* **📸 Captura:** Toma una captura de pantalla manual instantánea del monitor configurado y la anota en el Markdown.
-* **⚙ Opciones:** Permite elegir la carpeta de notas, la carpeta de capturas, los dispositivos de audio WASAPI (altavoces/micrófono), el monitor y el modelo de Whisper.
+* **📸 Captura:** Toma una captura manual instantánea del objetivo configurado (pantallas, monitor o ventana) y la anota en el Markdown.
+* **⚙ Opciones:** Permite elegir la carpeta de notas, la carpeta de capturas, los dispositivos de audio WASAPI (altavoces/micrófono), qué capturar (pantallas, un monitor o una ventana) y el modelo de Whisper.
 * **🎯 Calibrar:** Abre el panel de fine-tuning para ajustar el prompt de contexto, la lista negra de alucinaciones, el diccionario fonético y probar frases en el sandbox.
 * **⏸ Pausar / ▶ Continuar:** Suspende la toma de notas durante pausas de la reunión sin cerrar el archivo diario.
 
@@ -106,13 +117,15 @@ Recorder/
 │   ├── engine/                     # Trabajador de inferencia faster-whisper
 │   ├── filters/                    # Pipeline anti-alucinaciones, zlib, normalizador y léxico
 │   ├── actions/                    # Capturas de pantalla DPI-aware y notas Markdown
+│   ├── digest/                     # Sintesis de notas: agrupa y limpia sin tocar el original
 │   └── ui/                         # Interfaz gráfica Catppuccin y diálogos modales
 │
 ├── docs/                           # Documentación técnica
 │   ├── architecture.md             # Especificación detallada de arquitectura
 │   ├── anti-hallucination-tuning.md# Guía completa de fine-tuning y alucinaciones
 │   ├── plan-fase-2.md              # Plan de la Fase 2 (modularizacion) - completada
-│   └── plan-fase-3.md              # Plan de la Fase 3 (identificar participantes)
+│   ├── plan-fase-3.md              # Plan de la Fase 3 (identificar participantes)
+│   └── sintesis-de-notas.md        # Como se agrupan y limpian las notas
 │
 └── tests/                          # Suite de pruebas unitarias
     ├── test_audio_processing.py    # Pruebas de DSP y señales
@@ -124,6 +137,7 @@ Para más detalles, consulta la documentación en la carpeta [docs/](docs/):
 * 📖 [docs/architecture.md](docs/architecture.md): Diagramas de flujo y detalle de cada subsistema.
 * 🎯 [docs/anti-hallucination-tuning.md](docs/anti-hallucination-tuning.md): Cómo se producen las alucinaciones en Whisper y cómo calibrarlas.
 * 🗺️ [docs/plan-fase-3.md](docs/plan-fase-3.md): Plan para identificar a cada participante por su voz.
+* 🧹 [docs/sintesis-de-notas.md](docs/sintesis-de-notas.md): Como generar versiones agrupadas y limpias de una nota sin tocar nunca el original.
 
 ---
 

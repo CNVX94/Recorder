@@ -71,13 +71,13 @@ flowchart TD
 * **`pipeline.py`**: Encapsula todo el flujo en una clase reutilizable `TextPipeline` y proporciona un método `test_sample()` para pruebas interactivas en la UI.
 
 ### 2.4. Automatización y Salida (`recorder/actions/`)
-* **`screenshot.py`**: Obtiene coordenadas precisas de cada monitor respetando el escalado DPI de Windows (`ctypes.windll.shcore.SetProcessDpiAwareness(2)`) y captura la pantalla seleccionada con Pillow.
+* **`screenshot.py`**: Obtiene coordenadas precisas de cada monitor respetando el escalado DPI de Windows (`ctypes.windll.shcore.SetProcessDpiAwareness(2)`) y captura la pantalla seleccionada con Pillow, o una ventana de aplicación concreta con `PrintWindow` (`PW_RENDERFULLCONTENT`), que la dibuja aunque esté tapada sin traerla al frente. La política de qué ventana abierta corresponde a la guardada en config (`pick_window`: título exacto o misma aplicación) es una función pura; si no hay ninguna o está minimizada, cae a la pantalla configurada, y si `PrintWindow` devuelve negro, recorta lo visible en su rectángulo.
 * **`notes.py`**: Mantiene abierta la sesión diaria en un archivo `.md`. Coordina el acceso concurrente mediante un cerrojo (`threading.Lock`) y permite trasladar la carpeta de notas en caliente.
 
 ### 2.5. Presentación Gráfica (`recorder/ui/`)
 * Construida en Tkinter con diseño oscuro Catppuccin Mocha.
 * **`main_window.py`**: Visor en tiempo real, sondeo de eventos cada 200 ms y medidores de nivel `🔊 █░   🎤 █░`.
-* **`dialogs/settings_dialog.py`**: Configuración de dispositivos, carpetas y monitores.
+* **`dialogs/settings_dialog.py`**: Configuración de dispositivos, carpetas y objetivo de captura (pantallas, monitor o ventana de aplicación, con botón 🔄 para releer las ventanas abiertas).
 * **`dialogs/tuning_dialog.py`**: Ventana dedicada para calibración de alucinaciones, umbrales y probador en vivo (sandbox).
 
 ---

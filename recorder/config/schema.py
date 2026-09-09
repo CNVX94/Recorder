@@ -18,6 +18,8 @@ class AppConfig:
     out_dev: str = ""   # Nombre WASAPI de la salida a capturar ("" = predeterminada)
     mic_dev: str = ""   # Nombre WASAPI del micrófono ("" = predeterminado)
     screen: int = 0     # 0 = todas las pantallas; 1..n = monitor n
+    window: str = ""    # Título de la ventana de aplicación a capturar; "" = capturar según `screen`.
+                        # Si la ventana ya no está abierta se captura según `screen` (ver screenshot.py).
     model: str = "small"  # tiny, base, small, medium, large-v3-turbo
     beam_size: int = 5
 

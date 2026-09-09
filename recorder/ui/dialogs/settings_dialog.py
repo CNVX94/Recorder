@@ -3,7 +3,7 @@ from tkinter import filedialog
 from typing import Callable, List
 import pyaudiowpatch as pa
 
-from ...actions.screenshot import screen_labels
+from ...actions.screenshot import screen_labels, window_titles
 from ...audio.devices import wasapi_devices
 from ...config.schema import AppConfig
 from ..theme import ACC, BG, BTN_STYLE, DIM, ENTRY_STYLE, FG, LABEL_STYLE, PANEL
@@ -11,6 +11,7 @@ from .tuning_dialog import TuningDialog
 
 DEFAULT_DEV = "(predeterminado de Windows)"
 AVAILABLE_MODELS = ["small", "medium", "base", "tiny", "large-v3-turbo"]
+WINDOW_PREFIX = "Ventana: "  # distingue en el selector una ventana de aplicación de una pantalla
 
 
 class SettingsDialog(tk.Toplevel):
@@ -47,7 +48,9 @@ class SettingsDialog(tk.Toplevel):
         self.v_mic = tk.BooleanVar(value=self.config.mic)
         self.v_out_dev = tk.StringVar(value=self.config.out_dev or DEFAULT_DEV)
         self.v_mic_dev = tk.StringVar(value=self.config.mic_dev or DEFAULT_DEV)
-        self.v_screen = tk.StringVar(value=self.screens[screen_idx])
+        self.v_screen = tk.StringVar(
+            value=WINDOW_PREFIX + self.config.window if self.config.window else self.screens[screen_idx]
+        )
         self.v_model = tk.StringVar(value=self.config.model)
 
     def _build_ui(self):
@@ -60,7 +63,9 @@ class SettingsDialog(tk.Toplevel):
         mic_devs = wasapi_devices(self.pa, "mic")
         self._row_choice(3, "Salida a capturar 🔊:", self.v_out_dev, out_devs)
         self._row_choice(4, "Micrófono 🎤:", self.v_mic_dev, mic_devs)
-        self._row_choice(5, "Pantalla a capturar 📸:", self.v_screen, self.screens[1:], first=self.screens[0])
+        targets = self._targets()
+        self.om_target = self._row_choice(5, "Qué capturar 📸:", self.v_screen, targets[1:], first=targets[0])
+        tk.Button(self, text="🔄", command=self._refresh_targets, **BTN_STYLE).grid(row=5, column=2, padx=(6, 16))
         self._row_choice(6, "Modelo Whisper (al reiniciar):", self.v_model, AVAILABLE_MODELS[1:], first=AVAILABLE_MODELS[0])
 
         tk.Checkbutton(
@@ -135,9 +140,25 @@ class SettingsDialog(tk.Toplevel):
             highlightthickness=0,
             font=("Segoe UI", 10),
             anchor="w",
+            width=40,  # los títulos de ventana pueden ser larguísimos; que no ensanchen el diálogo
         )
         om["menu"].config(bg=PANEL, fg=FG, activebackground=ACC)
         om.grid(row=r, column=1, sticky="ew", padx=(0, 16))
+        return om
+
+    def _targets(self) -> List[str]:
+        """Opciones de captura: las pantallas y las ventanas abiertas ahora (más la guardada, aunque esté cerrada)."""
+        titles = window_titles()
+        if self.config.window and self.config.window not in titles:
+            titles.insert(0, self.config.window)
+        return self.screens + [WINDOW_PREFIX + t for t in titles]
+
+    def _refresh_targets(self):
+        """Las ventanas abiertas cambian: vuelve a leerlas y reconstruye el desplegable."""
+        menu = self.om_target["menu"]
+        menu.delete(0, "end")
+        for label in self._targets():
+            menu.add_command(label=label, command=lambda v=label: self.v_screen.set(v))
 
     def _open_tuning(self):
         TuningDialog(self, self.config, on_save=lambda cfg: None)
@@ -160,7 +181,12 @@ class SettingsDialog(tk.Toplevel):
         self.config.out_dev = new_out
         self.config.mic_dev = new_mic
         self.config.mic = self.v_mic.get()
-        self.config.screen = self.screens.index(self.v_screen.get()) if self.v_screen.get() in self.screens else 0
+        choice = self.v_screen.get()
+        if choice.startswith(WINDOW_PREFIX):
+            self.config.window = choice[len(WINDOW_PREFIX):]  # `screen` se conserva como plan B
+        else:
+            self.config.window = ""
+            self.config.screen = self.screens.index(choice) if choice in self.screens else 0
         self.config.model = self.v_model.get()
 
         self.on_save(self.config, notes_changed, devices_changed)

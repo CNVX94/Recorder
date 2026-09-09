@@ -14,6 +14,7 @@ from ..config.manager import ConfigManager
 from ..config.schema import AppConfig
 from ..engine.whisper_worker import TranscriberWorker
 from .dialogs.settings_dialog import SettingsDialog
+from .dialogs.digest_dialog import DigestDialog
 from .dialogs.tuning_dialog import TuningDialog
 from .theme import ACC, BG, BTN_STYLE, DIM, FG, HEADER_STYLE, MIC, PANEL
 
@@ -94,6 +95,14 @@ class MainWindow:
         )
         self.btn_options.pack(side="right", padx=(0, 6))
 
+        self.btn_digest = tk.Button(
+            top,
+            text="📑 Sintesis",
+            command=self.open_digest,
+            **BTN_STYLE,
+        )
+        self.btn_digest.pack(side="right", padx=(0, 6))
+
         self.btn_shot = tk.Button(
             top, text="📸 Captura", command=self.manual_screenshot, **BTN_STYLE
         )
@@ -142,7 +151,7 @@ class MainWindow:
 
     def manual_screenshot(self):
         stamp = dt.datetime.now().strftime("%H:%M:%S")
-        f = take_screenshot("manual", self.config.caps_dir, self.config.screen)
+        f = take_screenshot("manual", self.config.caps_dir, self.config.screen, self.config.window)
         ref = md_ref(f, self.notes_session.file_path.parent)
         self.notes_session.write_line(f"- **{stamp}** 📸 captura manual → ![]({ref})")
         self.add_line(stamp, "out", "(captura manual)", ["manual"])
@@ -160,6 +169,10 @@ class MainWindow:
             "⏸ pausa, no se toma nota" if is_paused else "▶ continúa",
             [],
         )
+
+    def open_digest(self):
+        """Abre el generador de sintesis. Solo lee notas; nunca modifica el original."""
+        DigestDialog(self.root, self.config, active_note=self.notes_session.file_path)
 
     def open_options(self):
         def handle_save(new_config: AppConfig, notes_changed: bool, devices_changed: bool):
@@ -204,7 +217,11 @@ class MainWindow:
             else:
                 mic_tag = " + 🎤" if self.config.mic else ""
                 pending = self.chunk_queue.qsize()
-                self.lbl_status.config(text=f"● Escuchando{mic_tag} · pendientes: {pending}")
+                fallos = getattr(self.transcriber, "errors", 0)
+                aviso = f" · ⚠ {fallos} con fallo" if fallos else ""
+                self.lbl_status.config(
+                    text=f"● Escuchando{mic_tag} · pendientes: {pending}{aviso}"
+                )
 
         out_lvl = self.audio_manager.levels.get("out", 0.0)
         mic_lvl = self.audio_manager.levels.get("mic", 0.0)
@@ -223,3 +240,4 @@ class MainWindow:
 
     def run(self):
         self.root.mainloop()
+

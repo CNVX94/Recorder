@@ -16,7 +16,9 @@ from types import SimpleNamespace as S
 import numpy as np
 import pyaudiowpatch as pa
 
-from recorder.actions import md_ref, monitors, screen_labels, take_screenshot, NotesSession
+from recorder.actions import (
+    NotesSession, find_window, md_ref, monitors, pick_window, screen_labels, take_screenshot, windows,
+)
 from recorder.audio import bars, rms, to_16k, wasapi_devices, resolve_wasapi_device
 from recorder.config import AppConfig, ConfigManager
 from recorder.filters import clean_segments, find_keywords, fix, normalize, parse_fixes
@@ -35,7 +37,7 @@ def screenshot(tag, caps_dir=None, screen=0):
     cfg_mgr = ConfigManager()
     cfg = cfg_mgr.load()
     target_caps = caps_dir or cfg.caps_dir
-    p = take_screenshot(tag, target_caps, screen or cfg.screen)
+    p = take_screenshot(tag, target_caps, screen or cfg.screen, "" if screen else cfg.window)
     return md_ref(p, cfg.notes_dir)
 
 
@@ -79,6 +81,9 @@ def selftest():
     )
     m = monitors()
     assert m and all(r > l and b > t for l, t, r, b in m) and len(screen_labels()) == len(m) + 1
+    assert all(isinstance(h, int) and t for h, t in windows())
+    assert pick_window("Chat | Equipo | Microsoft Teams", ["x - Bloc de notas", "Reunión | Microsoft Teams"]) == "Reunión | Microsoft Teams"
+    assert pick_window("Chat | Microsoft Teams", ["x - Bloc de notas"]) is None and find_window("") is None
     print("selftest ok (Fase 2 Modular)")
 
 
