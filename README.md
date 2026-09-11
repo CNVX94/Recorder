@@ -63,6 +63,7 @@ La plantilla omite a proposito `notes_dir` y `caps_dir`. Al faltar esos campos, 
 | `fixes` | Sustituciones palabra por palabra tras transcribir, para lo que Whisper confunda siempre igual. |
 | `ignore` | Frases fantasma que Whisper inventa en los silencios. La lista de fabrica cubre las mas comunes en espanol. |
 | `model` | Modelo de Whisper. `small` va en tiempo real en un portatil sin GPU; `medium` es mas preciso pero se retrasa. |
+| `cpu_threads` | Hilos de CPU para la inferencia. `0` deja el valor de faster-whisper (4), que desaprovecha una CPU con mas nucleos. Como medir el mejor valor en tu equipo: [docs/rendimiento.md](docs/rendimiento.md). |
 | `screen` | Monitor del que se captura. `0` son todas las pantallas juntas. |
 | `window` | Título de la ventana de aplicación que se captura en lugar de la pantalla (vacío = usar `screen`). Se elige desde ⚙ Opciones. |
 | `no_speech_threshold`, `logprob_threshold`, `compression_ratio_threshold` | Umbrales anti-alucinaciones. Se ajustan desde 🎯 Calibrar, que ademas trae un sandbox para probarlos. |
@@ -183,6 +184,7 @@ Recorder/
 Para más detalles, consulta la documentación en la carpeta [docs/](docs/):
 * 📖 [docs/architecture.md](docs/architecture.md): Diagramas de flujo y detalle de cada subsistema.
 * 🎯 [docs/anti-hallucination-tuning.md](docs/anti-hallucination-tuning.md): Cómo se producen las alucinaciones en Whisper y cómo calibrarlas.
+* ⚡ [docs/rendimiento.md](docs/rendimiento.md): Qué hace lenta la transcripción en CPU, qué palancas hay y cómo medirlas en tu equipo (`tools/medir_rendimiento.py`).
 * 🗺️ [docs/plan-fase-3.md](docs/plan-fase-3.md): Plan para identificar a cada participante por su voz.
 * 🧹 [docs/sintesis-de-notas.md](docs/sintesis-de-notas.md): Como generar versiones agrupadas y limpias de una nota sin tocar nunca el original.
 

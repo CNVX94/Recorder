@@ -23,6 +23,11 @@ class AppConfig:
     model: str = "small"  # tiny, base, small, medium, large-v3-turbo
     beam_size: int = 5
 
+    # Hilos de CPU que usa CTranslate2 en la inferencia. 0 = valor por defecto de
+    # faster-whisper (4 hilos), que se queda corto en una CPU con mas nucleos.
+    # Como elegirlo midiendo en tu equipo: docs/rendimiento.md.
+    cpu_threads: int = 0
+
     # Vocabulario de contexto (Initial prompt) para guiar terminos tecnicos y nombres.
     # Vacio a proposito: cada usuario pone el suyo. Ver config.example.json.
     vocab: str = ""

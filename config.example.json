@@ -13,6 +13,7 @@
   "window": "",
   "model": "small",
   "beam_size": 5,
+  "cpu_threads": 0,
   "vocab": "Daily de desarrollo de software. Términos: backend, frontend, endpoint, despliegue, sprint, incidencia, base de datos, entorno de pruebas, integración continua. Nombres del equipo: Ana, Luis, Marta.",
   "ignore": [
     "suscríbete",

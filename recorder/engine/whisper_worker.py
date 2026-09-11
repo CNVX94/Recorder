@@ -65,7 +65,12 @@ class TranscriberWorker:
             self.ui_queue.put(("status", f"Cargando modelo {self.config.model}…"))
             from faster_whisper import WhisperModel
 
-            model = WhisperModel(self.config.model, device="cpu", compute_type="int8")
+            model = WhisperModel(
+                self.config.model,
+                device="cpu",
+                compute_type="int8",
+                cpu_threads=self.config.cpu_threads,  # 0 = por defecto de la biblioteca
+            )
         except Exception as e:
             self.ui_queue.put(("status", f"⛔ No se pudo cargar el modelo: {e!r}"))
             return

@@ -81,13 +81,12 @@ class MainWindow:
         self.lbl_status = tk.Label(
             top, text="Iniciando…", bg=BG, fg=DIM, anchor="w", font=("Segoe UI Semibold", 11)
         )
-        self.lbl_status.pack(side="left")
-
         self.lbl_meter = tk.Label(top, text="", bg=BG, fg=DIM, font=("Consolas", 10), cursor="hand2")
-        self.lbl_meter.pack(side="left", padx=16)
         self.lbl_meter.bind("<Button-1>", lambda _e: self.reconnect_audio())
 
-        # Botones cabecera
+        # Botones cabecera. Se empacan ANTES que el estado y los medidores: con pack, lo primero
+        # reserva su sitio, así que un estado largo (por ejemplo "transcribiendo 200 fragmentos")
+        # se recorta en vez de empujar los botones fuera de la ventana.
         self.btn_pause = tk.Button(top, text="⏸ Pausar", command=self.toggle_pause, **BTN_STYLE)
         self.btn_pause.pack(side="right")
 
@@ -113,6 +112,9 @@ class MainWindow:
             top, text="📸 Captura", command=self.manual_screenshot, **BTN_STYLE
         )
         self.btn_shot.pack(side="right", padx=(0, 6))
+
+        self.lbl_meter.pack(side="right", padx=16)
+        self.lbl_status.pack(side="left", fill="x", expand=True)
 
         # Etiqueta de ruta de archivo
         self.lbl_path = tk.Label(
@@ -181,6 +183,12 @@ class MainWindow:
         self.notes_session.write_line(f"- **{stamp}** 📸 captura manual → ![]({ref})")
         self.add_line(stamp, "out", "(captura manual)", ["manual"])
 
+    def _mensaje_pausa(self) -> str:
+        """Texto de la pausa, explicando que lo pendiente se sigue transcribiendo."""
+        pendiente = self._pending_summary() if self.chunk_queue.qsize() else ""
+        cola = f"; siguen {pendiente} por transcribir" if pendiente else ""
+        return f"⏸ pausa: no se captura audio nuevo{cola}"
+
     def toggle_pause(self):
         self.audio_manager.paused = not self.audio_manager.paused
         is_paused = self.audio_manager.paused
@@ -191,7 +199,7 @@ class MainWindow:
         self.add_line(
             stamp,
             "out",
-            "⏸ pausa, no se toma nota" if is_paused else "▶ continúa",
+            self._mensaje_pausa() if is_paused else "▶ continúa, se vuelve a capturar audio",
             [],
         )
 
@@ -267,7 +275,17 @@ class MainWindow:
             if self.draining:
                 self.lbl_status.config(text=f"⏳ Terminando {self._pending_summary()}…", fg=FG)
             elif self.audio_manager.paused:
-                self.lbl_status.config(text="⏸ En pausa")
+                # La pausa solo deja de capturar audio nuevo; la cola pendiente se sigue
+                # transcribiendo. Se muestra el avance para que eso se vea y no parezca parado.
+                fallos = getattr(self.transcriber, "errors", 0)
+                aviso = f" · ⚠ {fallos} con fallo" if fallos else ""
+                awake = " · ☕" if self.awake else ""
+                resto = (
+                    f" · transcribiendo {self._pending_summary()}"
+                    if (pending or busy)
+                    else " · sin pendientes"
+                )
+                self.lbl_status.config(text=f"⏸ En pausa{resto}{aviso}{awake}")
             else:
                 mic_tag = " + 🎤" if self.config.mic else ""
                 fallos = getattr(self.transcriber, "errors", 0)
