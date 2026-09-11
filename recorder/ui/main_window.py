@@ -1,22 +1,23 @@
 import datetime as dt
 import queue
 import threading
+import time
 import tkinter as tk
-from tkinter import scrolledtext
+from tkinter import messagebox, scrolledtext
 from typing import Optional
 import pyaudiowpatch as pa
 
 from ..actions.notes import NotesSession, md_ref
+from ..actions.power import keep_awake, should_stay_awake
 from ..actions.screenshot import take_screenshot
-from ..audio.capture import AudioCaptureManager
-from ..audio.processing import bars
+from ..audio.capture import AudioCaptureManager, meter_label, pending_audio_sec, pending_summary
 from ..config.manager import ConfigManager
 from ..config.schema import AppConfig
 from ..engine.whisper_worker import TranscriberWorker
 from .dialogs.settings_dialog import SettingsDialog
 from .dialogs.digest_dialog import DigestDialog
 from .dialogs.tuning_dialog import TuningDialog
-from .theme import ACC, BG, BTN_STYLE, DIM, FG, HEADER_STYLE, MIC, PANEL
+from .theme import ACC, BG, BTN_STYLE, DIM, ERR, FG, HEADER_STYLE, MIC, PANEL
 
 
 class MainWindow:
@@ -37,7 +38,7 @@ class MainWindow:
         self.audio_manager = AudioCaptureManager(
             pa_instance=self.pa,
             chunk_queue=self.chunk_queue,
-            status_callback=lambda msg: self.ui_queue.put(("status", msg)),
+            source_callback=lambda kind, up, detail: self.ui_queue.put(("source", kind, up, detail)),
             out_dev=self.config.out_dev,
             mic_dev=self.config.mic_dev,
             mic_enabled=self.config.mic,
@@ -51,7 +52,11 @@ class MainWindow:
             stop_event=self.stop_event,
         )
 
+        self.awake = False     # True mientras se le pide a Windows que no suspenda por inactividad
+        self.draining = False  # True cuando se cerró la ventana pero se espera a vaciar la cola
+
         self._build_gui()
+        self._avisar_config_ilegible()
 
         # Iniciar hilos en segundo plano
         self.audio_manager.start()
@@ -67,7 +72,7 @@ class MainWindow:
         self.root = tk.Tk()
         self.root.title("Recorder · Daily")
         self.root.configure(bg=BG)
-        self.root.geometry("860x560")
+        self.root.geometry("1040x560")  # la cabecera con "⛔ reintento N" y "☕" no cabe en 860
 
         # Cabecera
         top = tk.Frame(self.root, bg=BG)
@@ -78,8 +83,9 @@ class MainWindow:
         )
         self.lbl_status.pack(side="left")
 
-        self.lbl_meter = tk.Label(top, text="", bg=BG, fg=DIM, font=("Consolas", 10))
+        self.lbl_meter = tk.Label(top, text="", bg=BG, fg=DIM, font=("Consolas", 10), cursor="hand2")
         self.lbl_meter.pack(side="left", padx=16)
+        self.lbl_meter.bind("<Button-1>", lambda _e: self.reconnect_audio())
 
         # Botones cabecera
         self.btn_pause = tk.Button(top, text="⏸ Pausar", command=self.toggle_pause, **BTN_STYLE)
@@ -137,8 +143,27 @@ class MainWindow:
         self.txt.tag_config("t", foreground=DIM, font=("Consolas", 10))
         self.txt.tag_config("kw", foreground=ACC)
         self.txt.tag_config("mic", foreground=MIC)
+        self.txt.tag_config("err", foreground=ERR)
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def _avisar_config_ilegible(self):
+        """Si la configuración no se pudo leer, decirlo en vez de arrancar como si nada.
+
+        Va al visor y a la nota, no a la cabecera: la cabecera la reescribe el hilo de
+        transcripción en cuanto carga el modelo y el aviso se perdería de vista.
+        """
+        motivo = getattr(self.config_manager, "last_error", "")
+        if not motivo:
+            return
+        stamp = dt.datetime.now().strftime("%H:%M:%S")
+        self.txt.insert("end", f"{stamp}  ", "t")
+        self.txt.insert("end", f"⚠ {motivo}\n", "err")
+        self.txt.see("end")
+        try:
+            self.notes_session.write_line(f"> ⚠ {stamp} {motivo}")
+        except Exception:  # ponytail: si ni la nota se puede escribir, el visor ya avisó
+            pass
 
     def add_line(self, stamp: str, kind: str, text: str, hits: list):
         self.txt.insert("end", f"{stamp}  ", "t")
@@ -202,6 +227,29 @@ class MainWindow:
 
         TuningDialog(self.root, self.config, on_save=handle_save)
 
+    def note_source(self, kind: str, up: bool, detail: str):
+        """Deja constancia en pantalla y en la nota de que una fuente cayó o volvió, como con la pausa."""
+        stamp = dt.datetime.now().strftime("%H:%M:%S")
+        name = "salida" if kind == "out" else "micrófono"
+        msg = f"✔ audio de {name} recuperado" if up else f"⚠ audio de {name} caído, reintentando: {detail}"
+        self.notes_session.write_line(f"\n> {msg} {stamp}\n")
+        self.add_line(stamp, "out", msg, [])
+
+    def reconnect_audio(self):
+        """Clic en los medidores: reabre las dos fuentes con los dispositivos configurados.
+
+        Es el plan B para un flujo que tras despertar se queda mudo sin dar error (ahí el
+        reintento automático no salta porque no hay excepción que lo dispare).
+        """
+        if self.draining:
+            return
+        self.audio_manager.restart(self.config.out_dev, self.config.mic_dev, self.config.mic)
+
+    def _pending_summary(self) -> str:
+        with self.chunk_queue.mutex:  # queue.Queue documenta mutex y queue para esto
+            chunks = list(self.chunk_queue.queue)
+        return pending_summary(len(chunks), pending_audio_sec(chunks))
+
     def poll(self):
         while not self.ui_queue.empty():
             m = self.ui_queue.get()
@@ -209,33 +257,67 @@ class MainWindow:
                 self.lbl_status.config(text=m[1], fg=FG if m[1].startswith("●") else DIM)
             elif m[0] == "line":
                 self.add_line(*m[1:])
+            elif m[0] == "source":
+                self.note_source(*m[1:])
 
+        pending = self.chunk_queue.qsize()
+        busy = self.transcriber.busy
         cur_text = self.lbl_status.cget("text")
-        if cur_text and cur_text[0] in "●⏸":
-            if self.audio_manager.paused:
+        if cur_text and cur_text[0] in "●⏸⏳":
+            if self.draining:
+                self.lbl_status.config(text=f"⏳ Terminando {self._pending_summary()}…", fg=FG)
+            elif self.audio_manager.paused:
                 self.lbl_status.config(text="⏸ En pausa")
             else:
                 mic_tag = " + 🎤" if self.config.mic else ""
-                pending = self.chunk_queue.qsize()
                 fallos = getattr(self.transcriber, "errors", 0)
                 aviso = f" · ⚠ {fallos} con fallo" if fallos else ""
+                awake = " · ☕" if self.awake else ""
                 self.lbl_status.config(
-                    text=f"● Escuchando{mic_tag} · pendientes: {pending}{aviso}"
+                    text=f"● Escuchando{mic_tag} · pendientes: {pending}{aviso}{awake}"
                 )
 
-        out_lvl = self.audio_manager.levels.get("out", 0.0)
-        mic_lvl = self.audio_manager.levels.get("mic", 0.0)
-        self.lbl_meter.config(text=f"🔊 {bars(out_lvl)}   🎤 {bars(mic_lvl)}")
+        self.lbl_meter.config(text=meter_label(self.audio_manager.levels, self.audio_manager.attempts))
 
+        awake = should_stay_awake(
+            time.time(), self.audio_manager.last_audio_at, pending, busy, self.audio_manager.paused
+        )
+        if awake != self.awake:
+            keep_awake(awake)
+            self.awake = awake
+
+        if self.draining and pending == 0 and not busy:
+            self._shutdown()
+            return
         self.root.after(200, self.poll)
 
     def on_close(self):
+        """Cerrar con fragmentos pendientes pregunta: esperar a que se transcriban o perderlos."""
+        if self.chunk_queue.qsize():
+            resumen = self._pending_summary()
+            esperar = messagebox.askyesno(
+                "Recorder",
+                f"Quedan {resumen} sin transcribir.\n\n"
+                "Sí: seguir transcribiendo; la ventana se cierra sola al terminar.\n"
+                "No: salir ahora y perder esos fragmentos.",
+                parent=self.root,
+            )
+            if esperar:
+                self.draining = True
+                self.audio_manager.stop()  # no entran fragmentos nuevos; la cola solo baja
+                self.btn_pause.config(state="disabled")
+                self.lbl_status.config(text=f"⏳ Terminando {resumen}…", fg=FG)
+                return
+        self._shutdown()
+
+    def _shutdown(self):
         self.audio_manager.stop()
         self.stop_event.set()
-        try:
-            self.pa.terminate()
-        except Exception:
-            pass
+        keep_awake(False)
+        # ponytail: a propósito no se llama a pa.terminate(). Cierra cada stream desde este hilo
+        # mientras el del loopback sigue bloqueado en read() (bloquea hasta que suena algo) y eso
+        # revienta el proceso con 0xC0000005 (pasaba en cada cierre, invisible porque la ventana
+        # desaparece igual). El proceso termina justo después y Windows recoge los recursos.
         self.root.destroy()
 
     def run(self):

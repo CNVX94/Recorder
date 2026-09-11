@@ -20,6 +20,7 @@
   * **🧪 Sandbox en Vivo:** Prueba tus reglas interactivamente en la interfaz antes de guardarlas.
 * 🧹 **Síntesis de Notas:** Genera versiones agrupadas por tramos de reloj (5, 15, 30 o 60 min), con las líneas del mismo turno unidas en párrafos y el relleno corto descartado. **Nunca modifica la nota original**: cada síntesis es un archivo nuevo que registra de qué original salió.
 * 📝 **Salida Markdown Atómica:** Genera un archivo diario (ej: `daily_2026-09-08_14-30.md`) con soporte para pausar (`⏸`), reanudar (`▶`) y trasladar la carpeta de notas en caliente.
+* 🎧 **Resistente a auriculares y suspensión:** Si una fuente de audio se cae (auriculares desconectados, equipo que despierta), se reabre sola con reintentos mientras la otra sigue; el medidor lo muestra (`🔊 ⛔ reintento 3`). Mantiene el equipo despierto solo mientras hay trabajo (`☕`) y, al cerrar con fragmentos pendientes, avisa de cuántos minutos faltan y deja terminar. Ver [Auriculares, suspensión y cierre](#-auriculares-suspensión-y-cierre).
 
 ---
 
@@ -98,6 +99,51 @@ En ⚙ Opciones, el selector **Qué capturar 📸** lista, además de las pantal
 * **⚙ Opciones:** Permite elegir la carpeta de notas, la carpeta de capturas, los dispositivos de audio WASAPI (altavoces/micrófono), qué capturar (pantallas, un monitor o una ventana) y el modelo de Whisper.
 * **🎯 Calibrar:** Abre el panel de fine-tuning para ajustar el prompt de contexto, la lista negra de alucinaciones, el diccionario fonético y probar frases en el sandbox.
 * **⏸ Pausar / ▶ Continuar:** Suspende la toma de notas durante pausas de la reunión sin cerrar el archivo diario.
+* **Clic en los medidores `🔊 🎤`:** Reabre las dos fuentes de audio al momento con los dispositivos configurados (plan B si un flujo se queda mudo sin dar error).
+* **Cerrar la ventana:** Si quedan fragmentos por transcribir, pregunta cuántos minutos de audio faltan y deja elegir entre esperar a que terminen o salir perdiéndolos.
+
+---
+
+## 🎧 Auriculares, suspensión y cierre
+
+Con `large-v3-turbo` en un portátil sin GPU la transcripción va al ritmo justo del tiempo real, y en una reunión larga la cola de fragmentos pendientes puede crecer hasta decenas de minutos de audio en memoria. Tres mecanismos protegen ese trabajo.
+
+### Si se cae una fuente de audio (auriculares desconectados, dispositivo que desaparece)
+
+Cada fuente (🔊 salida y 🎤 micrófono) vive en su propio hilo y **se recupera sola**: al morir el flujo, lo que había grabado a medias se encola igual, y la fuente se reintenta con espera creciente (1, 2, 4, 8, 16 y luego cada 30 s) hasta que el dispositivo vuelve. La otra fuente sigue trabajando mientras tanto, y la cola pendiente no se toca nunca por un problema de dispositivo.
+
+En la cabecera se ve de un vistazo: el medidor pasa de `🔊 ████░░░░` a `🔊 ⛔ reintento 3` mientras está caída, y vuelve a las barras en cuanto lee audio otra vez. Además queda una línea con hora en la ventana y en la nota (`> ⚠ audio de salida caído…` / `> ✔ audio de salida recuperado`), para saber por qué hay un hueco.
+
+Límites que conviene conocer:
+
+* PortAudio lee la lista de dispositivos **al arrancar**. Desconectar y volver a conectar el mismo dispositivo se recupera solo; pero un dispositivo que **no existía al abrir Recorder**, o cambiar el predeterminado de Windows a **otro** distinto, exige reiniciar Recorder (o elegirlo a mano en ⚙ Opciones si ya estaba en la lista).
+* Si tras despertar de una suspensión un flujo se queda mudo **sin dar error** (no es lo habitual, pero puede pasar), el reintento automático no salta porque no hay fallo que lo dispare. Haz **clic en los medidores** `🔊 🎤`: reabre las dos fuentes al momento.
+
+### Suspensión por inactividad y cierre de la tapa
+
+Mientras hay trabajo (se está oyendo algo, o quedan fragmentos por transcribir), Recorder pide a Windows que **no suspenda el equipo por inactividad** (`SetThreadExecutionState`) y lo indica con `☕` en la cabecera. No es permanente: se suelta cuando la cola está vacía y llevan 15 minutos sin oírse nada, o en pausa (⏸) sin cola. Así un Recorder olvidado abierto no deja el portátil encendido toda la noche. La pantalla sí puede apagarse; solo se retiene el sistema.
+
+**Cerrar la tapa no lo puede impedir ninguna aplicación**: es una directiva de energía de Windows. Si quieres cerrar la tapa y que Recorder siga transcribiendo, configura que al cerrarla no pase nada:
+
+* Interfaz: *Panel de control → Opciones de energía → Elegir el comportamiento del cierre de la tapa → "No hacer nada"* (con batería y enchufado).
+* O en PowerShell **como administrador** (`0` = no hacer nada; `ac` = enchufado, `dc` = batería):
+  ```powershell
+  powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 0
+  powercfg /setdcvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 0
+  powercfg /setactive SCHEME_CURRENT
+  ```
+  Para comprobar que Recorder está reteniendo el equipo, `powercfg /requests` (también como administrador) lista `python.exe` bajo `SYSTEM`.
+
+Si el equipo se suspende o hiberna igualmente (tapa, botón, o inactividad con la app en pausa), al despertar las fuentes se reabren solas por el mismo mecanismo de reintento, y la cola pendiente sigue donde estaba: vive en memoria y una suspensión no la pierde. Lo que sí la pierde es que el proceso muera (apagado, cierre de sesión, fallo de Python). No se vuelca a disco a propósito: serían cientos de MB de audio escritos mientras la CPU ya va justa transcribiendo, para cubrir un caso raro.
+
+### Cerrar la ventana con fragmentos pendientes
+
+Al cerrar con cola pendiente, Recorder dice cuántos fragmentos y cuántos minutos de audio quedan, y da a elegir:
+
+* **Sí**: deja de capturar, sigue transcribiendo lo pendiente (cabecera `⏳ Terminando 212 fragmentos (~48 min de audio)…`) y la ventana se cierra sola al acabar. El equipo se mantiene despierto mientras tanto.
+* **No**: sale ahora y pierde esos fragmentos.
+
+Con la cola vacía cierra directamente, como siempre.
 
 ---
 
@@ -129,6 +175,7 @@ Recorder/
 │
 └── tests/                          # Suite de pruebas unitarias
     ├── test_audio_processing.py    # Pruebas de DSP y señales
+    ├── test_audio_recovery.py      # Reapertura de fuentes caídas, cierre con cola y equipo despierto
     ├── test_config.py              # Pruebas de configuración
     └── test_filters_and_lexicon.py # Pruebas de filtros y sustituciones
 ```

@@ -19,7 +19,10 @@ import pyaudiowpatch as pa
 from recorder.actions import (
     NotesSession, find_window, md_ref, monitors, pick_window, screen_labels, take_screenshot, windows,
 )
-from recorder.audio import bars, rms, to_16k, wasapi_devices, resolve_wasapi_device
+from recorder.actions import should_stay_awake
+from recorder.audio import (
+    bars, meter_label, pending_summary, resolve_wasapi_device, retry_delay, rms, to_16k, wasapi_devices,
+)
 from recorder.config import AppConfig, ConfigManager
 from recorder.filters import clean_segments, find_keywords, fix, normalize, parse_fixes
 from recorder.ui import MainWindow
@@ -60,6 +63,11 @@ def selftest():
     a = to_16k(np.zeros(48000 * 2, np.int16), 48000, 2)
     assert a.shape == (16000,) and a.dtype == np.float32
     assert bars(0) == "░" * 8 and bars(32768) == "█" * 8 and bars(327.68) == "██░░░░░░"  # -40 dB
+    assert retry_delay(1) == 1 and retry_delay(3) == 4 and retry_delay(99) == 30  # espera creciente acotada
+    assert meter_label({"out": 0.0, "mic": 0.0}, {"out": 2, "mic": 0}) == "🔊 ⛔ reintento 2   🎤 ░░░░░░░░"
+    assert pending_summary(150, 3000) == "150 fragmentos (~50 min de audio)"
+    assert should_stay_awake(100.0, 0.0, pending=1, busy=False, paused=True)  # con cola, siempre despierto
+    assert not should_stay_awake(9999.0, 0.0, pending=0, busy=False, paused=False)  # en silencio largo, no
     assert md_ref(r"C:\n\caps\x.png", r"C:\n") == "caps/x.png"
     assert md_ref(r"C:\otro\x.png", r"C:\n") == "../otro/x.png"
     assert md_ref(r"D:\x.png", r"C:\n") == "D:/x.png"

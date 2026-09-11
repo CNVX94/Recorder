@@ -32,6 +32,7 @@ class TranscriberWorker:
         self.stop_event = stop_event
         self.last_cap_time = 0.0
         self.errors = 0  # fragmentos perdidos y capturas fallidas de esta sesion
+        self.busy = False  # True mientras transcribe un fragmento ya sacado de la cola
 
         self.pipeline = TextPipeline(
             keywords=self.config.keywords,
@@ -75,10 +76,13 @@ class TranscriberWorker:
                 t0, kind, audio = self.chunk_queue.get(timeout=0.5)
             except queue.Empty:
                 continue
+            self.busy = True
             try:
                 self._process(model, t0, kind, audio)
             except Exception as e:
                 self._report_lost(t0, e)
+            finally:
+                self.busy = False
 
     def _report_lost(self, t0: float, err: Exception):
         """Deja constancia del fragmento perdido en la nota y en el contador de la cabecera."""
