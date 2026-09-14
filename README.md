@@ -26,6 +26,8 @@
 
 ## 🚀 Instalación y Requisitos
 
+📘 [Guía de instalación rápida](docs/instalacion.md): instalador de un clic (`install.bat`) que deja todo listo, sin pasos manuales.
+
 1. **Requisitos:**
    * Windows 10 o Windows 11.
    * Python 3.10 o superior.

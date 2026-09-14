@@ -1,0 +1,8 @@
+# Dependencias de terceros de Recorder.
+# Deducidas de los "import" reales en recorder.py, recorder/ y tools/medir_rendimiento.py.
+# El resto de imports del proyecto (pathlib, tkinter, ctypes, threading, queue, json...) son de la librería estándar de Python.
+
+faster-whisper>=1.0.0   # recorder/engine/whisper_worker.py, tools/medir_rendimiento.py: motor de transcripcion
+PyAudioWPatch>=0.2.12.5 # recorder.py, recorder/audio/*, recorder/ui/dialogs/settings_dialog.py: captura WASAPI loopback (import pyaudiowpatch)
+Pillow>=10.0.0          # recorder/actions/screenshot.py, tests/test_screenshot.py: capturas de pantalla (import PIL)
+numpy>=1.24.0           # recorder.py, recorder/audio/processing.py, recorder/engine/models.py: procesado de audio

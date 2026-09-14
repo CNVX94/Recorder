@@ -6,7 +6,7 @@ from typing import Callable, Optional
 
 from ..actions.notes import NotesSession, md_ref
 from ..actions.screenshot import take_screenshot
-from ..config.schema import AppConfig
+from ..config.schema import AppConfig, detect_cuda_device_count, resolve_runtime
 from ..filters.pipeline import TextPipeline
 
 CAP_COOLDOWN_SEC = 15.0
@@ -31,7 +31,8 @@ class TranscriberWorker:
         self.notes_session = notes_session
         self.stop_event = stop_event
         self.last_cap_time = 0.0
-        self.errors = 0  # fragmentos perdidos y capturas fallidas de esta sesion
+        self.errors = 0
+        self.beam_size = config.beam_size  # run() lo reajusta si cae a CPU  # fragmentos perdidos y capturas fallidas de esta sesion
         self.busy = False  # True mientras transcribe un fragmento ya sacado de la cola
 
         self.pipeline = TextPipeline(
@@ -62,15 +63,37 @@ class TranscriberWorker:
         fallo afecta a un unico fragmento y no debe costar el resto de la reunion.
         """
         try:
-            self.ui_queue.put(("status", f"Cargando modelo {self.config.model}…"))
+            # Resolver el hardware ANTES de construir el modelo: WhisperModel descarga los
+            # pesos antes de validar el dispositivo, así que detectar el fallo después ya
+            # habría bajado varios GB de un modelo que en CPU no sirve.
+            model_name, device, compute_type, beam, aviso = resolve_runtime(
+                self.config, detect_cuda_device_count()
+            )
+            self.beam_size = beam
+            if aviso:
+                self.ui_queue.put(("status", aviso))
+            self.ui_queue.put(("status", f"Cargando modelo {model_name}…"))
             from faster_whisper import WhisperModel
 
-            model = WhisperModel(
-                self.config.model,
-                device="cpu",
-                compute_type="int8",
-                cpu_threads=self.config.cpu_threads,  # 0 = por defecto de la biblioteca
-            )
+            try:
+                model = WhisperModel(
+                    model_name,
+                    device=device,
+                    compute_type=compute_type,
+                    cpu_threads=self.config.cpu_threads,  # 0 = por defecto de la biblioteca
+                )
+            except Exception as e:
+                if device == "cpu":
+                    raise
+                # Hay GPU pero no arranca (driver, VRAM): mismo modelo en CPU, avisando.
+                self.ui_queue.put((
+                    "status",
+                    f"⚠ La GPU no pudo cargar {model_name} ({e!r}); usando CPU en su lugar.",
+                ))
+                model = WhisperModel(
+                    model_name, device="cpu", compute_type="int8",
+                    cpu_threads=self.config.cpu_threads,
+                )
         except Exception as e:
             self.ui_queue.put(("status", f"⛔ No se pudo cargar el modelo: {e!r}"))
             return
@@ -105,7 +128,7 @@ class TranscriberWorker:
         segs, _ = model.transcribe(
             audio,
             language=DEFAULT_LANGUAGE,
-            beam_size=self.config.beam_size,
+            beam_size=self.beam_size,
             vad_filter=True,
             condition_on_previous_text=False,
             initial_prompt=vocab_prompt,

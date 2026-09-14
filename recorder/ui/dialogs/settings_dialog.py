@@ -5,12 +5,20 @@ import pyaudiowpatch as pa
 
 from ...actions.screenshot import screen_labels, window_titles
 from ...audio.devices import wasapi_devices
-from ...config.schema import AppConfig
-from ..theme import ACC, BG, BTN_STYLE, DIM, ENTRY_STYLE, FG, LABEL_STYLE, PANEL
+from ...config.schema import (
+    AppConfig,
+    CUSTOM_PRESET,
+    PRESET_ORDER,
+    QUALITY_PRESETS,
+    apply_preset,
+    detect_cuda_device_count,
+    preset_availability,
+    preset_key_for_config,
+)
+from ..theme import ACC, BG, BTN_STYLE, DIM, ENTRY_STYLE, ERR, FG, LABEL_STYLE, PANEL
 from .tuning_dialog import TuningDialog
 
 DEFAULT_DEV = "(predeterminado de Windows)"
-AVAILABLE_MODELS = ["small", "medium", "base", "tiny", "large-v3-turbo"]
 WINDOW_PREFIX = "Ventana: "  # distingue en el selector una ventana de aplicación de una pantalla
 
 
@@ -31,12 +39,13 @@ class SettingsDialog(tk.Toplevel):
 
         self.title("Opciones del Sistema")
         self.configure(bg=BG)
-        self.geometry("640x530")
+        self.geometry("640x600")
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
 
         self.screens = screen_labels()
+        self.cuda_devices = detect_cuda_device_count()  # 0 si no hay GPU CUDA o falla la consulta
         self._init_variables()
         self._build_ui()
 
@@ -51,7 +60,6 @@ class SettingsDialog(tk.Toplevel):
         self.v_screen = tk.StringVar(
             value=WINDOW_PREFIX + self.config.window if self.config.window else self.screens[screen_idx]
         )
-        self.v_model = tk.StringVar(value=self.config.model)
 
     def _build_ui(self):
         # Filas de configuración
@@ -66,7 +74,7 @@ class SettingsDialog(tk.Toplevel):
         targets = self._targets()
         self.om_target = self._row_choice(5, "Qué capturar 📸:", self.v_screen, targets[1:], first=targets[0])
         tk.Button(self, text="🔄", command=self._refresh_targets, **BTN_STYLE).grid(row=5, column=2, padx=(6, 16))
-        self._row_choice(6, "Modelo Whisper (al reiniciar):", self.v_model, AVAILABLE_MODELS[1:], first=AVAILABLE_MODELS[0])
+        self._build_quality_row(6)  # fila 6 = selector, fila 7 = descripción (se aplica al reiniciar)
 
         tk.Checkbutton(
             self,
@@ -78,7 +86,7 @@ class SettingsDialog(tk.Toplevel):
             activebackground=BG,
             activeforeground=FG,
             font=("Segoe UI", 10),
-        ).grid(row=7, column=0, columnspan=2, sticky="w", padx=16, pady=10)
+        ).grid(row=8, column=0, columnspan=2, sticky="w", padx=16, pady=10)
 
         # Botón destacado para calibrar alucinaciones
         btn_tuning = tk.Button(
@@ -92,11 +100,11 @@ class SettingsDialog(tk.Toplevel):
             padx=12,
             pady=4,
         )
-        btn_tuning.grid(row=8, column=0, columnspan=2, sticky="w", padx=16, pady=(4, 16))
+        btn_tuning.grid(row=9, column=0, columnspan=2, sticky="w", padx=16, pady=(4, 16))
 
         # Botonera inferior
         btn_box = tk.Frame(self, bg=BG)
-        btn_box.grid(row=9, column=1, sticky="e", padx=16, pady=10)
+        btn_box.grid(row=10, column=1, sticky="e", padx=16, pady=10)
 
         tk.Button(
             btn_box,
@@ -146,6 +154,84 @@ class SettingsDialog(tk.Toplevel):
         om.grid(row=r, column=1, sticky="ew", padx=(0, 16))
         return om
 
+    def _build_quality_row(self, r: int):
+        """Selector de calidad: la decisión principal, con una línea que explica cada preset."""
+        tk.Label(
+            self,
+            text="Calidad de transcripción (se aplica al reiniciar):",
+            bg=BG,
+            fg=FG,
+            font=("Segoe UI Semibold", 10),
+        ).grid(row=r, column=0, sticky="w", padx=16, pady=(10, 2))
+
+        keys = PRESET_ORDER + [CUSTOM_PRESET]
+        current_key = preset_key_for_config(self.config) or CUSTOM_PRESET
+        self._quality_label_by_key = {k: self._quality_display(k) for k in keys}
+        self._quality_key_by_label = {v: k for k, v in self._quality_label_by_key.items()}
+        self.v_quality = tk.StringVar(value=self._quality_label_by_key[current_key])
+
+        other_labels = [self._quality_label_by_key[k] for k in keys if k != current_key]
+        om = tk.OptionMenu(self, self.v_quality, self._quality_label_by_key[current_key], *other_labels)
+        om.config(
+            bg=PANEL,
+            fg=ACC,
+            activebackground=ACC,
+            relief="flat",
+            highlightthickness=0,
+            font=("Segoe UI Semibold", 10),
+            anchor="w",
+            width=40,
+        )
+        om["menu"].config(bg=PANEL, fg=FG, activebackground=ACC)
+        om.grid(row=r, column=1, sticky="ew", padx=(0, 16), pady=(10, 2))
+
+        self.v_quality_desc = tk.StringVar()
+        self.lbl_quality_desc = tk.Label(
+            self,
+            textvariable=self.v_quality_desc,
+            bg=BG,
+            fg=DIM,
+            font=("Segoe UI", 9),
+            wraplength=600,
+            justify="left",
+            anchor="w",
+        )
+        self.lbl_quality_desc.grid(row=r + 1, column=0, columnspan=3, sticky="ew", padx=16, pady=(0, 10))
+
+        self.v_quality.trace_add("write", self._on_quality_change)
+        self._on_quality_change()
+
+    def _quality_display(self, key: str) -> str:
+        """Texto del desplegable para un preset: el nombre, o por qué no está disponible aquí."""
+        if key == CUSTOM_PRESET:
+            return "Personalizado"
+        preset = QUALITY_PRESETS[key]
+        if preset_availability(key, self.cuda_devices).available:
+            return preset.label
+        return f"{preset.label} (no disponible en este equipo)"
+
+    def _quality_description(self, key: str) -> str:
+        if key == CUSTOM_PRESET:
+            return (
+                "Personalizado: el modelo, el haz, el dispositivo y la precisión guardados "
+                "no coinciden con ningún preset. Se guardan tal cual si no eliges otro."
+            )
+        preset = QUALITY_PRESETS[key]
+        avail = preset_availability(key, self.cuda_devices)
+        text = preset.summary
+        if not avail.available:
+            text += f" ⚠ {avail.reason} Si se guarda igual, Recorder cae a CPU solo, sin romperse."
+        return text
+
+    def _current_quality_key(self) -> str:
+        return self._quality_key_by_label.get(self.v_quality.get(), CUSTOM_PRESET)
+
+    def _on_quality_change(self, *_args):
+        key = self._current_quality_key()
+        unavailable = key != CUSTOM_PRESET and not preset_availability(key, self.cuda_devices).available
+        self.lbl_quality_desc.config(fg=ERR if unavailable else DIM)
+        self.v_quality_desc.set(self._quality_description(key))
+
     def _targets(self) -> List[str]:
         """Opciones de captura: las pantallas y las ventanas abiertas ahora (más la guardada, aunque esté cerrada)."""
         titles = window_titles()
@@ -187,7 +273,11 @@ class SettingsDialog(tk.Toplevel):
         else:
             self.config.window = ""
             self.config.screen = self.screens.index(choice) if choice in self.screens else 0
-        self.config.model = self.v_model.get()
+
+        quality_key = self._current_quality_key()
+        if quality_key != CUSTOM_PRESET:
+            apply_preset(self.config, quality_key)
+        # Personalizado: no se toca ningun campo de modelo/haz/dispositivo/precision.
 
         self.on_save(self.config, notes_changed, devices_changed)
         self.destroy()
