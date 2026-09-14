@@ -11,7 +11,7 @@
 ## ✨ Características Principales
 
 * 🔊 **Captura de Salida + Micrófono (WASAPI Loopback):** Captura el audio de tus reuniones sin necesidad de cables virtuales (Virtual Audio Cable). Muestra medidores de nivel de volumen en vivo (`🔊 █░   🎤 █░`).
-* ⚡ **Transcripción Rápida con IA (faster-whisper):** Ejecución eficiente en CPU mediante cuantización `int8` (modelos `tiny`, `base`, `small`, `medium`, `large-v3-turbo`).
+* ⚡ **Transcripción Rápida con IA (faster-whisper):** Ejecución eficiente en CPU mediante cuantización `int8` (modelos `tiny`, `base`, `small`, `medium`, `large-v3-turbo`), en GPU NVIDIA con CUDA, o en GPU AMD con whisper.cpp y Vulkan ([docs/gpu-amd-vulkan.md](docs/gpu-amd-vulkan.md)).
 * 📸 **Capturas de Pantalla Automáticas:** Al escuchar palabras clave configuradas (*"bloqueo"*, *"pendiente"*, *"captura"*, etc.), toma una captura de todas las pantallas, de un monitor o **solo de la ventana de una aplicación** (p. ej. Teams, aunque esté tapada por otras ventanas) y la incrusta directamente en el archivo Markdown.
 * 🎯 **Fine-Tuning Anti-Alucinaciones & Léxico Personal:**
   * **Filtro de Silencios / Ruido:** Descarte automático de fórmulas típicas de YouTube (*"suscríbete"*, *"amara.org"*, etc.).
@@ -66,6 +66,8 @@ La plantilla omite a proposito `notes_dir` y `caps_dir`. Al faltar esos campos, 
 | `ignore` | Frases fantasma que Whisper inventa en los silencios. La lista de fabrica cubre las mas comunes en espanol. |
 | `model` | Modelo de Whisper. `small` va en tiempo real en un portatil sin GPU; `medium` es mas preciso pero se retrasa. |
 | `cpu_threads` | Hilos de CPU para la inferencia. `0` deja el valor de faster-whisper (4), que desaprovecha una CPU con mas nucleos. Como medir el mejor valor en tu equipo: [docs/rendimiento.md](docs/rendimiento.md). |
+| `device`, `compute_type` | Dónde corre el modelo. `cpu`/`int8` sin GPU; `gpu`/`float16` usa CUDA si hay NVIDIA y si no whisper.cpp con Vulkan (AMD). Lo fija el preset elegido en ⚙ Opciones. |
+| `whispercpp_dir`, `whispercpp_flash_attn` | Carpeta de whisper.cpp compilado con Vulkan (`tools\instalar_whispercpp.ps1`) y si usa *flash attention*. Solo para GPU AMD: [docs/gpu-amd-vulkan.md](docs/gpu-amd-vulkan.md). |
 | `screen` | Monitor del que se captura. `0` son todas las pantallas juntas. |
 | `window` | Título de la ventana de aplicación que se captura en lugar de la pantalla (vacío = usar `screen`). Se elige desde ⚙ Opciones. |
 | `no_speech_threshold`, `logprob_threshold`, `compression_ratio_threshold` | Umbrales anti-alucinaciones. Se ajustan desde 🎯 Calibrar, que ademas trae un sandbox para probarlos. |
@@ -187,6 +189,7 @@ Para más detalles, consulta la documentación en la carpeta [docs/](docs/):
 * 📖 [docs/architecture.md](docs/architecture.md): Diagramas de flujo y detalle de cada subsistema.
 * 🎯 [docs/anti-hallucination-tuning.md](docs/anti-hallucination-tuning.md): Cómo se producen las alucinaciones en Whisper y cómo calibrarlas.
 * ⚡ [docs/rendimiento.md](docs/rendimiento.md): Qué hace lenta la transcripción en CPU, qué palancas hay y cómo medirlas en tu equipo (`tools/medir_rendimiento.py`).
+* 🎮 [docs/gpu-amd-vulkan.md](docs/gpu-amd-vulkan.md): Transcribir en una GPU AMD (Radeon) con whisper.cpp y Vulkan: instalación, medidas y límites.
 * 🗺️ [docs/plan-fase-3.md](docs/plan-fase-3.md): Plan para identificar a cada participante por su voz.
 * 🧹 [docs/sintesis-de-notas.md](docs/sintesis-de-notas.md): Como generar versiones agrupadas y limpias de una nota sin tocar nunca el original.
 

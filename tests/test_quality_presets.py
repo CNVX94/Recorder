@@ -44,7 +44,7 @@ class TestMapeoDePresets(unittest.TestCase):
             self.assertEqual(preset.model, "small")
             self.assertEqual(preset.device, "cpu")
             self.assertEqual(preset.compute_type, "int8")
-            self.assertFalse(preset.requires_cuda)
+            self.assertFalse(preset.requires_gpu)
         self.assertEqual(QUALITY_PRESETS["baja"].beam_size, 1)
         self.assertEqual(QUALITY_PRESETS["media"].beam_size, 5)
 
@@ -54,14 +54,14 @@ class TestMapeoDePresets(unittest.TestCase):
         self.assertEqual(preset.beam_size, 5)
         self.assertEqual(preset.device, "cpu")
         self.assertEqual(preset.compute_type, "int8")
-        self.assertFalse(preset.requires_cuda)
+        self.assertFalse(preset.requires_gpu)
 
-    def test_extra_es_large_v3_en_gpu(self):
+    def test_extra_es_large_v3_en_la_gpu_que_haya(self):
         preset = QUALITY_PRESETS["extra"]
         self.assertEqual(preset.model, "large-v3")
-        self.assertEqual(preset.device, "cuda")
+        self.assertEqual(preset.device, "gpu")  # CUDA o, si no, whisper.cpp con Vulkan
         self.assertEqual(preset.compute_type, "float16")
-        self.assertTrue(preset.requires_cuda)
+        self.assertTrue(preset.requires_gpu)
 
 
 class TestReconocerElPresetDeUnaConfiguracion(unittest.TestCase):
@@ -95,7 +95,7 @@ class TestAplicarUnPreset(unittest.TestCase):
         apply_preset(cfg, "extra")
         self.assertEqual(cfg.model, "large-v3")
         self.assertEqual(cfg.beam_size, 5)
-        self.assertEqual(cfg.device, "cuda")
+        self.assertEqual(cfg.device, "gpu")
         self.assertEqual(cfg.compute_type, "float16")
 
     def test_aplicar_un_preset_no_toca_el_resto_de_la_configuracion(self):
@@ -126,6 +126,11 @@ class TestViabilidadSegunElHardware(unittest.TestCase):
 
     def test_extra_esta_disponible_con_gpu(self):
         result = preset_availability("extra", cuda_device_count=1)
+        self.assertTrue(result.available)
+        self.assertEqual(result.reason, "")
+
+    def test_extra_esta_disponible_con_whispercpp_vulkan_sin_cuda(self):
+        result = preset_availability("extra", cuda_device_count=0, vulkan_ready=True)
         self.assertTrue(result.available)
         self.assertEqual(result.reason, "")
 

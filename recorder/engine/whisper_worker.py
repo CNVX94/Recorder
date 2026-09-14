@@ -6,8 +6,15 @@ from typing import Callable, Optional
 
 from ..actions.notes import NotesSession, md_ref
 from ..actions.screenshot import take_screenshot
-from ..config.schema import AppConfig, detect_cuda_device_count, resolve_runtime
+from ..config.schema import (
+    CPU_FALLBACK_PRESET,
+    QUALITY_PRESETS,
+    AppConfig,
+    detect_cuda_device_count,
+    resolve_runtime,
+)
 from ..filters.pipeline import TextPipeline
+from .whispercpp import EngineUnavailable, load_whispercpp_model, whispercpp_ready
 
 CAP_COOLDOWN_SEC = 15.0
 kind_lost = "out"  # los avisos se pintan como una linea normal en la ventana
@@ -63,54 +70,99 @@ class TranscriberWorker:
         fallo afecta a un unico fragmento y no debe costar el resto de la reunion.
         """
         try:
-            # Resolver el hardware ANTES de construir el modelo: WhisperModel descarga los
-            # pesos antes de validar el dispositivo, así que detectar el fallo después ya
-            # habría bajado varios GB de un modelo que en CPU no sirve.
-            model_name, device, compute_type, beam, aviso = resolve_runtime(
-                self.config, detect_cuda_device_count()
-            )
-            self.beam_size = beam
-            if aviso:
-                self.ui_queue.put(("status", aviso))
-            self.ui_queue.put(("status", f"Cargando modelo {model_name}…"))
-            from faster_whisper import WhisperModel
-
-            try:
-                model = WhisperModel(
-                    model_name,
-                    device=device,
-                    compute_type=compute_type,
-                    cpu_threads=self.config.cpu_threads,  # 0 = por defecto de la biblioteca
-                )
-            except Exception as e:
-                if device == "cpu":
-                    raise
-                # Hay GPU pero no arranca (driver, VRAM): mismo modelo en CPU, avisando.
-                self.ui_queue.put((
-                    "status",
-                    f"⚠ La GPU no pudo cargar {model_name} ({e!r}); usando CPU en su lugar.",
-                ))
-                model = WhisperModel(
-                    model_name, device="cpu", compute_type="int8",
-                    cpu_threads=self.config.cpu_threads,
-                )
+            model = self._load_model()
         except Exception as e:
             self.ui_queue.put(("status", f"⛔ No se pudo cargar el modelo: {e!r}"))
             return
 
         self.ui_queue.put(("status", "● Escuchando"))
-        while not self.stop_event.is_set():
+        try:
+            while not self.stop_event.is_set():
+                try:
+                    t0, kind, audio = self.chunk_queue.get(timeout=0.5)
+                except queue.Empty:
+                    continue
+                self.busy = True
+                try:
+                    self._process(model, t0, kind, audio)
+                except EngineUnavailable as e:
+                    # El servidor de GPU murio y no volvio: el resto de la reunion sigue en CPU,
+                    # empezando por este mismo fragmento.
+                    self.ui_queue.put(("status", f"⚠ {e}; se sigue en CPU."))
+                    try:
+                        getattr(model, "close", lambda: None)()
+                        model = self._load_cpu_fallback()
+                        self._process(model, t0, kind, audio)
+                    except Exception as e2:
+                        self._report_lost(t0, e2)
+                except Exception as e:
+                    self._report_lost(t0, e)
+                finally:
+                    self.busy = False
+        finally:
+            close = getattr(model, "close", None)  # whisper.cpp: parar el servidor y liberar la VRAM
+            if close:
+                close()
+
+    def _load_model(self):
+        # Resolver el hardware ANTES de construir el modelo: WhisperModel descarga los
+        # pesos antes de validar el dispositivo, así que detectar el fallo después ya
+        # habría bajado varios GB de un modelo que en CPU no sirve.
+        cfg = self.config
+        model_name, device, compute_type, beam, aviso = resolve_runtime(
+            cfg,
+            detect_cuda_device_count(),
+            whispercpp_ready(cfg.whispercpp_dir, cfg.model, cfg.compute_type),
+        )
+        self.beam_size = beam
+        if aviso:
+            self.ui_queue.put(("status", aviso))
+        self.ui_queue.put(("status", f"Cargando modelo {model_name}…"))
+
+        if device == "vulkan":
             try:
-                t0, kind, audio = self.chunk_queue.get(timeout=0.5)
-            except queue.Empty:
-                continue
-            self.busy = True
-            try:
-                self._process(model, t0, kind, audio)
+                return load_whispercpp_model(
+                    cfg.whispercpp_dir, model_name, compute_type, DEFAULT_LANGUAGE,
+                    cfg.cpu_threads, cfg.whispercpp_flash_attn,
+                )
             except Exception as e:
-                self._report_lost(t0, e)
-            finally:
-                self.busy = False
+                # Vulkan no arranca (driver, VRAM): preset de CPU entero, no el mismo modelo,
+                # porque en faster-whisper serian otros GB de descarga para ir lento.
+                self.ui_queue.put(("status", f"⚠ La GPU (Vulkan) no pudo cargar {model_name} ({e!r}); usando CPU en su lugar."))
+                return self._load_cpu_fallback()
+
+        from faster_whisper import WhisperModel
+
+        try:
+            return WhisperModel(
+                model_name,
+                device=device,
+                compute_type=compute_type,
+                cpu_threads=cfg.cpu_threads,  # 0 = por defecto de la biblioteca
+            )
+        except Exception as e:
+            if device == "cpu":
+                raise
+            # Hay GPU pero no arranca (driver, VRAM): mismo modelo en CPU, avisando.
+            self.ui_queue.put((
+                "status",
+                f"⚠ La GPU no pudo cargar {model_name} ({e!r}); usando CPU en su lugar.",
+            ))
+            return WhisperModel(
+                model_name, device="cpu", compute_type="int8",
+                cpu_threads=cfg.cpu_threads,
+            )
+
+    def _load_cpu_fallback(self):
+        """El preset de CPU entero (modelo y haz), para cuando la GPU de whisper.cpp falla."""
+        from faster_whisper import WhisperModel
+
+        cpu = QUALITY_PRESETS[CPU_FALLBACK_PRESET]
+        self.beam_size = cpu.beam_size
+        return WhisperModel(
+            cpu.model, device=cpu.device, compute_type=cpu.compute_type,
+            cpu_threads=self.config.cpu_threads,
+        )
 
     def _report_lost(self, t0: float, err: Exception):
         """Deja constancia del fragmento perdido en la nota y en el contador de la cabecera."""

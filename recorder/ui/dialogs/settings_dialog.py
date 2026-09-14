@@ -15,6 +15,7 @@ from ...config.schema import (
     preset_availability,
     preset_key_for_config,
 )
+from ...engine.whispercpp import whispercpp_ready
 from ..theme import ACC, BG, BTN_STYLE, DIM, ENTRY_STYLE, ERR, FG, LABEL_STYLE, PANEL
 from .tuning_dialog import TuningDialog
 
@@ -46,6 +47,8 @@ class SettingsDialog(tk.Toplevel):
 
         self.screens = screen_labels()
         self.cuda_devices = detect_cuda_device_count()  # 0 si no hay GPU CUDA o falla la consulta
+        extra = QUALITY_PRESETS["extra"]
+        self.vulkan_ready = whispercpp_ready(config.whispercpp_dir, extra.model, extra.compute_type)
         self._init_variables()
         self._build_ui()
 
@@ -206,7 +209,7 @@ class SettingsDialog(tk.Toplevel):
         if key == CUSTOM_PRESET:
             return "Personalizado"
         preset = QUALITY_PRESETS[key]
-        if preset_availability(key, self.cuda_devices).available:
+        if preset_availability(key, self.cuda_devices, self.vulkan_ready).available:
             return preset.label
         return f"{preset.label} (no disponible en este equipo)"
 
@@ -217,7 +220,7 @@ class SettingsDialog(tk.Toplevel):
                 "no coinciden con ningún preset. Se guardan tal cual si no eliges otro."
             )
         preset = QUALITY_PRESETS[key]
-        avail = preset_availability(key, self.cuda_devices)
+        avail = preset_availability(key, self.cuda_devices, self.vulkan_ready)
         text = preset.summary
         if not avail.available:
             text += f" ⚠ {avail.reason} Si se guarda igual, Recorder cae a CPU solo, sin romperse."
@@ -228,7 +231,7 @@ class SettingsDialog(tk.Toplevel):
 
     def _on_quality_change(self, *_args):
         key = self._current_quality_key()
-        unavailable = key != CUSTOM_PRESET and not preset_availability(key, self.cuda_devices).available
+        unavailable = key != CUSTOM_PRESET and not preset_availability(key, self.cuda_devices, self.vulkan_ready).available
         self.lbl_quality_desc.config(fg=ERR if unavailable else DIM)
         self.v_quality_desc.set(self._quality_description(key))
 

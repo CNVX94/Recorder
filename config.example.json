@@ -16,6 +16,8 @@
   "device": "cpu",
   "compute_type": "int8",
   "cpu_threads": 0,
+  "whispercpp_dir": "",
+  "whispercpp_flash_attn": false,
   "vocab": "Daily de desarrollo de software. Términos: backend, frontend, endpoint, despliegue, sprint, incidencia, base de datos, entorno de pruebas, integración continua. Nombres del equipo: Ana, Luis, Marta.",
   "ignore": [
     "suscríbete",

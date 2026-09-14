@@ -15,7 +15,7 @@ parámetros**.
 | **Baja** | `small` | 1 | cpu | int8 | La más rápida en CPU: **~5,4x** tiempo real medido en reposo (`rendimiento.md` §2.2). No acumula retraso ni compartiendo el equipo con una videollamada. Es la que más confunde nombres propios y anglicismos técnicos. |
 | **Media** | `small` | 5 | cpu | int8 | **~3,0x** medido en reposo. Mismo modelo que Baja, más precisa gracias al haz 5; sigue yendo holgada en CPU. Es la configuración de fábrica de `AppConfig`. |
 | **Alta** | `large-v3-turbo` | 5 | cpu | int8 | La mejor calidad sin GPU. **~1,0x** en reposo, **0,33x medido con Teams abierto** (`rendimiento.md` §2.1, fila 2): al ritmo justo del tiempo real, se atrasa con cualquier carga extra. Es la configuración recomendada hoy para una CPU sin GPU (`hardware-y-modelos.md` §6). |
-| **Extra** | `large-v3` | 5 | cuda | float16 | La mejor calidad de la familia Whisper. **Exige GPU NVIDIA con CUDA**: en esta CPU `large-v3` va a 0,3x-0,4x, muy por debajo del tiempo real (`hardware-y-modelos.md` §1.4); con una GPU de 6 GB o más va a 8x-15x (§2.2). No tiene sentido sin GPU salvo para dejar la configuración lista antes de mover el equipo o el `config.json` a una máquina que sí la tenga. |
+| **Extra** | `large-v3` | 5 | gpu | float16 | La mejor calidad de la familia Whisper. **Exige GPU**: NVIDIA con CUDA (`faster-whisper`) o, si no hay, AMD con whisper.cpp y Vulkan (`gpu-amd-vulkan.md`). En CPU `large-v3` va a 0,3x-0,4x, muy por debajo del tiempo real (`hardware-y-modelos.md` §1.4); con una NVIDIA de 6 GB o más va a 8x-15x (§2.2). **En una RX 6700 XT con Vulkan se midió 1,74x, más lento que turbo (3,18x) y sin mejor WER**: ahí conviene turbo en GPU (Personalizado, ver `gpu-amd-vulkan.md` §2). |
 
 El mapeo completo vive como datos en `recorder/config/schema.py`
 (`QUALITY_PRESETS`), no en la interfaz: cada preset es un `QualityPreset` con
@@ -99,9 +99,11 @@ devuelve modelo, dispositivo, precisión, haz y aviso:
 | Situación | Qué carga | Aviso |
 | :--- | :--- | :--- |
 | Preset de CPU (Baja, Media, Alta) | Lo configurado, sin cambios | Ninguno |
-| Extra **con** GPU detectada | `large-v3` en CUDA, float16 | Ninguno |
+| Extra **con** GPU CUDA detectada | `large-v3` en CUDA, float16 | Ninguno |
+| Extra sin CUDA **con** whisper.cpp Vulkan instalado (`whispercpp_dir` con servidor y modelo) | `large-v3` en whisper.cpp, float16 | Ninguno |
 | Extra **sin** GPU detectada | **El preset Alta completo**: `large-v3-turbo` en CPU, con su haz. Nunca se pide `large-v3` | En la cabecera, sugiriendo elegir un preset de CPU |
-| Extra con GPU detectada **que no logra cargar** (driver, VRAM) | El mismo modelo en CPU, int8 | En la cabecera |
+| Extra con GPU CUDA detectada **que no logra cargar** (driver, VRAM) | El mismo modelo en CPU, int8 | En la cabecera |
+| Extra con whisper.cpp **que no arranca** o que muere sin remedio a mitad de reunión | El preset Alta completo en CPU | En la cabecera |
 
 La caída sin GPU es al preset **entero**, no solo al dispositivo: cambiar solo el
 dispositivo dejaría `large-v3` en CPU. El único caso en que se intenta CUDA y después se

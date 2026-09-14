@@ -37,9 +37,36 @@ class TestResolveRuntime(unittest.TestCase):
         cfg = AppConfig()
         apply_preset(cfg, "alta")
         antes = (cfg.model, cfg.device, cfg.compute_type, cfg.beam_size)
-        model, device, ct, beam, aviso = resolve_runtime(cfg, 0)
+        model, device, ct, beam, aviso = resolve_runtime(cfg, 0, vulkan_ready=True)
         self.assertEqual((model, device, ct, beam), antes)
         self.assertEqual(aviso, "")
+
+    def test_extra_sin_cuda_con_whispercpp_usa_vulkan(self):
+        cfg = AppConfig()
+        apply_preset(cfg, "extra")
+        model, device, ct, beam, aviso = resolve_runtime(cfg, 0, vulkan_ready=True)
+        self.assertEqual((model, device, ct, beam), ("large-v3", "vulkan", "float16", 5))
+        self.assertEqual(aviso, "")
+
+    def test_extra_prefiere_cuda_si_hay_las_dos(self):
+        cfg = AppConfig()
+        apply_preset(cfg, "extra")
+        _model, device, _ct, _beam, _aviso = resolve_runtime(cfg, 1, vulkan_ready=True)
+        self.assertEqual(device, "cuda")
+
+    def test_cuda_explicito_no_se_cambia_por_vulkan(self):
+        cfg = AppConfig(model="large-v3", beam_size=5, device="cuda", compute_type="float16")
+        model, device, _ct, _beam, aviso = resolve_runtime(cfg, 0, vulkan_ready=True)
+        self.assertEqual(device, "cpu")
+        self.assertNotEqual(model, "large-v3")
+        self.assertIn("NVIDIA", aviso)
+
+    def test_vulkan_explicito_sin_whispercpp_cae_a_cpu(self):
+        cfg = AppConfig(model="large-v3", beam_size=5, device="vulkan", compute_type="float16")
+        model, device, _ct, _beam, aviso = resolve_runtime(cfg, 1, vulkan_ready=False)
+        self.assertEqual(device, "cpu")
+        self.assertNotEqual(model, "large-v3")
+        self.assertIn("whisper.cpp", aviso)
 
 
 class TestWorkerNoPideLargeV3(unittest.TestCase):

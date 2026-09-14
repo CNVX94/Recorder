@@ -24,11 +24,20 @@ class AppConfig:
     beam_size: int = 5
 
     # Dispositivo y precision de la inferencia. "cpu"/"int8" es lo unico que corre sin
-    # GPU; "cuda"/"float16" es lo que usa el preset Extra. Un config.json viejo no trae
-    # estos dos campos y cae en estos valores por defecto, que es el comportamiento de
-    # siempre. Ver QUALITY_PRESETS mas abajo y docs/presets-calidad.md.
-    device: str = "cpu"  # "cpu" o "cuda"
-    compute_type: str = "int8"  # "int8" en cpu; "float16" en cuda
+    # GPU. "gpu"/"float16" (preset Extra) usa la GPU que haya: CUDA con faster-whisper o,
+    # si no, whisper.cpp con Vulkan (AMD). "cuda" y "vulkan" fuerzan uno de los dos. Un
+    # config.json viejo no trae estos dos campos y cae en estos valores por defecto, que es
+    # el comportamiento de siempre. Ver QUALITY_PRESETS mas abajo, docs/presets-calidad.md
+    # y docs/gpu-amd-vulkan.md.
+    device: str = "cpu"  # "cpu", "gpu", "cuda" o "vulkan"
+    compute_type: str = "int8"  # "int8" en cpu; "float16" en gpu (en vulkan tambien "q8_0", "q5_0")
+
+    # Carpeta de whisper.cpp compilado con Vulkan (bin\whisper-server.exe y models\ggml-*.bin),
+    # la que prepara tools/instalar_whispercpp.ps1. Vacia = no hay motor Vulkan.
+    whispercpp_dir: str = ""
+    # Flash attention en whisper.cpp. Apagada por defecto: en Radeon con Windows hay reportes
+    # de repeticiones y cierres del driver con ella. Encenderla solo si la medicion sale limpia.
+    whispercpp_flash_attn: bool = False
 
     # Hilos de CPU que usa CTranslate2 en la inferencia. 0 = valor por defecto de
     # faster-whisper (4 hilos), que se queda corto en una CPU con mas nucleos.
@@ -97,13 +106,13 @@ class QualityPreset:
     label: str
     model: str
     beam_size: int
-    device: str  # "cpu" o "cuda"
-    compute_type: str  # "int8" (cpu) o "float16" (cuda)
+    device: str  # "cpu" o "gpu"
+    compute_type: str  # "int8" (cpu) o "float16" (gpu)
     summary: str  # que modelo es y si arriesga retraso en una CPU como la medida
 
     @property
-    def requires_cuda(self) -> bool:
-        return self.device == "cuda"
+    def requires_gpu(self) -> bool:
+        return self.device != "cpu"
 
 
 QUALITY_PRESETS: Dict[str, QualityPreset] = {
@@ -148,12 +157,13 @@ QUALITY_PRESETS: Dict[str, QualityPreset] = {
         label="Extra",
         model="large-v3",
         beam_size=5,
-        device="cuda",
+        device="gpu",
         compute_type="float16",
         summary=(
-            "Modelo large-v3 en GPU NVIDIA (float16): la mejor calidad disponible. "
-            "Requiere una GPU NVIDIA con CUDA; sin GPU, large-v3 no llega al tiempo "
-            "real en CPU, asi que este preset solo tiene sentido en un equipo con GPU."
+            "Modelo large-v3 en GPU (float16): la mejor calidad disponible. Usa una GPU "
+            "NVIDIA con CUDA o, si no la hay, una AMD con whisper.cpp y Vulkan "
+            "(docs/gpu-amd-vulkan.md). Sin GPU, large-v3 no llega al tiempo real en CPU, "
+            "asi que este preset solo tiene sentido en un equipo con GPU."
         ),
     ),
 }
@@ -197,22 +207,24 @@ class PresetAvailability:
     reason: str  # vacio si `available`; explica por que no si no lo esta
 
 
-def preset_availability(key: str, cuda_device_count: int) -> PresetAvailability:
-    """Si el preset `key` se puede usar ya mismo, dado que el equipo ve `cuda_device_count` GPUs CUDA.
+def preset_availability(key: str, cuda_device_count: int, vulkan_ready: bool = False) -> PresetAvailability:
+    """Si el preset `key` se puede usar ya mismo en este equipo.
 
-    Funcion pura: recibe el numero de GPUs ya detectado en vez de preguntarle al
-    hardware, para poder testear la politica sin GPU. El dato real lo da
-    `detect_cuda_device_count()`. Un preset que no depende de GPU esta siempre
+    Funcion pura: recibe lo ya detectado (GPUs CUDA y si whisper.cpp con Vulkan esta
+    instalado con el modelo del preset) en vez de preguntarle al hardware, para poder
+    testear la politica sin GPU. Los datos reales los dan `detect_cuda_device_count()` y
+    `engine.whispercpp.whispercpp_ready()`. Un preset que no depende de GPU esta siempre
     disponible: hoy solo Extra la requiere.
     """
     preset = QUALITY_PRESETS[key]
-    if not preset.requires_cuda:
+    if not preset.requires_gpu:
         return PresetAvailability(True, "")
-    if cuda_device_count > 0:
+    if cuda_device_count > 0 or vulkan_ready:
         return PresetAvailability(True, "")
     return PresetAvailability(
         False,
-        "Requiere una GPU NVIDIA con CUDA; no se detecto ninguna en este equipo.",
+        "Requiere una GPU NVIDIA con CUDA, o whisper.cpp con Vulkan instalado para una GPU AMD "
+        "(docs/gpu-amd-vulkan.md); no se detecto ninguna de las dos en este equipo.",
     )
 
 
@@ -235,19 +247,34 @@ def detect_cuda_device_count() -> int:
 CPU_FALLBACK_PRESET = "alta"  # el mejor preset que corre en CPU; su modelo suele estar ya en caché
 
 
-def resolve_runtime(config: AppConfig, cuda_device_count: int) -> Tuple[str, str, str, int, str]:
+def resolve_runtime(
+    config: AppConfig, cuda_device_count: int, vulkan_ready: bool = False
+) -> Tuple[str, str, str, int, str]:
     """Parámetros efectivos del modelo según el hardware: (modelo, dispositivo, compute_type, haz, aviso).
 
-    Si la configuración pide GPU y no hay ninguna, cae al preset de CPU **entero**, modelo
-    incluido, y no solo al dispositivo. Mantener `large-v3` en CPU sería peor que no tener
-    preset: la librería descargaría varios GB y lo ejecutaría a un tercio del tiempo real.
-    El aviso queda vacío cuando no hace falta caer.
+    El dispositivo devuelto es siempre concreto: "cpu" o "cuda" (faster-whisper) o "vulkan"
+    (whisper.cpp). "gpu" prefiere CUDA y después Vulkan; "cuda" y "vulkan" solo aceptan el
+    suyo. Si la GPU pedida no está, cae al preset de CPU **entero**, modelo incluido, y no
+    solo al dispositivo. Mantener `large-v3` en CPU sería peor que no tener preset: la
+    librería descargaría varios GB y lo ejecutaría a un tercio del tiempo real. El aviso
+    queda vacío cuando no hace falta caer.
     """
-    if config.device != "cuda" or cuda_device_count > 0:
-        return config.model, config.device, config.compute_type, config.beam_size, ""
+    device = config.device
+    if device == "gpu":
+        device = "cuda" if cuda_device_count > 0 else "vulkan" if vulkan_ready else ""
+    elif device == "cuda" and cuda_device_count <= 0:
+        device = ""
+    elif device == "vulkan" and not vulkan_ready:
+        device = ""
+    if device:
+        return config.model, device, config.compute_type, config.beam_size, ""
     cpu = QUALITY_PRESETS[CPU_FALLBACK_PRESET]
+    falta = {
+        "cuda": "GPU NVIDIA",
+        "vulkan": "whisper.cpp con Vulkan instalado",
+    }.get(config.device, "GPU utilizable (ni NVIDIA ni whisper.cpp con Vulkan)")
     aviso = (
-        f"⚠ Este equipo no tiene GPU NVIDIA: en vez de {config.model} se usa el preset "
+        f"⚠ Este equipo no tiene {falta}: en vez de {config.model} se usa el preset "
         f"{cpu.label} ({cpu.model} en CPU). Elige un preset de CPU en Opciones para no ver este aviso."
     )
     return cpu.model, cpu.device, cpu.compute_type, cpu.beam_size, aviso
