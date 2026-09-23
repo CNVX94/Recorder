@@ -17,7 +17,7 @@ from ..engine.whisper_worker import TranscriberWorker
 from .dialogs.settings_dialog import SettingsDialog
 from .dialogs.digest_dialog import DigestDialog
 from .dialogs.tuning_dialog import TuningDialog
-from .theme import ACC, BG, BTN_STYLE, DIM, ERR, FG, HEADER_STYLE, MIC, PANEL
+from .theme import ACC, BG, BTN_STYLE, DIM, ERR, FG, HEADER_STYLE, MIC, PANEL, fit_window
 
 
 class MainWindow:
@@ -72,7 +72,7 @@ class MainWindow:
         self.root = tk.Tk()
         self.root.title("Recorder · Daily")
         self.root.configure(bg=BG)
-        self.root.geometry("1040x560")  # la cabecera con "⛔ reintento N" y "☕" no cabe en 860
+        fit_window(self.root, 1040, 560)  # la cabecera con "⛔ reintento N" y "☕" no cabe en 860
 
         # Cabecera
         top = tk.Frame(self.root, bg=BG)

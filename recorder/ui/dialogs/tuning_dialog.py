@@ -6,7 +6,7 @@ from ...config.schema import AppConfig
 from ...filters.lexicon import format_fixes, parse_fixes
 from ...filters.pipeline import TextPipeline
 from ...filters.samples import random_sample
-from ..theme import ACC, BG, BTN_STYLE, DIM, ENTRY_STYLE, ERR, FG, LABEL_STYLE, PANEL, SUCCESS
+from ..theme import ACC, BG, BTN_STYLE, DIM, ENTRY_STYLE, ERR, FG, LABEL_STYLE, PANEL, SUCCESS, fit_window
 
 
 class TuningDialog(tk.Toplevel):
@@ -24,13 +24,12 @@ class TuningDialog(tk.Toplevel):
 
         self.title("Calibración Anti-Alucinaciones & Léxico Personal")
         self.configure(bg=BG)
-        self.geometry("720x680")
-        self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
 
         self._init_variables()
         self._build_ui()
+        fit_window(self, 720, 680)
 
     def _init_variables(self):
         self.var_vocab = tk.StringVar(value=self.config.vocab)

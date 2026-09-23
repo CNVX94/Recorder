@@ -16,7 +16,7 @@ from ...config.schema import (
     preset_key_for_config,
 )
 from ...engine.whispercpp import whispercpp_ready
-from ..theme import ACC, BG, BTN_STYLE, DIM, ENTRY_STYLE, ERR, FG, LABEL_STYLE, PANEL
+from ..theme import ACC, BG, BTN_STYLE, DIM, ENTRY_STYLE, ERR, FG, LABEL_STYLE, PANEL, fit_window
 from .tuning_dialog import TuningDialog
 
 DEFAULT_DEV = "(predeterminado de Windows)"
@@ -40,8 +40,6 @@ class SettingsDialog(tk.Toplevel):
 
         self.title("Opciones del Sistema")
         self.configure(bg=BG)
-        self.geometry("640x600")
-        self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
 
@@ -51,6 +49,7 @@ class SettingsDialog(tk.Toplevel):
         self.vulkan_ready = whispercpp_ready(config.whispercpp_dir, extra.model, extra.compute_type)
         self._init_variables()
         self._build_ui()
+        fit_window(self, 640, 600)
 
     def _init_variables(self):
         screen_idx = self.config.screen if self.config.screen < len(self.screens) else 0

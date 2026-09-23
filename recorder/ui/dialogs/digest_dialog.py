@@ -1,4 +1,4 @@
-﻿"""Dialogo de sintesis de notas.
+"""Dialogo de sintesis de notas.
 
 Implementa el diseno acordado: seleccion de nota origen marcada como solo lectura,
 agrupamiento temporal como decision principal, limpieza en rejilla, vista previa en
@@ -21,11 +21,11 @@ from ...digest import (
     unique_digest_path,
     write_digest,
 )
-from ..theme import ACC, BG, BORDER, BTN_STYLE, DIM, ERR, FG, LABEL_STYLE, MIC, PANEL, SUCCESS
+from ..theme import ACC, BG, BORDER, BTN_STYLE, DIM, ERR, FG, LABEL_STYLE, MIC, PANEL, SUCCESS, fit_window
 
 SEMIBOLD = {**LABEL_STYLE, "font": ("Segoe UI Semibold", 9)}
 ETIQUETAS = {0: "Sin agrupar", 5: "Cada 5 min", 15: "Cada 15 min", 30: "Cada 30 min", 60: "Cada hora"}
-ALTO_NORMAL, ALTO_AMPLIADO = 780, 940
+ALTO_NORMAL, ALTO_AMPLIADO = 780, 940  # a 100 %; fit_window escala y limita a la pantalla
 LINEAS_NORMAL, LINEAS_AMPLIADO = 6, 16
 PALABRAS_MINIMAS = 4
 
@@ -41,8 +41,6 @@ class DigestDialog(tk.Toplevel):
 
         self.title("Síntesis de notas")
         self.configure(bg=BG)
-        self.geometry(f"760x{ALTO_NORMAL}")
-        self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
 
@@ -51,6 +49,7 @@ class DigestDialog(tk.Toplevel):
         if self.notas:
             self.lista.selection_set(0)
             self._refresh()
+        fit_window(self, 760, ALTO_NORMAL)
 
     # --------------------------------------------------------------- estado
     def _init_vars(self):
@@ -264,8 +263,8 @@ class DigestDialog(tk.Toplevel):
     # -------------------------------------------------------------- acciones
     def _toggle_ampliar(self):
         self.ampliado = not self.ampliado
-        self.geometry(f"760x{ALTO_AMPLIADO if self.ampliado else ALTO_NORMAL}")
         self.preview.config(height=LINEAS_AMPLIADO if self.ampliado else LINEAS_NORMAL)
+        fit_window(self, 760, ALTO_AMPLIADO if self.ampliado else ALTO_NORMAL)
         self.btn_ampliar.config(text="⤡ Reducir" if self.ampliado else "⤢ Ampliar")
 
     def _refresh(self, *_):
