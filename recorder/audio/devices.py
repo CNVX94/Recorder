@@ -28,10 +28,13 @@ def resolve_wasapi_device(
             None,
         )
     elif want:
+        # Solo entradas: un cable virtual (p. ej. "Line 1 (Virtual Audio Cable)") existe como
+        # entrada y como salida con el mismo nombre, y abrir la salida da "Invalid audio channels".
         dev = next(
             (
                 d for d in p.get_device_info_generator()
                 if d["hostApi"] == api["index"] and d["name"] == want
+                and d["maxInputChannels"] > 0 and not d.get("isLoopbackDevice")
             ),
             None,
         )

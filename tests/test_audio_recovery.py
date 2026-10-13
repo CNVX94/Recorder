@@ -16,6 +16,7 @@ from recorder.audio import capture
 from recorder.audio.capture import (
     FRAMES_PER_BUFFER, AudioCaptureManager, meter_label, pending_audio_sec, pending_summary, retry_delay,
 )
+from recorder.audio.devices import resolve_wasapi_device
 
 RATE = 16000
 
@@ -215,6 +216,19 @@ class TestPoliticas(unittest.TestCase):
         self.assertFalse(should_stay_awake(ahora, ahora - 60, pending=0, busy=False, paused=True))
         self.assertFalse(should_stay_awake(ahora, ahora - AWAKE_GRACE_SEC, pending=0, busy=False, paused=False),
                          "sin trabajo y en silencio prolongado no se retiene el equipo")
+
+
+class TestMicrofonoPorNombre(unittest.TestCase):
+    def test_un_cable_virtual_con_entrada_y_salida_del_mismo_nombre_abre_la_entrada(self):
+        """'Line 1 (Virtual Audio Cable)' aparece como salida y como entrada: hay que abrir la entrada."""
+        pa_falso = PAFalso()
+        cable = "Line 1 (Virtual Audio Cable)"
+        base = {"hostApi": 0, "defaultSampleRate": RATE, "isLoopbackDevice": False}
+        pa_falso._devs = lambda: [
+            dict(base, index=0, name=cable, maxInputChannels=0, maxOutputChannels=2),
+            dict(base, index=1, name=cable, maxInputChannels=2, maxOutputChannels=0),
+        ]
+        self.assertEqual(resolve_wasapi_device(pa_falso, "mic", cable)["index"], 1)
 
 
 if __name__ == "__main__":

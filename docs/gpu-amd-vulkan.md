@@ -69,14 +69,25 @@ otros procesos fue del 18-26 %.
 fragmentos de 10,5 s de media, haz 5, vocabulario de `config.json`, primer fragmento de
 calentamiento), con `python tools\medir_rendimiento.py --motor whispercpp --hilos 5`.
 
-| Modelo | *Flash attention* | Velocidad | WER | Nota |
-| :--- | :-: | ---: | ---: | :--- |
-| large-v3-turbo | no | 1,49x | 7,1 % | |
-| **large-v3-turbo** | **sí** | **3,18x** | **6,8 %** | Configuración elegida |
-| large-v3 | sí | 1,74x | 7,7 % | Más lento y no más preciso en esta muestra |
+| Modelo | *Flash attention* | 14-sep-2026 (GPU compartida) | 13-oct-2026 | WER |
+| :--- | :-: | ---: | ---: | ---: |
+| large-v3-turbo | no | 1,49x | — | 7,1 % |
+| **large-v3-turbo** | **sí** | 3,18x | **8,49x** | **6,8 %** |
+| large-v3 (preset Extra) | sí | 1,74x | **2,57x** | 7,7 % |
 
-Prueba de punta a punta con el `TranscriberWorker` real y esa configuración: carga del modelo
-2,9 s; 66 s de audio en 19,9 s (3,3x); 0 fragmentos perdidos; el servidor se cierra al parar.
+**Las cifras del 14 de septiembre están lastradas por otra carga en la GPU.** El 13 de octubre,
+con el mismo driver, la misma compilación y los mismos programas abiertos (RustDesk, Sunshine,
+Oculus y Teams, sin llamada en curso), turbo fue 2,7x más rápido y large-v3 1,5x; el WER es
+idéntico. La causa más probable es que en septiembre hubiera una sesión remota activa: RustDesk
+estaba usando el codificador de vídeo de la GPU al 57 % `[medido]`, aunque no se aisló. **Si la
+GPU se comparte con streaming o escritorio remoto, cuenta con perder hasta dos tercios.**
+
+Con 2,57x, `large-v3` supera el 2,0x que exige el peor caso de dos fuentes hablando a la vez
+(`rendimiento.md` §4), así que el preset Extra es viable en este equipo; turbo va 3,3 veces más
+rápido sin peor WER en esta muestra y deja más margen si la GPU se comparte.
+
+Prueba de punta a punta con el `TranscriberWorker` real (turbo, 14-sep): carga del modelo 2,9 s;
+66 s de audio en 19,9 s (3,3x); 0 fragmentos perdidos; el servidor se cierra al parar.
 
 Sin bucles de repetición en ninguna transcripción (el fallo reportado con *flash attention* en
 una RX 6600 `[anecdótico]`): 530-532 palabras frente a 546 del guion y ratio de compresión 1,97.
@@ -95,9 +106,10 @@ Con `GGML_VK_PERF_LOGGER=1` en `whisper-bench` (turbo, una ventana de 30 s):
   decodificador frente a 4), así que su codificador idéntico no compensa.
 
 Una referencia de terceros con una RX 6750 GRE (misma familia gfx1031, Windows, marzo de 2025) daba
-429-477 ms de codificador `[terceros]`, **5 veces menos que lo medido aquí** con *flash
-attention*. No se ha averiguado la diferencia (versión del driver, la carga de RustDesk/Sunshine
-sobre la GPU, o cambios en whisper.cpp); ver sección 5.
+429-477 ms de codificador `[terceros]`, 5 veces menos que los 2,7 s de arriba. El 13 de octubre,
+`whisper-bench` (turbo, *flash attention*) dio **816 ms** en este mismo equipo `[medido]`: la
+mayor parte de la diferencia era la carga ajena sobre la GPU de septiembre, no el driver ni
+whisper.cpp. El perfil de arriba sigue valiendo para ver *qué* pesa, no *cuánto*.
 
 ---
 
@@ -126,12 +138,13 @@ sobre la GPU, o cambios en whisper.cpp); ver sección 5.
 ## 5. Qué quedó sin verificar
 
 * **Comparación con la CPU de este equipo.** No se midió `faster-whisper` turbo en el i5-9500
-  (su modelo CT2 no estaba descargado). La estimación es 1-2x `[estimado]`; la GPU además deja la
-  CPU libre para Teams.
-* **Por qué el codificador va 5 veces más lento que la referencia de terceros.** Siguiente paso:
-  repetir `whisper-bench -fa` con RustDesk, Sunshine y Oculus cerrados; si no cambia, probar otra
-  versión de Adrenalin.
-* **Con Teams en marcha.** Teams decodifica vídeo en la misma GPU; no se midió la reunión real.
+  (el modelo CT2 ya está en caché: `python tools\medir_rendimiento.py --hilos 4,5,6`). La
+  estimación es 1-2x `[estimado]`; la GPU además deja la CPU libre para Teams.
+* **Qué cargaba la GPU el 14 de septiembre.** Una sesión de RustDesk activa es la hipótesis; para
+  confirmarla, medir turbo con y sin una sesión remota abierta.
+* **Con Teams en llamada.** Teams decodifica vídeo en la misma GPU; no se midió la reunión real en
+  GPU. Hasta el 13 de octubre todas las reuniones se transcribieron en CPU porque `config.json`
+  había perdido `whispercpp_dir`.
 * **Audio real.** La muestra es voz sintetizada limpia; el WER en una reunión será mayor.
 * **Umbrales anti-alucinación.** `no_speech_prob` y `avg_logprob` de whisper.cpp se calculan de
   forma parecida pero no idéntica a `faster-whisper`; conviene revisar con 🎯 Calibrar tras unas
