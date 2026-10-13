@@ -221,7 +221,13 @@ class TestWorkerConVulkan(unittest.TestCase):
         self.session = NotesSession(tmp.name)
         self.chunks, self.ui, self.stop = queue.Queue(), queue.Queue(), threading.Event()
         self.addCleanup(self.stop.set)
-        for nombre, valor in (("detect_cuda_device_count", lambda: 0), ("whispercpp_ready", lambda *a: True)):
+        # Sin lista de Vulkan (como si no se pudiera consultar): no depende de las GPUs del equipo
+        # que ejecuta la prueba (con solo una iGPU, "auto" caeria a CPU).
+        for nombre, valor in (
+            ("detect_cuda_device_count", lambda: 0),
+            ("whispercpp_ready", lambda *a: True),
+            ("cached_vulkan_devices", lambda: []),
+        ):
             original = getattr(ww, nombre)
             setattr(ww, nombre, valor)
             self.addCleanup(setattr, ww, nombre, original)

@@ -8,6 +8,8 @@
     python tools/medir_rendimiento.py --hilos 8 --fusion 30   # fragmentos pendientes fusionados hasta 30 s
     python tools/medir_rendimiento.py --motor whispercpp --modelo large-v3 --hilos 5   # GPU con Vulkan
     python tools/medir_rendimiento.py --motor whispercpp --modelo large-v3 --hilos 5 --flash-attn
+    python tools/medir_rendimiento.py --motor whispercpp --modelo large-v3-turbo --hilos 4 --flash-attn --dev 0
+                                                         # una GPU concreta (p. ej. la integrada) antes de elegirla
 
 Genera una muestra de 4 minutos en español con la voz de Windows (SAPI, es-MX) la primera vez,
 la trocea igual que Recorder (pausa de 0,6 s tras 8 s, forzado a 20 s) y transcribe cada fragmento.
@@ -228,6 +230,7 @@ def main():
                     help="whispercpp = GPU con Vulkan (whispercpp_dir de config.json); --hilos pasa a ser -t del servidor")
     ap.add_argument("--precision", default="float16", help="whispercpp: float16, q8_0, q5_0...")
     ap.add_argument("--flash-attn", action="store_true", help="whispercpp: activar flash attention")
+    ap.add_argument("--dev", type=int, help="whispercpp: GPU de Vulkan (-dev N; por defecto whispercpp_device de config.json)")
     args = ap.parse_args()
 
     ocupada = cpu_ocupada_pct()
@@ -250,6 +253,7 @@ def main():
           f"(media {sum(duraciones) / len(duraciones):.1f} s, máx {max(duraciones):.1f} s); "
           f"modelo {modelo_nombre}, beam {beam}, vocab {'sí' if vocab else 'no'}, CPU ajena al empezar {ocupada} %\n")
 
+    gpu_usada = set()
     if args.motor == "whispercpp":
         from recorder.engine.whispercpp import load_whispercpp_model, whispercpp_ready
 
@@ -257,10 +261,18 @@ def main():
             sys.exit(f"No hay whisper-server ni ggml de {modelo_nombre} ({args.precision}) en whispercpp_dir "
                      f"'{cfg.whispercpp_dir}': ver tools/instalar_whispercpp.ps1.")
 
-        def cargar(hilos):
-            return load_whispercpp_model(cfg.whispercpp_dir, modelo_nombre, args.precision, "es", hilos, args.flash_attn)
+        dev = cfg.whispercpp_device if args.dev is None else args.dev
 
-        sufijo = f"_whispercpp_{args.precision}{'_fa' if args.flash_attn else ''}"
+        def cargar(hilos):
+            modelo = load_whispercpp_model(
+                cfg.whispercpp_dir, modelo_nombre, args.precision, "es", hilos, args.flash_attn, device=dev
+            )
+            usada = modelo.vulkan_device  # se imprime al final para no partir la tabla
+            gpu_usada.add(f"{usada.index} = {usada.name}{' (integrada)' if usada.uma else ''}" if usada else
+                          "el registro de whisper-server no dice cuál (¿sin GPU de Vulkan?)")
+            return modelo
+
+        sufijo = f"_whispercpp_{args.precision}{'_fa' if args.flash_attn else ''}{f'_dev{dev}' if dev >= 0 else ''}"
         print(f"motor whisper.cpp (Vulkan), precisión {args.precision}, flash attention {'sí' if args.flash_attn else 'no'}\n")
     else:
         from faster_whisper import WhisperModel
@@ -282,6 +294,8 @@ def main():
         print(f"| {etiqueta} | {velocidad:.2f}x | {wer(referencia, texto):.1f} % | {otros} % |", flush=True)
         (CARPETA / f"texto_{modelo_nombre}_hilos{hilos}_beam{beam}{sufijo}.txt").write_text(texto, encoding="utf-8")
         del modelo
+    if gpu_usada:
+        print(f"\nGPU de whisper.cpp: {'; '.join(sorted(gpu_usada))}")
     print(f"\nTextos transcritos en {CARPETA} para compararlos a ojo.")
 
 

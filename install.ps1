@@ -8,6 +8,9 @@
       requirements.txt ahi, no en el Python global.
     - Copia config.example.json a config.json solo si config.json no existe todavia.
       Nunca lo sobrescribe: ahi vive la configuracion personal.
+    - Detecta el equipo (CPU, RAM, GPU, bateria) con `recorder.py --recomendar` y, solo en un
+      config.json recien creado, guarda la configuracion recomendada (modelo, haz, motor e
+      hilos). Con un config.json previo solo la muestra. Ver docs/recomendacion-hardware.md.
     - Anade la funcion `daily` al perfil de PowerShell (y al de PowerShell 7 si esta
       instalado), apuntando siempre al Python del entorno virtual y al recorder.py de
       esta misma carpeta (via $PSScriptRoot, sin rutas fijas).
@@ -149,22 +152,37 @@ Write-Step "Preparando config.json..."
 
 $ConfigPath = Join-Path $RepoRoot "config.json"
 $ConfigExamplePath = Join-Path $RepoRoot "config.example.json"
+$ConfigNuevo = $false
 
 if (Test-Path $ConfigPath) {
     Write-Ok "config.json ya existe, no se toca (ahi vive tu configuracion personal)."
 } elseif (Test-Path $ConfigExamplePath) {
     Copy-Item -Path $ConfigExamplePath -Destination $ConfigPath
+    $ConfigNuevo = $true
     Write-Ok "config.json creado a partir de config.example.json."
 } else {
-    Write-Aviso "No se encontro config.example.json en '$RepoRoot'; Recorder arrancara con sus valores de fabrica."
+    Write-Aviso "No se encontro config.example.json en '$RepoRoot'; Recorder elegira la configuracion al arrancar."
+}
+
+# La plantilla trae Media con 4 hilos para cualquier equipo. Se detecta este (CPU, RAM, GPU,
+# bateria) y se escribe la configuracion recomendada, solo en un config.json recien creado.
+Write-Step "Detectando el equipo para elegir la configuracion..."
+$RecorderPy = Join-Path $RepoRoot "recorder.py"
+$argsRecomendar = @($RecorderPy, "--recomendar")
+if ($ConfigNuevo) { $argsRecomendar += "--aplicar" }
+& $VenvPython @argsRecomendar
+if ($LASTEXITCODE -ne 0) {
+    Write-Aviso "No se pudo detectar el equipo o guardar la recomendacion; se puede aplicar luego en Opciones ('Usar recomendado')."
+} elseif ($ConfigNuevo) {
+    Write-Ok "Configuracion recomendada guardada en config.json."
+} else {
+    Write-Ok "Tu config.json no se toca; la recomendacion esta en Opciones ('Usar recomendado')."
 }
 
 # ---------------------------------------------------------------------------
 # 4. Comando `daily` en el perfil de PowerShell
 # ---------------------------------------------------------------------------
 Write-Step "Registrando el comando 'daily' en el perfil de PowerShell..."
-
-$RecorderPy = Join-Path $RepoRoot "recorder.py"
 
 function Set-DailyFunction {
     param(

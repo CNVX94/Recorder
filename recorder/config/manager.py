@@ -25,10 +25,15 @@ class ConfigManager:
     def __init__(self, path: Optional[Union[str, pathlib.Path]] = None):
         self.path = pathlib.Path(path) if path else DEFAULT_CONFIG_PATH
         self.last_error = ""  # vacío mientras la carga vaya bien
+        # True si la última carga no encontró el archivo: es el primer arranque y el archivo se
+        # crea al guardar. La interfaz lo usa para aplicar la configuración recomendada para el
+        # equipo antes de cargar el modelo (los valores de fábrica son Media con 4 hilos).
+        self.first_run = False
 
     def load(self) -> AppConfig:
         self.last_error = ""
-        if not self.path.exists():
+        self.first_run = not self.path.exists()
+        if self.first_run:
             return AppConfig()  # primer arranque: valores de fábrica, sin aviso
         try:
             # utf-8-sig tolera la marca BOM que dejan algunos editores y PowerShell

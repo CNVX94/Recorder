@@ -6,12 +6,15 @@ from typing import Callable, Optional
 
 from ..actions.notes import NotesSession, md_ref
 from ..actions.screenshot import take_screenshot
+from ..config.hardware import cached_vulkan_devices
 from ..config.schema import (
     CPU_FALLBACK_PRESET,
     QUALITY_PRESETS,
     AppConfig,
+    choose_vulkan_device,
     detect_cuda_device_count,
     resolve_runtime,
+    vulkan_model_for,
 )
 from ..filters.pipeline import TextPipeline
 from .whispercpp import EngineUnavailable, load_whispercpp_model, whispercpp_ready
@@ -109,27 +112,46 @@ class TranscriberWorker:
         # pesos antes de validar el dispositivo, así que detectar el fallo después ya
         # habría bajado varios GB de un modelo que en CPU no sirve.
         cfg = self.config
+        cuda = detect_cuda_device_count()
+        vulkan = None  # qué GPU de Vulkan tocaría; solo se pregunta si whisper.cpp puede entrar en juego
+        if cfg.whispercpp_dir.strip() and (cfg.device == "vulkan" or (cfg.device == "gpu" and cuda <= 0)):
+            vulkan = choose_vulkan_device(cfg.whispercpp_device, cached_vulkan_devices())
         model_name, device, compute_type, beam, aviso = resolve_runtime(
             cfg,
-            detect_cuda_device_count(),
-            whispercpp_ready(cfg.whispercpp_dir, cfg.model, cfg.compute_type),
+            cuda,
+            whispercpp_ready(cfg.whispercpp_dir, vulkan_model_for(cfg.model, vulkan), cfg.compute_type),
+            vulkan,
         )
         self.beam_size = beam
         if aviso:
             self.ui_queue.put(("status", aviso))
-        self.ui_queue.put(("status", f"Cargando modelo {model_name}…"))
+        donde = f" en {vulkan.name}" if device == "vulkan" and vulkan is not None and vulkan.name else ""
+        self.ui_queue.put(("status", f"Cargando modelo {model_name}{donde}…"))
 
         if device == "vulkan":
+            dev = {"device": vulkan.index} if vulkan is not None and vulkan.index >= 0 else {}
             try:
-                return load_whispercpp_model(
+                model = load_whispercpp_model(
                     cfg.whispercpp_dir, model_name, compute_type, DEFAULT_LANGUAGE,
-                    cfg.cpu_threads, cfg.whispercpp_flash_attn,
+                    cfg.cpu_threads, cfg.whispercpp_flash_attn, **dev,
                 )
             except Exception as e:
                 # Vulkan no arranca (driver, VRAM): preset de CPU entero, no el mismo modelo,
                 # porque en faster-whisper serian otros GB de descarga para ir lento.
                 self.ui_queue.put(("status", f"⚠ La GPU (Vulkan) no pudo cargar {model_name} ({e!r}); usando CPU en su lugar."))
                 return self._load_cpu_fallback()
+            usada = getattr(model, "vulkan_device", None)
+            if usada is not None and usada.uma and cfg.whispercpp_device < 0:
+                # Sin enumeracion previa (o si no coincidio), whisper.cpp toma su dispositivo 0,
+                # que puede ser la integrada. Su registro lo dice: en automatico no se acepta.
+                model.close()
+                self.ui_queue.put((
+                    "status",
+                    f"⚠ whisper.cpp tomó la GPU integrada ({usada.name}), que Recorder no usa sin "
+                    f"pedírsela (whispercpp_device); usando CPU en su lugar.",
+                ))
+                return self._load_cpu_fallback()
+            return model
 
         from faster_whisper import WhisperModel
 

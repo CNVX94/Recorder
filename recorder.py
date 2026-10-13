@@ -7,6 +7,8 @@ Opciones:  botón ⚙ (Opciones) o 🎯 (Calibrar) -> rutas, palabras clave, dis
 Tester:    los medidores 🔊/🎤 de la cabecera muestran el nivel en vivo de cada fuente
 Pausa:     botón ⏸ deja de tomar nota sin cambiar de archivo; ▶ continúa en el mismo .md
 Selftest:  python recorder.py --selftest
+Equipo:    python recorder.py --recomendar [--aplicar]  -> qué se detecta, qué se recomienda y por qué;
+           con --aplicar lo escribe en config.json (lo usa install.ps1 al crear la configuración)
 """
 import pathlib
 import sys
@@ -95,10 +97,42 @@ def selftest():
     print("selftest ok (Fase 2 Modular)")
 
 
+def recomendar(aplicar: bool) -> int:
+    """Imprime el equipo detectado y la configuración recomendada; con `aplicar`, la guarda."""
+    from recorder.config.hardware import describe_hardware, detect_hardware
+    from recorder.config.schema import apply_recommendation, describe_recommendation, recommend_config
+    from recorder.engine.whispercpp import vulkan_readiness
+
+    sys.stdout.reconfigure(errors="replace")  # una consola en cp1252 no tumba la salida por un símbolo
+    mgr = ConfigManager()
+    cfg = mgr.load()
+    perfil = detect_hardware()
+    rec = recommend_config(perfil, *vulkan_readiness(cfg.whispercpp_dir))
+    print(f"Equipo:      {describe_hardware(perfil)}")
+    for err in perfil.detection_errors:
+        print(f"             (sin detectar) {err}")
+    print(f"Recomendado: {describe_recommendation(rec)} [{rec.confidence}]")
+    print(f"Motivo:      {rec.reason}")
+    if not aplicar:
+        return 0
+    if mgr.last_error:
+        print(f"No se aplica: {mgr.last_error}")
+        return 1
+    apply_recommendation(cfg, rec)
+    mgr.save(cfg)
+    print(f"Aplicado en {mgr.path}")
+    return 0
+
+
 def main():
     app = MainWindow()
     app.run()
 
 
 if __name__ == "__main__":
-    selftest() if "--selftest" in sys.argv else main()
+    if "--selftest" in sys.argv:
+        selftest()
+    elif "--recomendar" in sys.argv:
+        sys.exit(recomendar("--aplicar" in sys.argv))
+    else:
+        main()

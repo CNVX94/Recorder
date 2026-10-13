@@ -40,11 +40,18 @@ Clona whisper.cpp `v1.9.4`, compila `whisper-server` y `whisper-bench` con `GGML
 los binarios a `E:\whispercpp\bin` y descarga `ggml-large-v3.bin` (2 952 MB),
 `ggml-large-v3-turbo.bin` (1 549 MB) y el VAD `ggml-silero-v6.2.0.bin` (0,8 MB) a
 `E:\whispercpp\models`. Se puede repetir sin volver a descargar. **No uses una carpeta de
-OneDrive**: sincronizaría GB de modelos. En `config.json`:
+OneDrive**: sincronizaría GB de modelos.
+
+Al terminar, el script ejecuta `whisper-bench` y muestra qué GPU toma (`ggml_vulkan: 0 = … | uma:
+0`, `using Vulkan0 backend`), avisando si es una integrada, y **escribe `whispercpp_dir` en
+`config.json`** si existe, cambiando solo esa clave. Después, en ⚙ Opciones, **Usar recomendado**
+pone turbo en la GPU con *flash attention* (o `python recorder.py --recomendar --aplicar`). La
+carpeta también se puede elegir en Opciones con 📁. A mano, en `config.json`:
 
 ```json
 "whispercpp_dir": "E:\\whispercpp",
 "whispercpp_flash_attn": true,
+"whispercpp_device": -1,
 "model": "large-v3-turbo",
 "beam_size": 5,
 "device": "gpu",
@@ -52,6 +59,8 @@ OneDrive**: sincronizaría GB de modelos. En `config.json`:
 ```
 
 `device: "gpu"` usa CUDA si hay una NVIDIA y, si no, whisper.cpp con Vulkan. `"vulkan"` lo fuerza.
+`whispercpp_device` elige la GPU (`-dev N`): `-1` = la dedicada con más VRAM, nunca una integrada
+(`recomendacion-hardware.md` §3).
 Con `compute_type` `q8_0` o `q5_0` se usan los modelos cuantizados (`ggml-<modelo>-q8_0.bin`), si
 se descargan aparte.
 
@@ -79,12 +88,17 @@ calentamiento), con `python tools\medir_rendimiento.py --motor whispercpp --hilo
 con el mismo driver, la misma compilación y los mismos programas abiertos (RustDesk, Sunshine,
 Oculus y Teams, sin llamada en curso), turbo fue 2,7x más rápido y large-v3 1,5x; el WER es
 idéntico. La causa más probable es que en septiembre hubiera una sesión remota activa: RustDesk
-estaba usando el codificador de vídeo de la GPU al 57 % `[medido]`, aunque no se aisló. **Si la
-GPU se comparte con streaming o escritorio remoto, cuenta con perder hasta dos tercios.**
+estaba usando el codificador de vídeo de la GPU al 57 % `[medido]`. **Confirmado en parte el 13 de
+octubre por la tarde:** con una sesión de RustDesk activa (códec de vídeo al 58,5 %), turbo con
+*flash attention* volvió a **3,28x** con el mismo WER de 6,8 % y `whisper-bench` dio 2 224-2 716 ms
+de codificador frente a 816 ms sin ella `[medido]`. **Si la GPU se comparte con streaming o
+escritorio remoto, cuenta con perder hasta dos tercios.**
 
 Con 2,57x, `large-v3` supera el 2,0x que exige el peor caso de dos fuentes hablando a la vez
 (`rendimiento.md` §4), así que el preset Extra es viable en este equipo; turbo va 3,3 veces más
-rápido sin peor WER en esta muestra y deja más margen si la GPU se comparte.
+rápido sin peor WER en esta muestra y deja más margen si la GPU se comparte. Con la GPU compartida
+large-v3 se queda en ~1x: por eso la configuración recomendada para una GPU con Vulkan es turbo
+(`recomendacion-hardware.md` §2.2).
 
 Prueba de punta a punta con el `TranscriberWorker` real (turbo, 14-sep): carga del modelo 2,9 s;
 66 s de audio en 19,9 s (3,3x); 0 fragmentos perdidos; el servidor se cierra al parar.
@@ -118,11 +132,18 @@ whisper.cpp. El perfil de arriba sigue valiendo para ver *qué* pesa, no *cuánt
 * **Elección del motor** (`resolve_runtime` en `config/schema.py`): `gpu` → CUDA si
   `ctranslate2` ve una NVIDIA; si no, Vulkan si `whispercpp_dir` tiene `bin\whisper-server.exe` y
   el modelo pedido; si no, el preset Alta completo en CPU, con aviso en la cabecera.
+* **Elección de la GPU** (`choose_vulkan_device`): sin `-dev`, whisper.cpp toma la primera GPU que
+  enumere Vulkan, integrada incluida. Recorder pasa `-dev N` con la dedicada de más VRAM; si solo
+  hay integrada, no usa Vulkan salvo que se pida su número en `whispercpp_device` (y entonces como
+  mucho turbo). Tras arrancar lee en el registro qué GPU tomó (`uma: 1` = integrada) y, en
+  automático, rechaza una integrada.
 * **Arranque** (`engine/whispercpp.py`): puerto libre en `127.0.0.1`; espera a `/health`
   (el servidor carga el modelo antes de escuchar); registro en `<whispercpp_dir>\logs\whisper-server.log`.
   El proceso va en un *Job Object* de Windows: si Recorder muere de golpe, Windows lo cierra y no
   queda ocupando VRAM.
-* **Si Vulkan no arranca** (driver, VRAM): preset Alta en CPU, avisando.
+* **Si Vulkan no arranca** (driver, VRAM): preset Alta en CPU, avisando. También si el servidor
+  arranca pero su registro dice que no encontró GPU (whisper.cpp seguiría en su CPU, más lento
+  que faster-whisper).
 * **Si el servidor muere a mitad de reunión**: se reinicia y se reintenta el mismo fragmento. Si no
   vuelve a arrancar, el resto de la reunión sigue en CPU, empezando por ese fragmento. Nada se pierde.
 * **Filtros**: los mismos. El servidor no devuelve `compression_ratio`; `filters/quality.py` lo
@@ -140,8 +161,9 @@ whisper.cpp. El perfil de arriba sigue valiendo para ver *qué* pesa, no *cuánt
 * **Comparación con la CPU de este equipo.** No se midió `faster-whisper` turbo en el i5-9500
   (el modelo CT2 ya está en caché: `python tools\medir_rendimiento.py --hilos 4,5,6`). La
   estimación es 1-2x `[estimado]`; la GPU además deja la CPU libre para Teams.
-* **Qué cargaba la GPU el 14 de septiembre.** Una sesión de RustDesk activa es la hipótesis; para
-  confirmarla, medir turbo con y sin una sesión remota abierta.
+* **Qué cargaba la GPU el 14 de septiembre.** Una sesión de RustDesk activa: el 13 de octubre, con
+  una sesión abierta (códec de vídeo al 58,5 %), turbo bajó de 8,49x a 3,28x `[medido]`. Falta una
+  medición controlada (misma hora, con y sin sesión) y saber si Sunshine pesa igual.
 * **Con Teams en llamada.** Teams decodifica vídeo en la misma GPU; no se midió la reunión real en
   GPU. Hasta el 13 de octubre todas las reuniones se transcribieron en CPU porque `config.json`
   había perdido `whispercpp_dir`.

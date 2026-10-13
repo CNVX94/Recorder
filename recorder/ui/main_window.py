@@ -11,9 +11,17 @@ from ..actions.notes import NotesSession, md_ref
 from ..actions.power import keep_awake, should_stay_awake
 from ..actions.screenshot import take_screenshot
 from ..audio.capture import AudioCaptureManager, meter_label, pending_audio_sec, pending_summary
+from ..config.hardware import HardwareProfile, cached_hardware, describe_hardware
 from ..config.manager import ConfigManager
-from ..config.schema import AppConfig
+from ..config.schema import (
+    AppConfig,
+    apply_recommendation,
+    describe_recommendation,
+    recommend_config,
+    startup_notices,
+)
 from ..engine.whisper_worker import TranscriberWorker
+from ..engine.whispercpp import vulkan_readiness
 from .dialogs.settings_dialog import SettingsDialog
 from .dialogs.digest_dialog import DigestDialog
 from .dialogs.tuning_dialog import TuningDialog
@@ -60,13 +68,63 @@ class MainWindow:
 
         # Iniciar hilos en segundo plano
         self.audio_manager.start()
-        self.transcribe_thread = threading.Thread(
-            target=self.transcriber.run, daemon=True
-        )
-        self.transcribe_thread.start()
+        # El hardware se detecta en otro hilo (~1 s) para no congelar la ventana; el resultado
+        # llega por ui_queue ("hardware") y queda en caché para Opciones y el transcriptor.
+        self.hardware: Optional[HardwareProfile] = None
+        self.transcribe_thread: Optional[threading.Thread] = None
+        # Primer arranque: falta aplicar la recomendación (salvo que antes se guarde Opciones).
+        self.recommend_pending = getattr(self.config_manager, "first_run", False)
+        threading.Thread(target=self._detect_hardware, daemon=True).start()
+        if self.recommend_pending:
+            # Sin config.json, los valores de fábrica (Media, 4 hilos) no dependen del equipo:
+            # se espera a la detección para cargar ya el modelo recomendado (ver _on_hardware).
+            self.lbl_status.config(text="Detectando el equipo…")
+        else:
+            self._start_transcriber()
 
         # Iniciar sondeo de eventos de interfaz
         self.poll()
+
+    def _start_transcriber(self):
+        self.transcribe_thread = threading.Thread(target=self.transcriber.run, daemon=True)
+        self.transcribe_thread.start()
+
+    def _detect_hardware(self):
+        try:
+            profile = cached_hardware()
+        except Exception as e:  # detect_hardware no lanza; esto evita un primer arranque colgado si algo cambia
+            profile = HardwareProfile(detection_errors=[repr(e)])
+        self.ui_queue.put(("hardware", profile))
+
+    def _on_hardware(self, profile: HardwareProfile):
+        """Primer arranque: aplica la recomendación y arranca el transcriptor. Si no, avisos."""
+        self.hardware = profile
+        rec = recommend_config(profile, *vulkan_readiness(self.config.whispercpp_dir))
+        if self.transcribe_thread is None:
+            if self.recommend_pending:
+                self.recommend_pending = False
+                apply_recommendation(self.config, rec)  # el mismo objeto que usa el transcriptor
+                guardado = ""
+                try:
+                    self.config_manager.save(self.config)
+                except OSError as e:
+                    guardado = f" (no se pudo guardar {self.config_manager.path.name}: {e})"
+                self._visor(
+                    f"🖥 Primer arranque en este equipo: {describe_hardware(profile)}. Se aplicó la "
+                    f"configuración recomendada, {describe_recommendation(rec)}: {rec.reason}{guardado} "
+                    f"Se puede cambiar en ⚙ Opciones.",
+                    "info",
+                )
+            self._start_transcriber()  # también si se está cerrando: es quien vacía la cola
+            return
+        for aviso in startup_notices(self.config, profile, rec):
+            self._visor(aviso, "err" if aviso.startswith("⚠") else "info")
+
+    def _visor(self, texto: str, tag: str):
+        """Una línea con hora en la ventana, sin tocar la nota (no es parte de la reunión)."""
+        self.txt.insert("end", f"{dt.datetime.now().strftime('%H:%M:%S')}  ", "t")
+        self.txt.insert("end", texto + "\n", tag)
+        self.txt.see("end")
 
     def _build_gui(self):
         self.root = tk.Tk()
@@ -146,6 +204,7 @@ class MainWindow:
         self.txt.tag_config("kw", foreground=ACC)
         self.txt.tag_config("mic", foreground=MIC)
         self.txt.tag_config("err", foreground=ERR)
+        self.txt.tag_config("info", foreground=DIM)
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -216,6 +275,7 @@ class MainWindow:
             self.config = new_config
             self.config_manager.save(self.config)
             self.transcriber.update_pipeline(self.config)
+            self.recommend_pending = False  # lo elegido en Opciones manda sobre la recomendación
 
             if devices_changed:
                 self.lbl_status.config(text="● Escuchando")
@@ -267,6 +327,8 @@ class MainWindow:
                 self.add_line(*m[1:])
             elif m[0] == "source":
                 self.note_source(*m[1:])
+            elif m[0] == "hardware":
+                self._on_hardware(m[1])
 
         pending = self.chunk_queue.qsize()
         busy = self.transcriber.busy

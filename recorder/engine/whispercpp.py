@@ -18,6 +18,7 @@ import dataclasses
 import io
 import json
 import pathlib
+import re
 import socket
 import subprocess
 import time
@@ -74,6 +75,66 @@ def whispercpp_ready(whispercpp_dir: str, model: str, compute_type: str) -> bool
         return False
     root = pathlib.Path(whispercpp_dir)
     return server_exe_path(root).is_file() and model_path(root, model, compute_type).is_file()
+
+
+def installed_models(whispercpp_dir: str) -> List[str]:
+    """Modelos ggml de `<whispercpp_dir>/models` ("large-v3-turbo", "large-v3-q8_0"...), sin el VAD."""
+    carpeta = pathlib.Path(whispercpp_dir) / "models" if whispercpp_dir else None
+    if carpeta is None or not carpeta.is_dir():
+        return []
+    return sorted(
+        f.stem[len("ggml-"):] for f in carpeta.glob("ggml-*.bin") if f.name != VAD_MODEL
+    )
+
+
+def vulkan_readiness(whispercpp_dir: str, compute_type: str = "float16") -> Tuple[bool, bool]:
+    """(large-v3-turbo listo, large-v3 listo) en `whispercpp_dir`, para `recommend_config`."""
+    return (
+        whispercpp_ready(whispercpp_dir, "large-v3-turbo", compute_type),
+        whispercpp_ready(whispercpp_dir, "large-v3", compute_type),
+    )
+
+
+# ------------------------------------------------------------------ registro del servidor
+@dataclasses.dataclass(frozen=True)
+class VulkanLogDevice:
+    index: int  # numero de ggml-vulkan, el de `-dev`
+    name: str
+    driver: str
+    uma: bool  # memoria unificada: GPU integrada
+
+
+_LOG_DEVICE = re.compile(r"ggml_vulkan: (\d+) = (.+) \(([^()]*)\) \| uma: (\d+)")
+_LOG_USED = re.compile(r"using Vulkan(\d+) backend")
+
+
+def parse_vulkan_log(text: str) -> Tuple[List[VulkanLogDevice], Optional[VulkanLogDevice]]:
+    """(GPUs que vio ggml-vulkan, la que usa whisper.cpp) segun el registro de whisper-server.
+
+    ggml-vulkan imprime "ggml_vulkan: 0 = AMD Radeon RX 6700 XT (AMD proprietary driver) |
+    uma: 0 | ..." por GPU, y whisper.cpp "whisper_backend_init_gpu: using Vulkan0 backend" con
+    la elegida. Es la comprobacion de lo que de verdad paso, por si la enumeracion propia
+    (`config.hardware`) no coincide o no se pudo hacer.
+    """
+    devices = [
+        VulkanLogDevice(int(m.group(1)), m.group(2).strip(), m.group(3), m.group(4) != "0")
+        for m in _LOG_DEVICE.finditer(text)
+    ]
+    used = _LOG_USED.search(text)
+    elegido = None
+    if used:
+        elegido = next((d for d in devices if d.index == int(used.group(1))), None)
+    return devices, elegido
+
+
+def runs_on_cpu(text: str) -> bool:
+    """Si el registro dice que whisper.cpp cargo el modelo sin GPU (Vulkan ausente, -dev invalido).
+
+    Entonces whisper-server no falla: sigue en su CPU, mas lento que faster-whisper. Solo cuenta
+    el mensaje explicito y sin ninguna GPU elegida; el VAD tambien escribe "no GPU found", pero al
+    procesar peticiones, despues de que esto se lea.
+    """
+    return "whisper_backend_init_gpu: no GPU found" in text and not _LOG_USED.search(text)
 
 
 # ------------------------------------------------------------------ peticion y respuesta
@@ -286,11 +347,15 @@ def server_command(
     language: str,
     threads: int,
     flash_attn: bool,
+    device: int = -1,
 ) -> List[str]:
+    """Linea de comandos de whisper-server. `device` >= 0 elige la GPU de Vulkan (`-dev N`)."""
     root = pathlib.Path(whispercpp_dir)
     cmd = [str(server_exe_path(root)), "-m", str(model_path(root, model, compute_type)), "-l", language]
     if threads > 0:
         cmd += ["-t", str(threads)]
+    if device >= 0:
+        cmd += ["-dev", str(device)]
     # Apagada por defecto: en Radeon con Windows hay reportes de frases repetidas sin fin y de
     # cierres en amdvlk64.dll con flash attention. Se enciende solo si la medicion sale limpia.
     cmd.append("-fa" if flash_attn else "-nfa")
@@ -308,6 +373,7 @@ class WhisperCppModel:
         self.server = server
         self.has_vad = has_vad
         self.request_timeout = request_timeout
+        self.vulkan_device: Optional[VulkanLogDevice] = None  # la GPU que dice el registro que usa
 
     def transcribe(
         self,
@@ -365,9 +431,19 @@ def load_whispercpp_model(
     language: str,
     threads: int,
     flash_attn: bool,
+    device: int = -1,
 ) -> WhisperCppModel:
     """Arranca el servidor y devuelve el modelo listo. Lanza excepcion si no arranca."""
-    cmd = server_command(whispercpp_dir, model, compute_type, language, threads, flash_attn)
+    cmd = server_command(whispercpp_dir, model, compute_type, language, threads, flash_attn, device)
     server = WhisperCppServer(cmd, pathlib.Path(whispercpp_dir) / "logs" / "whisper-server.log")
     server.start()
-    return WhisperCppModel(server, has_vad="--vad" in cmd)
+    modelo = WhisperCppModel(server, has_vad="--vad" in cmd)
+    try:  # el modelo ya esta cargado, asi que el registro ya dice que GPU tomo
+        registro = server.log_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return modelo
+    if runs_on_cpu(registro):
+        server.stop()
+        raise RuntimeError(f"whisper-server no encontró GPU de Vulkan y correría en CPU; ver {server.log_path}")
+    modelo.vulkan_device = parse_vulkan_log(registro)[1]
+    return modelo

@@ -135,6 +135,62 @@ if (-not $SinModelos) {
     }
 }
 
-Write-Step "Listo. En config.json (o eligiendo el preset Extra en Opciones):"
-Write-Host ('    "whispercpp_dir": "{0}",' -f ($Destino -replace '\\', '\\')) -ForegroundColor White
-Write-Host '    "device": "gpu", "compute_type": "float16", "model": "large-v3", "beam_size": 5' -ForegroundColor White
+# ---------------------------------------------------------------------------
+# 5. Que GPU toma whisper.cpp
+# ---------------------------------------------------------------------------
+# whisper-bench no admite -dev: muestra lo que haria whisper-server sin -dev (su dispositivo 0) y
+# la lista de GPUs con su numero, que es el que va en "whispercpp_device" si se quiere otra.
+$bench = Join-Path $bin "whisper-bench.exe"
+$modeloBench = @("large-v3-turbo", "large-v3") | ForEach-Object { Join-Path $models "ggml-$_.bin" } |
+    Where-Object { Test-Path $_ } | Select-Object -First 1
+if ((Test-Path $bench) -and $modeloBench) {
+    Write-Step "Comprobando la GPU con whisper-bench ($([IO.Path]::GetFileName($modeloBench)), unos segundos)..."
+    $salidaBench = Invoke-Nativo { & $bench -m $modeloBench -t 4 2>&1 | ForEach-Object { "$_" } }
+    $lineas = @($salidaBench | Where-Object { $_ -match "ggml_vulkan: \d+ = |using Vulkan\d+ backend|no GPU found|encode time" })
+    foreach ($l in $lineas) { Write-Host "    $($l.Trim())" -ForegroundColor White }
+    $usada = $salidaBench | Select-String -Pattern "using Vulkan(\d+) backend" | Select-Object -First 1
+    if (-not $usada) {
+        Write-Host "    AVISO: whisper.cpp no encontro una GPU de Vulkan; Recorder usara la CPU." -ForegroundColor Yellow
+    } else {
+        $n = $usada.Matches[0].Groups[1].Value
+        if ($salidaBench -match "ggml_vulkan: $n = .*\| uma: 1") {
+            Write-Host "    AVISO: el dispositivo $n es una GPU integrada. Recorder no la usa en automatico: elige la" -ForegroundColor Yellow
+            Write-Host "    dedicada (o esta, si la mediste) en Opciones > 'GPU de whisper.cpp'." -ForegroundColor Yellow
+        }
+    }
+} else {
+    Write-Host "    (Sin whisper-bench o sin modelos: no se comprueba la GPU.)" -ForegroundColor DarkGray
+}
+
+# ---------------------------------------------------------------------------
+# 6. whispercpp_dir en config.json
+# ---------------------------------------------------------------------------
+# Solo se cambia esa clave, como texto: el resto del archivo (vocabulario, correcciones,
+# formato) queda tal cual. Sin esta linea, la GPU no se usa aunque todo este instalado.
+$ConfigPath = Join-Path (Split-Path -Parent $PSScriptRoot) "config.json"
+$DestinoAbs = (Resolve-Path -LiteralPath $Destino).Path
+$par = '"whispercpp_dir": "' + (($DestinoAbs -replace '\\', '\\') -replace '"', '\"') + '"'
+if (Test-Path $ConfigPath) {
+    Write-Step "Guardando whispercpp_dir en config.json..."
+    $texto = [IO.File]::ReadAllText($ConfigPath)
+    $evaluador = [Text.RegularExpressions.MatchEvaluator] { param($m) $par }
+    $clave = [regex]'"whispercpp_dir"\s*:\s*"(?:[^"\\]|\\.)*"'
+    if ($clave.IsMatch($texto)) {
+        $nuevo = $clave.Replace($texto, $evaluador, 1)
+    } else {
+        $nuevo = ([regex]'\{').Replace($texto, [Text.RegularExpressions.MatchEvaluator] { param($m) "{`r`n  $par," }, 1)
+    }
+    $valido = $true
+    try { $null = $nuevo | ConvertFrom-Json } catch { $valido = $false }
+    if ($valido) {
+        [IO.File]::WriteAllText($ConfigPath, $nuevo, (New-Object Text.UTF8Encoding $false))
+        Write-Ok "$par"
+    } else {
+        Write-Host "    AVISO: no se pudo editar config.json sin romperlo; anade a mano: $par" -ForegroundColor Yellow
+    }
+    Write-Step "Listo. Abre Recorder y en Opciones pulsa 'Usar recomendado' (o: python recorder.py --recomendar --aplicar)."
+} else {
+    Write-Step "Listo. No hay config.json todavia; cuando exista, anade:"
+    Write-Host "    $par" -ForegroundColor White
+    Write-Host "    y en Opciones pulsa 'Usar recomendado'." -ForegroundColor White
+}

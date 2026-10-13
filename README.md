@@ -58,6 +58,10 @@ Una vez copiada, editala desde la propia aplicacion con los botones ⚙️ Opcio
 
 La plantilla omite a proposito `notes_dir` y `caps_dir`. Al faltar esos campos, la aplicacion usa tu carpeta `Documentos\Dailies`. Anadelos solo si quieres otra ubicacion.
 
+### Configuración según tu equipo
+
+Recorder detecta el equipo en medio segundo (CPU y sus núcleos P/E, AVX2, RAM, batería, GPUs con su VRAM real) y propone la calidad, el motor y los hilos que le convienen, con el motivo: una NVIDIA de 6 GB o más va a **Extra**; una GPU AMD/Intel con whisper.cpp, a `large-v3-turbo` en la GPU; sin GPU, **Alta**, **Media** o **Baja** según la CPU (una gama menos con batería). El instalador y el primer arranque la aplican solos; después está en ⚙ Opciones (**Usar recomendado**), y al arrancar se avisa si tu configuración es más pesada que la recomendada o si hay una GPU dedicada sin `whispercpp_dir`. Para verla en la consola: `python recorder.py --recomendar` (con `--aplicar` la guarda). Detalle, umbrales y medidas: [docs/recomendacion-hardware.md](docs/recomendacion-hardware.md).
+
 | Campo | Que hace |
 | :--- | :--- |
 | `vocab` | Contexto que se le pasa a Whisper antes de oir. Aqui van los terminos y nombres de tu equipo. Es lo que mas mejora la transcripcion. |
@@ -65,9 +69,9 @@ La plantilla omite a proposito `notes_dir` y `caps_dir`. Al faltar esos campos, 
 | `fixes` | Sustituciones palabra por palabra tras transcribir, para lo que Whisper confunda siempre igual. |
 | `ignore` | Frases fantasma que Whisper inventa en los silencios. La lista de fabrica cubre las mas comunes en espanol. |
 | `model` | Modelo de Whisper. `small` va en tiempo real en un portatil sin GPU; `medium` es mas preciso pero se retrasa. |
-| `cpu_threads` | Hilos de CPU para la inferencia. `0` deja el valor de faster-whisper (4), que desaprovecha una CPU con mas nucleos. Como medir el mejor valor en tu equipo: [docs/rendimiento.md](docs/rendimiento.md). |
-| `device`, `compute_type` | Dónde corre el modelo. `cpu`/`int8` sin GPU; `gpu`/`float16` usa CUDA si hay NVIDIA y si no whisper.cpp con Vulkan (AMD). Lo fija el preset elegido en ⚙ Opciones. |
-| `whispercpp_dir`, `whispercpp_flash_attn` | Carpeta de whisper.cpp compilado con Vulkan (`tools\instalar_whispercpp.ps1`) y si usa *flash attention*. Solo para GPU AMD: [docs/gpu-amd-vulkan.md](docs/gpu-amd-vulkan.md). |
+| `cpu_threads` | Hilos de CPU para la inferencia. `0` deja el valor de faster-whisper (4), que desaprovecha una CPU con mas nucleos. El instalador y el primer arranque ponen el recomendado para tu CPU (en una híbrida cuentan los núcleos P); se cambia en ⚙ Opciones. Como medir el mejor valor en tu equipo: [docs/rendimiento.md](docs/rendimiento.md). |
+| `device`, `compute_type` | Dónde corre el modelo. `cpu`/`int8` sin GPU; `gpu`/`float16` usa CUDA si hay NVIDIA y si no whisper.cpp con Vulkan (AMD); `cuda` y `vulkan` fuerzan uno. Lo fija el preset elegido en ⚙ Opciones o **Usar recomendado**. |
+| `whispercpp_dir`, `whispercpp_flash_attn`, `whispercpp_device` | Carpeta de whisper.cpp compilado con Vulkan (`tools\instalar_whispercpp.ps1` la escribe sola), si usa *flash attention* y qué GPU usa (`-1` = la dedicada con más VRAM, nunca la integrada; un número la fuerza). Se eligen en ⚙ Opciones. Para GPU AMD/Intel: [docs/gpu-amd-vulkan.md](docs/gpu-amd-vulkan.md). |
 | `screen` | Monitor del que se captura. `0` son todas las pantallas juntas. |
 | `window` | Título de la ventana de aplicación que se captura en lugar de la pantalla (vacío = usar `screen`). Se elige desde ⚙ Opciones. |
 | `no_speech_threshold`, `logprob_threshold`, `compression_ratio_threshold` | Umbrales anti-alucinaciones. Se ajustan desde 🎯 Calibrar, que ademas trae un sandbox para probarlos. |
@@ -101,7 +105,7 @@ En ⚙ Opciones, el selector **Qué capturar 📸** lista, además de las pantal
 ### 2. Controles de la Interfaz
 
 * **📸 Captura:** Toma una captura manual instantánea del objetivo configurado (pantallas, monitor o ventana) y la anota en el Markdown.
-* **⚙ Opciones:** Permite elegir la carpeta de notas, la carpeta de capturas, los dispositivos de audio WASAPI (altavoces/micrófono), qué capturar (pantallas, un monitor o una ventana) y el modelo de Whisper.
+* **⚙ Opciones:** Permite elegir la carpeta de notas, la carpeta de capturas, los dispositivos de audio WASAPI (altavoces/micrófono), qué capturar (pantallas, un monitor o una ventana), la calidad de transcripción (con la **recomendada para este equipo** y su motivo), los hilos de CPU y, para una GPU AMD/Intel, la carpeta de whisper.cpp, la GPU y *flash attention*.
 * **🎯 Calibrar:** Abre el panel de fine-tuning para ajustar el prompt de contexto, la lista negra de alucinaciones, el diccionario fonético y probar frases en el sandbox.
 * **⏸ Pausar / ▶ Continuar:** Suspende la toma de notas durante pausas de la reunión sin cerrar el archivo diario.
 * **Clic en los medidores `🔊 🎤`:** Reabre las dos fuentes de audio al momento con los dispositivos configurados (plan B si un flujo se queda mudo sin dar error).
@@ -182,12 +186,16 @@ Recorder/
     ├── test_audio_processing.py    # Pruebas de DSP y señales
     ├── test_audio_recovery.py      # Reapertura de fuentes caídas, cierre con cola y equipo despierto
     ├── test_config.py              # Pruebas de configuración
+    ├── test_hardware.py            # Detección de CPU, RAM, energía y GPUs con datos sintéticos
+    ├── test_recommendation.py      # Configuración recomendada por gama y elección de GPU Vulkan
     └── test_filters_and_lexicon.py # Pruebas de filtros y sustituciones
 ```
 
 Para más detalles, consulta la documentación en la carpeta [docs/](docs/):
 * 📖 [docs/architecture.md](docs/architecture.md): Diagramas de flujo y detalle de cada subsistema.
 * 🎯 [docs/anti-hallucination-tuning.md](docs/anti-hallucination-tuning.md): Cómo se producen las alucinaciones en Whisper y cómo calibrarlas.
+* 🖥️ [docs/recomendacion-hardware.md](docs/recomendacion-hardware.md): Qué detecta Recorder de tu equipo, cómo elige la configuración recomendada y qué GPU usa whisper.cpp.
+* 🎚️ [docs/presets-calidad.md](docs/presets-calidad.md): Los presets Baja, Media, Alta y Extra, y qué pasa si se pide GPU y no la hay.
 * ⚡ [docs/rendimiento.md](docs/rendimiento.md): Qué hace lenta la transcripción en CPU, qué palancas hay y cómo medirlas en tu equipo (`tools/medir_rendimiento.py`).
 * 🎮 [docs/gpu-amd-vulkan.md](docs/gpu-amd-vulkan.md): Transcribir en una GPU AMD (Radeon) con whisper.cpp y Vulkan: instalación, medidas y límites.
 * 🗺️ [docs/plan-fase-3.md](docs/plan-fase-3.md): Plan para identificar a cada participante por su voz.
@@ -208,5 +216,10 @@ El proyecto incluye dos niveles de verificación:
 
 2. **Suite Completa de Pruebas Unitarias:**
    ```powershell
-   python -m unittest discover -s tests
+   python -m unittest discover -s tests -t .
+   ```
+
+3. **Qué detecta en tu equipo y qué recomienda** (no cambia nada; con `--aplicar` lo guarda en `config.json`):
+   ```powershell
+   python recorder.py --recomendar
    ```

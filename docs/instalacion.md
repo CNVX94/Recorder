@@ -28,7 +28,11 @@ Los pasos y los archivos son los mismos para los dos; cambia solo el nivel de de
 3. Espera a que termine. La ventana va mostrando cada paso (`==>`) y si salio bien (`OK:`).
    La instalacion de dependencias (`faster-whisper`, `numpy`, etc.) es la parte que mas
    tarda; puede llevar varios minutos la primera vez, menos las siguientes porque reutiliza
-   la cache de `pip`.
+   la cache de `pip`. Despues detecta tu equipo (CPU, memoria, GPU, bateria) y deja en
+   `config.json` la calidad y los hilos que le convienen; si ya tenias un `config.json`, solo
+   te dice cual seria y lo puedes aplicar en Opciones con **Usar recomendado**
+   ([recomendacion-hardware.md](recomendacion-hardware.md)). Con una GPU AMD o Intel, la
+   transcripcion en GPU se instala aparte: [gpu-amd-vulkan.md](gpu-amd-vulkan.md).
 4. Al final veras un aviso de que la primera transcripcion descarga el modelo de Whisper
    configurado (puede pesar mas de 1 GB segun el modelo elegido en `config.json`). Necesita
    internet solo esa vez; despues queda guardado en tu equipo.
@@ -119,10 +123,14 @@ cada uno.
    ```
 
 4. **Verificar `config.json`**: debe existir tras la instalacion (se crea a partir de
-   `config.example.json` si no existia ya).
+   `config.example.json` si no existia ya). En uno recien creado, el instalador ya escribio
+   la configuracion recomendada para la maquina (`==> Detectando el equipo...`, lineas
+   `Equipo:`, `Recomendado:` y `Motivo:`); en uno previo solo la muestra. Para verla de
+   nuevo sin tocar nada:
 
    ```powershell
    Test-Path "<ruta-destino>\config.json"   # debe devolver True
+   & "<ruta-destino>\.venv\Scripts\python.exe" "<ruta-destino>\recorder.py" --recomendar
    ```
 
 5. **Verificar el bloque en el perfil de PowerShell usado** (el real, o el que se haya

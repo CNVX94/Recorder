@@ -69,8 +69,10 @@ recibe el número de GPUs ya detectado (para poder testearla sin GPU) y devuelve
 preset se puede usar aquí y, si no, por qué. Hoy solo **Extra** depende de esto; Baja,
 Media y Alta corren en cualquier CPU y siempre están disponibles.
 
-El diálogo de Opciones (`settings_dialog.py`) llama a `detect_cuda_device_count()` una
-vez al abrirse y usa el resultado para:
+El diálogo de Opciones (`settings_dialog.py`) toma el número de GPUs CUDA del perfil de
+hardware que la ventana principal detecta al arrancar (`config/hardware.py`, ver
+`recomendacion-hardware.md`); si aún no está, llama a `detect_cuda_device_count()` como
+antes. Lo usa para:
 
 1. Anotar en el propio desplegable qué preset no está disponible aquí
    (`"Extra (no disponible en este equipo)"`).
@@ -140,7 +142,32 @@ pero no carga.
 
 ---
 
-## 6. Qué no se verificó
+## 6. El preset recomendado para este equipo
+
+Elegir un nombre sigue exigiendo saber qué aguanta el equipo. Desde octubre de 2026 Recorder
+lo detecta (CPU, núcleos P/E, AVX2, RAM, batería, GPUs con su VRAM) y propone una
+configuración con su motivo; el detalle está en `recomendacion-hardware.md`. Resumen de cómo
+se reparte entre los presets:
+
+| Equipo | Recomendación |
+| :--- | :--- |
+| NVIDIA con CUDA y 6 GB o más | **Extra** |
+| NVIDIA con CUDA y menos de 6 GB | Personalizado: `large-v3-turbo`, haz 5, `cuda`, float16 |
+| GPU dedicada con whisper.cpp instalado (AMD, Intel o NVIDIA sin CUDA) | Personalizado: `large-v3-turbo`, haz 5, `vulkan`, float16, *flash attention*. Extra (large-v3) también cabe en la RX 6700 XT medida (2,57x), pero con la GPU compartida se queda en ~1x; turbo iba a 8,49x con igual WER |
+| CPU no híbrida de 8+ núcleos, o híbrida con 6+ núcleos P (AVX2, 8 GB) | **Alta** |
+| 4-7 núcleos, o híbrida con menos de 6 P (como el i7-1255U) | **Media** |
+| Menos de 4 núcleos, sin AVX2 o con menos de 8 GB | **Baja** |
+| Con batería | Una gama de CPU menos |
+
+Además fija `cpu_threads` (antes 0 = 4 hilos en cualquier CPU). Se aplica sola en el primer
+arranque y desde el instalador; después, ⚙ Opciones la muestra bajo el selector de calidad con
+el botón **Usar recomendado**, que elige el preset o, si es una combinación propia, deja el
+selector en Personalizado con esos valores. Al arrancar se avisa si la configuración guardada
+es más pesada que la recomendada (`config_heavier_than`).
+
+---
+
+## 7. Qué no se verificó
 
 * **Extra no se probó con una GPU real ni descargando `large-v3`**: pesa varios GB y
   en esta CPU no serviría de nada. Lo verificado es la lógica (mapeo, detección,
