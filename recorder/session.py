@@ -366,9 +366,13 @@ class RecorderSession:
         except Exception:  # ponytail: si ni la nota se puede escribir, el visor ya avisó
             pass
 
-    def _anotar_fuentes(self):
+    def _anotar_fuentes(self, cambio: bool = False):
         """Deja en la nota y en el visor qué dispositivo resolvió cada fuente: sin esto, un
-        micrófono equivocado no se ve en la nota (una daily entera sin 🎤 y nada que dijera por qué)."""
+        micrófono equivocado no se ve en la nota (una daily entera sin 🎤 y nada que dijera por qué).
+
+        Con `cambio` (Opciones reabrió el audio con otros dispositivos) la línea de la nota lleva la
+        hora, como la pausa: la nota dice desde cuándo se oye por el otro dispositivo.
+        """
         partes = []
         for icon, kind, pref in (("🔊", "out", self.config.out_dev), ("🎤", "mic", self.config.mic_dev)):
             if kind == "mic" and not self.config.mic:
@@ -378,10 +382,11 @@ class RecorderSession:
                 partes.append(f"{icon} {resolve_wasapi_device(self.pa, kind, pref)['name']}")
             except Exception:
                 partes.append(f"{icon} no encontrado: {pref or 'predeterminado'}")
-        texto = f"Fuentes: {' · '.join(partes)}"
-        self._events.append(Notice(_now(), texto, "info"))
+        texto = f"{'⚙ ' if cambio else ''}Fuentes: {' · '.join(partes)}"
+        stamp = _now()
+        self._events.append(Notice(stamp, texto, "info"))
         try:
-            self.notes_session.write_line(f"> {texto}\n")
+            self.notes_session.write_line(f"\n> {texto} {stamp}\n" if cambio else f"> {texto}\n")
         except Exception:  # ponytail: es informativo; si la nota no se puede escribir ya se verá luego
             pass
 
@@ -613,14 +618,21 @@ class RecorderSession:
         self.audio_manager.restart(self.config.out_dev, self.config.mic_dev, self.config.mic)
 
     def apply_settings(self, new_config: AppConfig, notes_changed: bool, devices_changed: bool) -> None:
-        """Lo que guarda ⚙ Opciones: mueve la nota (sus enlaces a capturas se reescriben), guarda,
-        recarga filtros, rearranca el buffer si cambió su carpeta o calidad y reabre el audio si
-        cambiaron los dispositivos."""
+        """Lo que guarda ⚙ Opciones (o el panel [o] de la terminal, en plena grabación): mueve la
+        nota (sus enlaces a capturas se reescriben), guarda, recarga filtros, rearranca el buffer
+        si cambió su carpeta o calidad y reabre el audio si cambiaron los dispositivos, dejando en
+        la nota y el visor qué dispositivo resolvió cada fuente. Si config.json no se deja escribir,
+        lo cambiado vale igual para esta sesión y se avisa: la grabación no se para por eso."""
         if notes_changed:
             self.notes_session.move_notes(new_config.notes_dir)
 
         self.config = new_config
-        self.config_manager.save(self.config)
+        try:
+            self.config_manager.save(self.config)
+        except OSError as e:
+            self._events.append(Notice(
+                _now(), f"⚠ no se pudo guardar {self.config_manager.path.name}: {e}; lo cambiado vale solo para esta sesión", "err",
+            ))
         self.transcriber.update_pipeline(self.config)
         self.recommend_pending = False  # lo elegido en Opciones manda sobre la recomendación
         if (self.config.caps_dir, self.config.captures) != self._buffer_key:
@@ -628,6 +640,7 @@ class RecorderSession:
 
         if devices_changed:
             self._base_status = "● Escuchando"
+            self._anotar_fuentes(cambio=True)  # antes de reabrir: solo enumera dispositivos
             self.audio_manager.restart(
                 out_dev=self.config.out_dev,
                 mic_dev=self.config.mic_dev,

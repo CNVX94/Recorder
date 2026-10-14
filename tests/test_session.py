@@ -455,6 +455,36 @@ class TestOpcionesYCalibrar(BaseSesion):
         self.session.apply_settings(self.session.config, notes_changed=False, devices_changed=False)
         self.assertEqual(self.audio.llamadas, [])
         self.assertEqual(self.session.status.status_text, "Iniciando…")
+        self.assertEqual([e for e in self.session.poll() if isinstance(e, Notice)], [], "sin reabrir, nada que anotar")
+        self.assertNotIn("Fuentes", self.nota)
+
+    def test_cambiar_los_dispositivos_anota_las_fuentes_nuevas_con_su_hora(self):
+        original = ses.resolve_wasapi_device
+        ses.resolve_wasapi_device = lambda p, kind, pref: {"name": pref or "Altavoces"}
+        self.addCleanup(lambda: setattr(ses, "resolve_wasapi_device", original))
+        cfg = self.session.config
+        cfg.out_dev = "Auriculares"
+        cfg.mic = False
+        self.session.apply_settings(cfg, notes_changed=False, devices_changed=True)
+        aviso = next(e for e in self.session.poll() if isinstance(e, Notice))
+        self.assertEqual((aviso.text, aviso.level), ("⚙ Fuentes: 🔊 Auriculares · 🎤 desactivado", "info"))
+        self.assertIn(f"\n> ⚙ Fuentes: 🔊 Auriculares · 🎤 desactivado {aviso.stamp}\n", self.nota, "la nota dice desde cuándo")
+        self.assertEqual(self.audio.llamadas[-1], ("restart", "Auriculares", "", False))
+
+    def test_si_config_no_se_puede_guardar_se_avisa_y_se_aplica_igual(self):
+        def no_guarda(cfg):
+            raise OSError("disco lleno")
+
+        self.mgr.save = no_guarda
+        cfg = self.session.config
+        cfg.keywords = ["demo"]
+        cfg.out_dev = "Auriculares"
+        self.session.apply_settings(cfg, notes_changed=False, devices_changed=True)
+        aviso = next(e for e in self.session.poll() if isinstance(e, Notice) and e.level == "err")
+        self.assertEqual(aviso.text, "⚠ no se pudo guardar config.json: disco lleno; lo cambiado vale solo para esta sesión")
+        self.assertIs(self.worker.actualizaciones[-1], cfg, "los filtros se recargan igual")
+        self.assertEqual(self.audio.llamadas[-1], ("restart", "Auriculares", "", True), "y el audio se reabre igual")
+        self.assertNotEqual(json.loads(self.ruta.read_text(encoding="utf-8"))["keywords"], ["demo"], "en disco sigue lo de antes")
 
     def test_calibrar_recarga_filtros_sin_tocar_audio_ni_recomendacion(self):
         self.session.recommend_pending = True

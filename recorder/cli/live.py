@@ -7,38 +7,75 @@ de la terminal, se pueden copiar y desplazar) y debajo vive un pie de tres líne
 solo cuando cambia: la cabecera (`status_text`), los medidores (`meter_text`, con 🔇 en la fuente
 muda) y las teclas. En silencio no se escribe nada y el proceso no gasta CPU.
 
-Teclas: [p] pausar/continuar · [c] captura · [r] reconectar audio · [a] abrir la nota · [q] salir
-(Ctrl+C también sale). Al salir con cola pendiente se pregunta en el pie, como en la ventana:
-[e] esperar a que se transcriba · [s] salir perdiéndola · [c] cancelar.
+Teclas: [p] pausar/continuar · [c] captura · [r] reconectar audio · [a] abrir la nota ·
+[o] opciones · [q] salir (Ctrl+C también sale). Al salir con cola pendiente se pregunta en el
+pie, como en la ventana: [e] esperar a que se transcriba · [s] salir perdiéndola · [c] cancelar.
+
+[o] abre en el pie un panel de opciones sin parar la grabación (el bucle sigue sondeando la
+sesión e imprimiendo frases mientras tanto): salida de audio, micrófono (apagado o cuál), qué
+capturar (pantallas o una ventana abierta, [r] las relee) y calidad de las capturas. Se elige
+con el número ([1]-[9] directo; con más opciones se teclea el número y Enter, Retroceso borra),
+Esc vuelve sin cambiar nada y Ctrl+C sigue siendo salir. Lo elegido se aplica con
+`RecorderSession.apply_settings` como lo haría ⚙ Opciones en la ventana: se guarda en
+config.json y solo se reabre el audio; el transcriptor y la cola no se tocan. Los dispositivos
+que se conectan después de arrancar no aparecen: PortAudio enumera al inicializar y no se puede
+reinicializar con el loopback abierto (ver `RecorderSession.shutdown`); el panel lo avisa.
 
 Con la salida redirigida (`daily > log.txt`) no hay pie: las líneas van tal cual, los cambios de
-cabecera también, y Ctrl+C cierra igual de limpio.
+cabecera también, [o] solo avisa y Ctrl+C cierra igual de limpio.
 
 Se prueba con la sesión de mentira de tests/test_session.py: la sesión, el lector de teclas, la
-espera, la consola y cómo se abre la nota se inyectan (tests/test_cli_live.py).
+espera, la consola, el entorno (dispositivos, pantallas, ventanas) y cómo se abre la nota se
+inyectan (tests/test_cli_live.py).
 """
 import collections
+import copy
+import dataclasses
 import msvcrt
 import os
 import signal
 import time
 from typing import Callable, Deque, List, Optional, Sequence, Tuple
 
-from rich.console import Console
+from rich.console import Console, Group, RenderableType
 from rich.live import Live
 from rich.text import Text
 
+from ..actions.screenshot import screen_labels, window_titles
+from ..audio.devices import wasapi_devices
+from ..config.options import (
+    apply_settings,
+    capture_choice,
+    capture_choices,
+    device_choice,
+    device_choices,
+    settings_form,
+    target_choice,
+    target_choices,
+)
 from ..config.schema import describe_runtime
 from ..session import Event, Line, Notice, RecorderSession, SourceChanged, SourceMuted, Status, StatusSnapshot
 from .consola import asciify, make_console
 
 INTERVALO = 0.2  # segundos entre sondeos, como la ventana (POLL_MS)
 CTRL_C = "\x03"  # lo que el manejador de SIGINT mete en la cola de teclas
+ESC, ENTER, RETROCESO = "\x1b", "\r", "\x08"  # como los devuelve msvcrt.getwch
 
-TECLAS = (("p", "pausar"), ("c", "captura"), ("r", "reconectar audio"), ("a", "abrir nota"), ("q", "salir"))
+TECLAS = (("p", "pausar"), ("c", "captura"), ("r", "reconectar audio"), ("a", "abrir nota"), ("o", "opciones"), ("q", "salir"))
 TECLAS_PAUSA = (("p", "continuar"),) + TECLAS[1:]
 TECLAS_CIERRE = (("e", "esperar"), ("s", "salir perdiéndolos"), ("c", "cancelar"))
 TECLAS_TERMINANDO = (("s", "salir sin esperar, perdiendo lo pendiente"),)
+
+# El panel de opciones: (tecla, sección, título). Lo que se puede cambiar sin parar la grabación.
+SECCIONES = (
+    ("1", "out", "salida de audio 🔊"),
+    ("2", "mic", "micrófono 🎤"),
+    ("3", "target", "qué capturar 📸"),
+    ("4", "captures", "calidad de capturas"),
+)
+MIC_APAGADO = "apagado: no se transcribe el micrófono"  # la primera opción de la sección del micrófono
+AVISO_DISPOSITIVOS = "¿no aparece? si se conectó después de arrancar, sal con q y vuelve a entrar"
+AVISO_SIN_PIE = "opciones: hacen falta una terminal y su pie; con la salida redirigida usa `daily config` al terminar"
 
 Partes = List[Tuple[str, str]]  # trozos (texto, estilo) de una línea
 
@@ -72,6 +109,38 @@ def _ahora() -> str:
     return time.strftime("%H:%M:%S")
 
 
+class Entorno:
+    """Lo que el panel de opciones consulta al abrir una sección: los dispositivos WASAPI (de la
+    PyAudio de la sesión: la misma tabla con la que se abren los flujos), las pantallas y las
+    ventanas abiertas. Las pruebas lo sustituyen por listas fijas."""
+
+    def __init__(self, pa):
+        self.pa = pa
+
+    def dispositivos(self, kind: str) -> List[str]:
+        return wasapi_devices(self.pa, kind)
+
+    def pantallas(self) -> List[str]:
+        return screen_labels()
+
+    def ventanas(self) -> List[str]:
+        return window_titles()
+
+
+@dataclasses.dataclass
+class Panel:
+    """El panel de opciones abierto en el pie: qué sección se ve, su lista y lo tecleado."""
+
+    seccion: Optional[str] = None  # None = el índice de secciones
+    opciones: List[str] = dataclasses.field(default_factory=list)
+    actual: int = -1  # índice en `opciones` de lo configurado ahora
+    tecleado: str = ""  # dígitos a la espera de Enter (listas de más de 9)
+    pantallas: List[str] = dataclasses.field(default_factory=list)  # las etiquetas con que se compuso la lista de captura
+
+    def clave(self) -> tuple:
+        return (self.seccion, tuple(self.opciones), self.actual, self.tecleado)
+
+
 class PantallaEnVivo:
     """El bucle de `daily`: sondea la sesión en este hilo, pinta y atiende las teclas."""
 
@@ -83,26 +152,33 @@ class PantallaEnVivo:
         leer_tecla: Callable[[], Optional[str]] = leer_tecla,
         dormir: Callable[[float], None] = time.sleep,
         abrir: Callable[[str], object] = os.startfile,
+        entorno: Optional[Entorno] = None,
     ):
         self.session = session or RecorderSession()
         self.consola = consola or make_console()
         self._leer_tecla = leer_tecla
         self._dormir = dormir
         self._abrir = abrir
+        self._entorno = entorno or Entorno(self.session.pa)
         self.ascii = getattr(self.consola, "ascii_mode", False)
         self.plano = not self.consola.is_interactive  # salida redirigida: sin pie y sin partir líneas
         self._teclas: Deque[str] = collections.deque()  # lo que mete el manejador de Ctrl+C; va antes que el teclado
         self._live: Optional[Live] = None  # el pie; None en modo plano
         self._preguntando = False  # el pie muestra la pregunta de cerrar con cola pendiente
         self._resumen = ""  # lo que queda sin transcribir, para esa pregunta
+        self._panel: Optional[Panel] = None  # el panel de opciones, mientras está abierto
         self._pie_pintado: Optional[tuple] = None  # lo último pintado en el pie, para no redibujar lo mismo
 
     # ------------------------------------------------------------------ pintar
+    def _texto(self, *partes: Tuple[str, str]) -> Text:
+        """Trozos (texto, estilo) → Text, sin marcado de rich y en ASCII si toca."""
+        return Text.assemble(*[(asciify(t) if self.ascii else t, e) for t, e in partes])
+
     def _imprimir(self, *partes: Tuple[str, str]) -> None:
         """Una línea por encima del pie (o tal cual sin pie). Sin marcado de rich: una frase con
         corchetes, «[música]», se tomaría por una etiqueta de estilo y desaparecería. Hacia un
         archivo no se parte a 80 columnas: cada frase es una línea del registro."""
-        self.consola.print(Text.assemble(*[(asciify(t) if self.ascii else t, e) for t, e in partes]), soft_wrap=self.plano)
+        self.consola.print(self._texto(*partes), soft_wrap=self.plano)
 
     def _linea(self, stamp: str, kind: str, text: str, hits: List[str]) -> None:
         """Como `MainWindow.add_line`: hora, 🎤 si es el micrófono, la frase y las palabras clave."""
@@ -113,6 +189,10 @@ class PantallaEnVivo:
         self._imprimir(*partes)
         if hits:
             self._imprimir((f"          📸 captura: {', '.join(hits)}", "tenue"))
+
+    def _aviso(self, texto: str, estilo: str = "tenue") -> None:
+        """Una línea con la hora de ahora, de la propia pantalla (no de la sesión)."""
+        self._imprimir((f"{_ahora()}  ", "tenue"), (texto, estilo))
 
     def _pintar(self, ev: Event) -> None:
         if isinstance(ev, Line):
@@ -154,16 +234,165 @@ class PantallaEnVivo:
         if self._live is None:
             return  # modo plano, o aún no arrancó el pie
         teclas = self._teclas_del_pie(st)
-        clave = (st.status_text, st.status_highlight, st.meter_text, teclas)
+        clave = (st.status_text, st.status_highlight, st.meter_text, teclas, self._panel and self._panel.clave())
         if clave == self._pie_pintado:
             return
         self._pie_pintado = clave
-        partes: Partes = [(st.status_text, "bold" if st.status_highlight else "tenue"), ("\n", ""), (st.meter_text, "tenue"), ("\n", "")]
-        if self._preguntando:
-            partes += self._pregunta()
+        self._live.update(self._pie(st, teclas), refresh=True)
+
+    def _pie(self, st: StatusSnapshot, teclas: Sequence[Tuple[str, str]]) -> RenderableType:
+        """El pie: cabecera, medidores y las teclas, la pregunta de cierre o el panel de opciones."""
+        lineas = [
+            self._texto((st.status_text, "bold" if st.status_highlight else "tenue")),
+            self._texto((st.meter_text, "tenue")),
+        ]
+        if self._panel is not None:
+            lineas += self._lineas_panel()
+        elif self._preguntando:
+            lineas.append(self._texto(*self._pregunta()))
         else:
-            partes += partes_teclas(teclas)
-        self._live.update(Text.assemble(*[(asciify(t) if self.ascii else t, e) for t, e in partes]), refresh=True)
+            lineas.append(self._texto(*partes_teclas(teclas)))
+        return Group(*lineas)
+
+    # ------------------------------------------------------------------ panel de opciones
+    def _ahora_configurado(self) -> str:
+        """Lo configurado ahora, en una línea: para el índice del panel."""
+        cfg = self.session.config
+        mic = device_choice(cfg.mic_dev) if cfg.mic else "apagado"
+        captura = f"ventana «{cfg.window}»" if cfg.window else (f"pantalla {cfg.screen}" if cfg.screen else "todas las pantallas")
+        calidad = capture_choice(cfg.captures).split(":")[0].split(" (")[0].lower()
+        return f"🔊 {device_choice(cfg.out_dev)} · 🎤 {mic} · 📸 {captura} · capturas {calidad}"
+
+    def _lineas_panel(self) -> List[Text]:
+        p = self._panel
+        if p.seccion is None:
+            indice = [(f"[{tecla}]", "acento") for tecla, _s, _t in SECCIONES]
+            partes: Partes = [("⚙ Opciones", "bold"), ("   ahora: ", "tenue"), (self._ahora_configurado(), "tenue")]
+            lineas = [self._texto(*partes)]
+            partes = []
+            for (tecla, _s, titulo), marca in zip(SECCIONES, indice):
+                partes += [marca, (f" {titulo}", "tenue"), (" · ", "tenue")]
+            lineas.append(self._texto(*partes, *partes_teclas((("Esc/o", "volver"),))))
+            return lineas
+        titulo = next(t for _k, s, t in SECCIONES if s == p.seccion)
+        lineas = [self._texto((f"⚙ {titulo[0].upper()}{titulo[1:]}", "bold"), ("  elige con el número", "tenue"))]
+        for i, opcion in enumerate(p.opciones):
+            actual = i == p.actual
+            linea = self._texto((f"  [{i + 1}] ", "acento"), (opcion, "texto" if actual else "tenue"), ("  (actual)" if actual else "", "acento"))
+            linea.no_wrap = True  # un título de ventana larguísimo se recorta con «…», no parte la lista
+            linea.overflow = "ellipsis"
+            lineas.append(linea)
+        if p.seccion in ("out", "mic"):
+            lineas.append(self._texto((AVISO_DISPOSITIVOS, "tenue")))
+        n = len(p.opciones)
+        teclas = [(f"1-{n}", "elegir")] if n <= 9 else [(f"1-{n}", "y Enter, elegir")]
+        if p.seccion == "target":
+            teclas.append(("r", "releer ventanas"))
+        teclas += [("Esc", "volver"), ("o", "cerrar")]
+        partes = [(f"› {p.tecleado}_  ", "acento")] if p.tecleado else []
+        lineas.append(self._texto(*partes, *partes_teclas(teclas)))
+        return lineas
+
+    def _abrir_panel(self) -> None:
+        if self.plano:
+            self._aviso(f"⚙ {AVISO_SIN_PIE}")
+            return
+        self._panel = Panel()
+
+    def _cerrar_panel(self) -> None:
+        self._panel = None
+
+    def _abrir_seccion(self, seccion: str) -> None:
+        """Compone la lista de la sección con lo que hay ahora (dispositivos, pantallas, ventanas)
+        y marca lo configurado. Lo guardado que ya no se detecta sigue en la lista, como en `daily config`."""
+        cfg = self.session.config
+        p = Panel(seccion=seccion)
+        if seccion == "out":
+            p.opciones, p.actual = self._con_el_actual(device_choices(self._entorno.dispositivos("out")), device_choice(cfg.out_dev))
+        elif seccion == "mic":
+            opciones, actual = self._con_el_actual(device_choices(self._entorno.dispositivos("mic")), device_choice(cfg.mic_dev))
+            p.opciones = [MIC_APAGADO] + opciones
+            p.actual = actual + 1 if cfg.mic else 0
+        elif seccion == "target":
+            p.pantallas = self._entorno.pantallas()
+            p.opciones = target_choices(p.pantallas, self._entorno.ventanas(), cfg.window)
+            p.actual = p.opciones.index(target_choice(cfg.window, cfg.screen, p.pantallas))
+        else:
+            p.opciones = capture_choices()
+            p.actual = p.opciones.index(capture_choice(cfg.captures))
+        self._panel = p
+
+    @staticmethod
+    def _con_el_actual(opciones: List[str], actual: str) -> Tuple[List[str], int]:
+        if actual not in opciones:
+            opciones = opciones[:1] + [actual] + opciones[1:]  # el guardado que ya no se detecta sigue elegible
+        return opciones, opciones.index(actual)
+
+    def _tecla_panel(self, k: str) -> bool:
+        """Las teclas con el panel abierto. Ctrl+C lo cierra y sigue siendo salir."""
+        p = self._panel
+        if k == CTRL_C:
+            self._cerrar_panel()
+            return self._pedir_cierre()
+        if p.seccion is None:
+            if k in ("o", "q", ESC):
+                self._cerrar_panel()
+            else:
+                seccion = next((s for tecla, s, _t in SECCIONES if tecla == k), None)
+                if seccion:
+                    self._abrir_seccion(seccion)
+            return True
+        if k == ESC:
+            self._panel = Panel()  # vuelve al índice sin cambiar nada
+        elif k in ("o", "q"):
+            self._cerrar_panel()
+        elif k == "r" and p.seccion == "target":
+            self._abrir_seccion("target")  # relee las ventanas abiertas
+        elif k in "0123456789" and len(k) == 1:
+            self._digito(k)
+        elif k == ENTER and p.tecleado:
+            self._elegir(int(p.tecleado) - 1)
+        elif k == RETROCESO:
+            p.tecleado = p.tecleado[:-1]
+        return True
+
+    def _digito(self, d: str) -> None:
+        """Un dígito más del número: se elige en cuanto ningún otro dígito podría formar un número
+        válido (con 9 opciones o menos, al primero); si no, se espera a Enter."""
+        p = self._panel
+        n = int(p.tecleado + d)
+        if not 1 <= n <= len(p.opciones):
+            return
+        p.tecleado += d
+        if n * 10 > len(p.opciones):
+            self._elegir(n - 1)
+
+    def _elegir(self, indice: int) -> None:
+        """Aplica la opción elegida como ⚙ Opciones: el formulario de la configuración actual con
+        ese campo cambiado, volcado sobre una copia, y la sesión guarda y reabre lo que toque."""
+        p = self._panel
+        etiqueta = p.opciones[indice]
+        self._cerrar_panel()
+        if indice == p.actual:
+            return  # ya era esa
+        cfg = self.session.config
+        pantallas = p.pantallas or self._entorno.pantallas()
+        form = settings_form(cfg, pantallas)
+        if p.seccion == "out":
+            form.out_dev = etiqueta
+        elif p.seccion == "mic":
+            form.mic = indice > 0
+            if form.mic:
+                form.mic_dev = etiqueta
+        elif p.seccion == "target":
+            form.target = etiqueta
+        else:
+            form.captures = etiqueta
+        nuevo = copy.deepcopy(cfg)
+        cambios = apply_settings(nuevo, form, pantallas)
+        self.session.apply_settings(nuevo, cambios.notes_changed, cambios.devices_changed)
+        titulo = next(t for _k, s, t in SECCIONES if s == p.seccion)
+        self._aviso(f"⚙ {titulo}: {etiqueta}", "ok")
 
     # ------------------------------------------------------------------ teclas
     def _siguiente_tecla(self) -> Optional[str]:
@@ -187,6 +416,8 @@ class PantallaEnVivo:
             if k == "a":
                 self._abrir_nota()
             return True
+        if self._panel is not None:
+            return self._tecla_panel(k)
         if k in ("q", CTRL_C):
             return self._pedir_cierre()
         if k == "p":
@@ -197,6 +428,8 @@ class PantallaEnVivo:
             self.session.reconnect_audio()
         elif k == "a":
             self._abrir_nota()
+        elif k == "o":
+            self._abrir_panel()
         return True
 
     def _pedir_cierre(self) -> bool:
@@ -220,7 +453,7 @@ class PantallaEnVivo:
         try:
             self._abrir(str(self.session.file_path))
         except OSError as e:
-            self._imprimir((f"{_ahora()}  ", "tenue"), (f"⚠ no se pudo abrir la nota: {e}", "error"))
+            self._aviso(f"⚠ no se pudo abrir la nota: {e}", "error")
 
     def _on_sigint(self, _signum, _frame) -> None:
         """Ctrl+C se encola como una tecla y lo atiende el bucle: la primera vez pregunta como
