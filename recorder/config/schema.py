@@ -5,6 +5,12 @@ from typing import Tuple, Dict, List, Optional, Sequence
 from ..rutas import como_instalar_whispercpp, documento
 from .hardware import VENDOR_NVIDIA, GpuInfo, HardwareProfile, describe_gpu, gb, short_cpu_name
 
+# Valores válidos de `captures` (calidad del buffer de capturas), en el orden en que se ofrecen.
+# "off" apaga el buffer y las capturas automáticas; el resto es la calidad del fotograma
+# (actions/capture_buffer.QUALITIES). El valor por defecto es el de AppConfig.
+CAPTURE_QUALITIES: Tuple[str, ...] = ("off", "light", "normal", "high")
+DEFAULT_CAPTURES = "normal"
+
 
 @dataclasses.dataclass
 class AppConfig:
@@ -23,6 +29,13 @@ class AppConfig:
     screen: int = 0     # 0 = todas las pantallas; 1..n = monitor n
     window: str = ""    # Título de la ventana de aplicación a capturar; "" = capturar según `screen`.
                         # Si la ventana ya no está abierta se captura según `screen` (ver screenshot.py).
+    # Capturas automáticas por palabra clave, tomadas de un buffer circular (una imagen cada 5 s
+    # mientras hay reunión) para que la imagen sea la del momento en que se dijo la palabra y no la
+    # de cuando se terminó de transcribir. "off" = sin buffer ni capturas automáticas (la manual
+    # sigue); "light" JPEG a media resolución, "normal" JPEG completo, "high" PNG. Un valor que no
+    # sea uno de CAPTURE_QUALITIES (un config.json editado a mano) cae a "normal" al cargar.
+    # Ver docs/captura-diferida.md.
+    captures: str = "normal"
     model: str = "small"  # tiny, base, small, medium, large-v3-turbo, large-v3
     beam_size: int = 5
 
@@ -69,6 +82,7 @@ class AppConfig:
             "gracias por estar aquí",
             "dale like",
             "nos vemos en el próximo",
+            "más información www",
         ]
     )
 
@@ -81,6 +95,10 @@ class AppConfig:
     logprob_threshold: float = -1.0    # Descartar si confianza logarítmica <= umbral
     compression_ratio_threshold: float = 2.4  # Descartar repeticiones si zlib ratio excede umbral
     repetition_penalty: float = 1.1
+
+    def __post_init__(self):
+        if self.captures not in CAPTURE_QUALITIES:
+            self.captures = DEFAULT_CAPTURES
 
     def to_dict(self) -> dict:
         return dataclasses.asdict(self)

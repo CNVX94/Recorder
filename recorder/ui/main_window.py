@@ -6,7 +6,7 @@ from typing import Optional
 from .. import registro
 from ..config.manager import ConfigManager
 from ..config.schema import AppConfig
-from ..session import Event, Line, Notice, RecorderSession, SourceChanged, StatusSnapshot
+from ..session import Event, Line, Notice, RecorderSession, SourceChanged, SourceMuted, StatusSnapshot
 from .dialogs.settings_dialog import SettingsDialog
 from .dialogs.digest_dialog import DigestDialog
 from .dialogs.tuning_dialog import TuningDialog
@@ -50,7 +50,7 @@ class MainWindow:
             self.add_line(ev.stamp, ev.kind, ev.text, ev.hits)
         elif isinstance(ev, Notice):
             self._visor(ev.stamp, ev.text, ev.level)
-        elif isinstance(ev, SourceChanged):
+        elif isinstance(ev, (SourceChanged, SourceMuted)):
             self.add_line(ev.stamp, "out", ev.text, [])
 
     def _visor(self, stamp: str, texto: str, tag: str):
@@ -86,6 +86,7 @@ class MainWindow:
         self.lbl_status = tk.Label(
             top, text="Iniciando…", bg=BG, fg=DIM, anchor="w", font=("Segoe UI Semibold", 11)
         )
+        # Medidores: barras por fuente, ⛔ si está caída y 🔇 si lleva 10 min muda (ver session.StatusSnapshot)
         self.lbl_meter = tk.Label(top, text="", bg=BG, fg=DIM, font=("Consolas", 10), cursor="hand2")
         self.lbl_meter.bind("<Button-1>", lambda _e: self.reconnect_audio())
 
@@ -107,7 +108,7 @@ class MainWindow:
 
         self.btn_digest = tk.Button(
             top,
-            text="📑 Sintesis",
+            text="📑 Reagrupar",
             command=self.open_digest,
             **BTN_STYLE,
         )
@@ -183,7 +184,7 @@ class MainWindow:
         self._render(line)
 
     def open_digest(self):
-        """Abre el generador de sintesis. Solo lee notas; nunca modifica el original."""
+        """Abre «Reagrupar nota» (copia ordenada y agrupada). Solo lee notas; nunca modifica el original."""
         DigestDialog(self.root, self.session.config, active_note=self.session.file_path)
 
     def open_options(self):

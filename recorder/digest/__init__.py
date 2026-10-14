@@ -1,7 +1,9 @@
-"""Sintesis de notas: agrupa y limpia una nota diaria sin tocar nunca el original."""
+"""Reagrupar notas (antes "sintesis"): ordena, agrupa y limpia una nota diaria sin tocar nunca el
+original. No resume: el texto es el mismo."""
 
 from .parser import Entry, Note, parse_file, parse_text
 from .preview import (
+    DEFAULT_INTERVAL,
     INTERVAL_LABELS,
     MIN_WORDS,
     NOTE_HEADER,
@@ -15,9 +17,11 @@ from .transforms import (
     DigestOptions,
     apply_all,
     bucket_start,
+    drop_echo,
     drop_short,
     group_by_interval,
     merge_consecutive,
+    sort_by_time,
     strip_captures,
 )
 from .writer import (
@@ -30,6 +34,7 @@ from .writer import (
     list_originals,
     render,
     unique_digest_path,
+    word_count,
     write_digest,
 )
 
@@ -38,6 +43,7 @@ __all__ = [
     "Note",
     "parse_file",
     "parse_text",
+    "DEFAULT_INTERVAL",
     "INTERVAL_LABELS",
     "MIN_WORDS",
     "NOTE_HEADER",
@@ -49,9 +55,11 @@ __all__ = [
     "DigestOptions",
     "apply_all",
     "bucket_start",
+    "drop_echo",
     "drop_short",
     "group_by_interval",
     "merge_consecutive",
+    "sort_by_time",
     "strip_captures",
     "AVISO",
     "DerivedSourceError",
@@ -62,5 +70,6 @@ __all__ = [
     "list_originals",
     "render",
     "unique_digest_path",
+    "word_count",
     "write_digest",
 ]

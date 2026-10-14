@@ -1,9 +1,10 @@
 """`daily calibrar`: la ventana 🎯 Calibrar en la terminal, sobre la misma lógica (filters/tuning.py).
 
 Un menú corto edita el vocabulario, la lista negra, las correcciones y los umbrales de un
-`TuningForm`, y el sandbox prueba frases contra lo escrito AHORA, antes de guardar. Se guarda
-solo con «Guardar y salir». `--probar "frase"` es la versión para scripts: imprime el veredicto
-con los filtros guardados y sale con 0 si se acepta y 1 si se descarta. No importa tkinter.
+`TuningForm`, y el sandbox prueba frases contra lo escrito AHORA, antes de guardar (también el
+eco del vocabulario: un renglón que solo es rótulo o lista del vocab sale «DESCARTADA: es eco»).
+Se guarda solo con «Guardar y salir». `--probar "frase"` es la versión para scripts: imprime el
+veredicto con los filtros guardados y sale con 0 si se acepta y 1 si se descarta. No importa tkinter.
 """
 
 import argparse
@@ -18,6 +19,7 @@ from ..config.schema import AppConfig
 from ..filters.samples import random_sample
 from ..filters.tuning import (
     THRESHOLD_RANGES,
+    VOCAB_HINT,
     SandboxVerdict,
     TuningForm,
     apply_tuning,
@@ -108,7 +110,7 @@ def menu(mgr: ConfigManager, config: AppConfig, consola: Console) -> int:
         imprimir(consola)
         i = elegir(consola, "¿Qué quieres hacer?", OPCIONES, detalles=detalles(form))
         if i == VOCABULARIO:
-            form.vocab = preguntar_texto(consola, "Vocabulario de contexto", form.vocab)
+            form.vocab = preguntar_texto(consola, "Vocabulario de contexto", form.vocab, ayuda=VOCAB_HINT)
         elif i == IGNORAR:
             editar_ignore(consola, form)
         elif i == CORRECCIONES:

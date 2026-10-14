@@ -17,6 +17,8 @@ import unittest
 from unittest.mock import patch
 
 from recorder import session as ses
+from recorder.audio.capture import MUTE_WARN_SEC
+from recorder.session import mute_text
 from recorder.ui import main_window as mw
 from recorder.ui.main_window import POLL_HIDDEN_MS, POLL_MS, MainWindow
 from tests.test_session import BaseSesion
@@ -76,6 +78,7 @@ class TestCabeceraSinCambios(BaseVentana):
         for _ in range(3):
             self.assertEqual(self.win._tick(), POLL_MS)
         self.assertEqual((estado, medidor), ([], []), "sin cambios no se toca ninguna etiqueta")
+        self.assertIn("Fuentes: 🔊", self.win.txt.get("1.0", "end"), "la línea de las fuentes va al visor, no a la cabecera")
 
         self.escuchando()
         self.win._tick()
@@ -92,6 +95,27 @@ class TestCabeceraSinCambios(BaseVentana):
         self.assertEqual(self.win.lbl_meter.cget("text"), "🔊 ░░░░░░░░   🎤 ████████")
 
 
+class TestFuenteMudaEnVentana(BaseVentana):
+    def test_la_linea_se_pinta_y_el_medidor_marca_la_fuente(self):
+        self.root.deiconify()
+        self.escuchando()
+        self.audio.started_at = time.time() - 2 * MUTE_WARN_SEC
+        self.audio.last_chunk_at = {"out": time.time() - 5, "mic": 0.0}
+        self.win._tick()
+        visor = self.win.txt.get("1.0", "end")
+        self.assertIn(mute_text("mic", True), visor)
+        self.assertEqual(self.win.lbl_meter.cget("text"), "🔊 ░░░░░░░░   🎤 ░░░░░░░░ 🔇")
+        self.audio.last_chunk_at["mic"] = time.time()
+        self.win._tick()
+        self.assertIn(mute_text("mic", False), self.win.txt.get("1.0", "end"))
+        self.assertEqual(self.win.lbl_meter.cget("text"), "🔊 ░░░░░░░░   🎤 ░░░░░░░░")
+
+    def test_las_fuentes_resueltas_se_pintan_al_arrancar(self):
+        # la sesión ya arrancó en el constructor; el aviso espera al primer sondeo
+        self.win._tick()
+        self.assertIn("Fuentes: 🔊 ", self.win.txt.get("1.0", "end"))
+
+
 class TestMinimizada(BaseVentana):
     def test_no_pinta_pero_sigue_sondeando_y_al_volver_repinta(self):
         self.root.iconify()
@@ -102,6 +126,7 @@ class TestMinimizada(BaseVentana):
         self.session.ui_queue.put(("line", "10:00:01", "mic", "Hola equipo", []))
         self.assertEqual(self.win._tick(), POLL_HIDDEN_MS)
         self.assertIn("10:00:01  🎤 Hola equipo", self.lineas_visor(), "las líneas no se pierden")
+        self.assertTrue(any("Fuentes: 🔊" in l for l in self.lineas_visor()), "el aviso de las fuentes tampoco")
         self.assertEqual(self.win.lbl_status.cget("text"), "Iniciando…", "la cabecera no se pinta sin verse")
 
         # Al restaurar, <Map> adelanta el sondeo: la cabecera se repinta sin esperar al tic lento

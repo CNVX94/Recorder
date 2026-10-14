@@ -33,20 +33,30 @@ Esta guía explica los tipos de alucinaciones más comunes, cómo las combate **
 * **Causa**: El vocabulario base de Whisper desconoce siglas internas de la empresa o nombres de servidores.
 * **Solución en Recorder**:
   1. **Prompt de Contexto (`vocab`)**: Se envía al inicio de cada inferencia para sesgar los priors probabilísticos de Whisper hacia tu vocabulario técnico.
-  2. **Diccionario Fonético Personal (`fixes`)**: Reglas de reemplazo post-inferencia con delimitadores de palabra completa (`\b`) para que solo sustituya la palabra aislada y no afecte a palabras mayores (ej: corrige *"cuba"* por *"QA"*, pero no toca *"incubadora"*).
+  2. **Diccionario Fonético Personal (`fixes`)**: Reglas de reemplazo post-inferencia con delimitadores de palabra completa (`\b`) para que solo sustituya la palabra aislada y no afecte a palabras mayores (ej: corrige *"cuba"* por *"QA"*, pero no toca *"incubadora"*). Las claves pueden tener espacios (`la gamel=Lagamel`, `programa de mark=programa de embarques`): el `\b` va al principio y al final de la clave entera, así que `programa de mark` no toca *"programa de marketing"*. Una clave que empieza o acaba en signo de puntuación no tiene ese límite y conviene evitarla.
+  3. **Solo variantes inequívocas.** Si la variante mal oída es también una palabra real (*"Cloud"* por *Claude*, *"lápiz"* por *API*, *"Cine"* por el nombre de un cliente), el reemplazo rompería frases correctas: mejor dejarla y reforzar el término en `vocab`.
+
+---
+
+### D. Eco del vocabulario (`vocab`)
+* **Síntoma**: Renglones que nadie dijo con el texto del propio vocabulario: *"Términos."*, *"Términos, ¿sabes?"* repetido, *"Nombres del equipo."*, listas de nombres (*"Ana, Luis, Marta."*), o el rótulo pegado al inicio de una frase real (*"Términos crearon tres endpoints nuevos"*). En una daily de 2 h 39 min salieron 15 renglones con *"Términos"*, casi todos en un tramo en que nadie hablaba.
+* **Causa**: el `vocab` se pasa como `initial_prompt`, es decir, como si fuera **lo que se acaba de decir**. Ante audio pobre, Whisper continúa ese "texto anterior": repite sus rótulos (`Términos:`, `Nombres del equipo:`) o recita su lista. Medido en este equipo con `small`: sobre ruido de tecleo sin VAD, recitó la lista del vocabulario tal cual (*"…, PWA, QA, IIS, QA, IIS, TPR, …"*). Con VAD, el silencio y el ruido sintéticos no llegan al modelo; los ecos reales salen de audio que el VAD sí toma por voz (ver `docs/auditoria-daily-2026-09-25.md`).
+* **Solución en Recorder**:
+  1. **Escribir el vocabulario sin rótulos**, como una frase natural: `Daily de desarrollo de software sobre backend, frontend, …, con Ana, Luis y Marta.` en vez de `Términos: backend, … Nombres del equipo: Ana, Luis, Marta.` Un rótulo es exactamente lo que el modelo repite.
+  2. **Filtro de eco** (`filters/echo.py`), después de la lista negra: quita el rótulo al inicio de una frase (nunca si sigue *"de"*, *"y"* o *"e"*: *"Términos de pago"* se queda), y descarta el renglón que solo es rótulo o una lista de elementos del vocabulario. Un término suelto (*"API Gateway."*) se conserva porque puede ser una respuesta real. El sandbox lo marca como *"DESCARTADA: es eco del vocabulario"*.
 
 ---
 
 ## 2. Cómo Usar el Menú de Calibración (`🎯 Calibrar`)
 
-Desde la ventana principal de la aplicación, haz clic en **🎯 Calibrar**:
+Desde la ventana principal de la aplicación, haz clic en **🎯 Calibrar** (en la terminal, `daily calibrar` edita los mismos campos y su sandbox da los mismos veredictos, incluido «DESCARTADA: es eco del vocabulario»; `daily calibrar --probar "frase"` sale con 1 también en ese caso):
 
 ```
 +-----------------------------------------------------------------------+
 | 🎯 Calibración Anti-Alucinaciones y Léxico Personal                  |
 +-----------------------------------------------------------------------+
 | 1. Vocabulario de contexto (Initial Prompt):                          |
-| [ Daily de desarrollo de software. Términos: API Core, QA, IIS...   ] |
+| [ Daily de desarrollo de software con API Core, QA, IIS y Ana...    ] |
 |                                                                       |
 | 2. Frases prohibidas / Lista negra:          [+ Añadir comunes]       |
 | [ suscríbete, gracias por ver, amara.org, hasta la próxima...       ] |
@@ -72,6 +82,7 @@ Desde la ventana principal de la aplicación, haz clic en **🎯 Calibrar**:
 
 1. **Añadir nombres y términos en el Contexto (Campo 1):**
    * Agrega los nombres de pila de tus compañeros de daily y los nombres de proyectos/repositorios clave.
+   * **Sin rótulos** (`Términos:`, `Nombres del equipo:`): Whisper los repite en los silencios (sección D).
 2. **Importar frases de alucinación comunes (Campo 2):**
    * Haz clic en **`+ Añadir comunes`** si notas que aparecen frases de cierre de vídeos de YouTube.
 3. **Corregir palabras persistentes (Campo 3):**

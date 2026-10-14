@@ -3,6 +3,7 @@ import ctypes.wintypes as wt
 import datetime as dt
 import pathlib
 import re
+import time
 from typing import List, Optional, Tuple
 from ..filters.normalizer import normalize
 
@@ -21,6 +22,9 @@ WS_EX_TOOLWINDOW = 0x80  # ventanas auxiliares que no salen en la barra de tarea
 DWMWA_EXTENDED_FRAME_BOUNDS = 9  # marco visible, sin el borde invisible de sombra de Win10/11
 DWMWA_CLOAKED = 14  # ventanas UWP "fantasma": EnumWindows las lista pero no se ven en pantalla
 BLACK_MAX = 10  # brillo máximo (0..255) por debajo del cual una captura se considera negra
+TITLE_MAX = 512
+SMTO_BLOCK, SMTO_ABORTIFHUNG = 0x1, 0x2
+RESPONSIVE_MS = 1000  # una ventana que no atiende un WM_NULL en 1 s no se dibuja con PrintWindow
 
 
 class _BITMAPINFOHEADER(ctypes.Structure):
@@ -70,18 +74,20 @@ def windows() -> List[Tuple[int, str]]:
     """
     u, dwm = ctypes.windll.user32, ctypes.windll.dwmapi
     found: List[Tuple[int, str]] = []
+    title = ctypes.create_unicode_buffer(TITLE_MAX)
 
     def keep(h, _):
-        n = u.GetWindowTextLengthW(h)
-        if not n or not u.IsWindowVisible(h) or u.GetWindowLongW(h, GWL_EXSTYLE) & WS_EX_TOOLWINDOW:
+        # InternalGetWindowText lee el título guardado sin mandar WM_GETTEXT a la ventana: una
+        # aplicación colgada (Excel cargando un libro) no puede bloquear aquí al hilo que captura.
+        if not u.InternalGetWindowText(h, title, TITLE_MAX) or not u.IsWindowVisible(h):
+            return 1
+        if u.GetWindowLongW(h, GWL_EXSTYLE) & WS_EX_TOOLWINDOW:
             return 1
         cloaked, cls = ctypes.c_int(0), ctypes.create_unicode_buffer(32)
         dwm.DwmGetWindowAttribute(h, DWMWA_CLOAKED, ctypes.byref(cloaked), 4)
         u.GetClassNameW(h, cls, 32)
         if cloaked.value or cls.value == "Progman":
             return 1
-        title = ctypes.create_unicode_buffer(n + 1)
-        u.GetWindowTextW(h, title, n + 1)
         found.append((h, title.value))
         return 1
 
@@ -153,6 +159,21 @@ def is_black(img) -> bool:
     return img.convert("L").getextrema()[1] < BLACK_MAX
 
 
+def responsive(hwnd: int, timeout_ms: int = RESPONSIVE_MS) -> bool:
+    """True si la ventana atiende un mensaje vacío a tiempo.
+
+    PrintWindow le manda WM_PRINT y espera sin límite: si su hilo está colgado, el que captura se
+    queda bloqueado con él. Es la explicación más probable del hueco de 54 min del 25-SEP (el hilo
+    de transcripción se paró justo al empezar una captura); ver docs/auditoria-daily-2026-09-25.md.
+    """
+    proto = ctypes.WINFUNCTYPE(
+        wt.LPARAM, wt.HWND, wt.UINT, wt.WPARAM, wt.LPARAM, wt.UINT, wt.UINT, ctypes.POINTER(ctypes.c_size_t)
+    )
+    send = proto(("SendMessageTimeoutW", ctypes.windll.user32))
+    res = ctypes.c_size_t()
+    return bool(send(hwnd, 0, 0, 0, SMTO_BLOCK | SMTO_ABORTIFHUNG, timeout_ms, ctypes.byref(res)))
+
+
 def grab_window(hwnd: int):
     """Imagen (PIL) de la ventana aunque esté tapada por otras, o None si sale negra.
 
@@ -164,6 +185,8 @@ def grab_window(hwnd: int):
     """
     from PIL import Image
 
+    if not responsive(hwnd):
+        return None  # colgada: el llamador recorta lo visible en su rectángulo, sin esperarla
     u, g = ctypes.windll.user32, ctypes.windll.gdi32
     r = wt.RECT()
     u.GetWindowRect(hwnd, ctypes.byref(r))
@@ -190,23 +213,34 @@ def grab_window(hwnd: int):
     return None if is_black(img) else img
 
 
+def capture_name(tag: str, when: float, ext: str = "png") -> str:
+    """Nombre de archivo de una captura: la hora `when` (la de la frase, no la de guardar) y la etiqueta."""
+    clean_tag = normalize(tag).replace(" ", "-") or "captura"
+    return f"{dt.datetime.fromtimestamp(when):%Y-%m-%d_%H-%M-%S}_{clean_tag}.{ext}"
+
+
 def take_screenshot(tag: str, caps_dir: str, screen_idx: int = 0, window: str = "") -> pathlib.Path:
-    """Captura y guarda un PNG con marca de tiempo; devuelve su ruta.
+    """Captura ahora y guarda un PNG con la hora actual; devuelve su ruta."""
+    d = pathlib.Path(caps_dir)
+    d.mkdir(parents=True, exist_ok=True)
+    file_path = d / capture_name(tag, time.time())
+    grab_image(screen_idx, window).save(file_path)
+    return file_path
+
+
+def grab_image(screen_idx: int = 0, window: str = ""):
+    """Imagen (PIL) del objetivo configurado, sin guardarla.
 
     Objetivo, por prioridad:
     1. `window` (título de una ventana de aplicación) si está abierta y no minimizada: se dibuja
-       con PrintWindow aunque esté tapada. Si PrintWindow la devuelve negra, se recorta lo que
-       haya visible en su zona de pantalla (puede ser otra ventana encima; es el mejor plan B).
+       con PrintWindow aunque esté tapada. Si PrintWindow la devuelve negra o la ventana no
+       responde, se recorta lo que haya visible en su zona de pantalla (puede ser otra ventana
+       encima; es el mejor plan B).
     2. `screen_idx`: 0 = todas las pantallas, n = monitor n. También es el plan B cuando la
        ventana configurada no existe, está minimizada o falla cualquier llamada Win32:
        una captura nunca revienta al transcriptor.
     """
     from PIL import ImageGrab
-
-    d = pathlib.Path(caps_dir)
-    d.mkdir(parents=True, exist_ok=True)
-    clean_tag = normalize(tag).replace(" ", "-") or "captura"
-    file_path = d / f"{dt.datetime.now():%Y-%m-%d_%H-%M-%S}_{clean_tag}.png"
 
     img = None
     try:
@@ -221,5 +255,4 @@ def take_screenshot(tag: str, caps_dir: str, screen_idx: int = 0, window: str = 
         rects = monitors()
         bbox = rects[screen_idx - 1] if 0 < screen_idx <= len(rects) else None
         img = ImageGrab.grab(bbox=bbox, all_screens=True)
-    img.save(file_path)
-    return file_path
+    return img

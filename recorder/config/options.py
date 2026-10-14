@@ -16,7 +16,9 @@ from ..rutas import citar_documentos
 from .hardware import GpuInfo, HardwareProfile, describe_gpu
 from .schema import (
     AppConfig,
+    CAPTURE_QUALITIES,
     CUSTOM_PRESET,
+    DEFAULT_CAPTURES,
     QUALITY_PRESETS,
     Recommendation,
     apply_preset,
@@ -31,6 +33,16 @@ DEFAULT_DEV = "(predeterminado de Windows)"
 WINDOW_PREFIX = "Ventana: "  # distingue en el selector una ventana de aplicación de una pantalla
 AUTO_GPU = "Automática (dedicada)"
 MAX_THREADS = 256
+# Etiqueta de cada valor de `captures` (calidad del buffer de capturas por palabra clave,
+# docs/captura-diferida.md). El disco se ocupa solo mientras la transcripción va atrasada: cada
+# fotograma se borra en cuanto ya no puede hacer falta. Las cifras son el máximo medido por hora.
+CAPTURE_LABELS: Dict[str, str] = {
+    "off": "Apagadas (solo la captura manual)",
+    "light": "Ligeras: JPEG a media resolución (≤54 MB/h)",
+    "normal": "Normales: JPEG (≤180 MB/h)",
+    "high": "Máximas: PNG sin pérdida (≤316 MB/h)",
+}
+assert tuple(CAPTURE_LABELS) == CAPTURE_QUALITIES
 
 RuntimeValues = Tuple[str, int, str, str]  # (modelo, haz, dispositivo, precisión)
 
@@ -50,6 +62,7 @@ class SettingsForm:
     mic_dev: str
     mic: bool
     target: str  # una pantalla de `screens` o WINDOW_PREFIX + título de la ventana
+    captures: str  # etiqueta de CAPTURE_LABELS (calidad del buffer de capturas, o apagadas)
     quality: str  # clave de QUALITY_PRESETS, o CUSTOM_PRESET
     custom_values: Optional[RuntimeValues]  # lo puesto por «Usar recomendado» cuando no es un preset
     cpu_threads: str  # texto: se valida al guardar (`parse_threads`)
@@ -76,6 +89,7 @@ def settings_form(config: AppConfig, screens: Sequence[str]) -> SettingsForm:
         mic_dev=device_choice(config.mic_dev),
         mic=config.mic,
         target=target_choice(config.window, config.screen, screens),
+        captures=capture_choice(config.captures),
         quality=preset_key_for_config(config) or CUSTOM_PRESET,
         custom_values=None,
         cpu_threads=str(config.cpu_threads),
@@ -107,6 +121,7 @@ def apply_settings(config: AppConfig, form: SettingsForm, screens: Sequence[str]
     config.window = window
     if screen is not None:
         config.screen = screen
+    config.captures = capture_from_choice(form.captures)
 
     if form.quality != CUSTOM_PRESET:
         apply_preset(config, form.quality)
@@ -163,6 +178,21 @@ def parse_target(choice: str, screens: Sequence[str]) -> Tuple[str, Optional[int
     if choice.startswith(WINDOW_PREFIX):
         return choice[len(WINDOW_PREFIX):], None
     return "", screens.index(choice) if choice in screens else 0
+
+
+def capture_choices() -> List[str]:
+    """Opciones del selector de capturas por palabra clave, en el orden de CAPTURE_QUALITIES."""
+    return list(CAPTURE_LABELS.values())
+
+
+def capture_choice(saved: str) -> str:
+    """Etiqueta que corresponde a lo guardado en `captures` (un valor desconocido se muestra como el de fábrica)."""
+    return CAPTURE_LABELS.get(saved, CAPTURE_LABELS[DEFAULT_CAPTURES])
+
+
+def capture_from_choice(choice: str) -> str:
+    """Lo que se guarda en `captures` para una etiqueta del selector ("normal" si no es ninguna)."""
+    return next((k for k, v in CAPTURE_LABELS.items() if v == choice), DEFAULT_CAPTURES)
 
 
 # ------------------------------------------------------------------ texto -> valores

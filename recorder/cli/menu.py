@@ -19,7 +19,7 @@ OPCIONES: Tuple[Tuple[str, str, str], ...] = (
     ("1", "Grabar", "grabar"),
     ("2", "Opciones", "config"),
     ("3", "Calibrar", "calibrar"),
-    ("4", "Síntesis", "sintesis"),
+    ("4", "Reagrupar nota", "sintesis"),
     ("5", "Recomendación del equipo", "recomendar"),
     ("6", "Abrir la ventana", "ventana"),
     ("0", "Salir", "salir"),

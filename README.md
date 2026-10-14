@@ -18,7 +18,7 @@
   * **Anti-Bucles:** Detector de repeticiones continuas mediante análisis de compresión zlib (`compression_ratio`).
   * **Diccionario Fonético:** Sustituciones automáticas para jerga técnica o siglas de tu equipo (`cuba` ➔ `QA`, `ayayas` ➔ `IIS`).
   * **🧪 Sandbox en Vivo:** Prueba tus reglas interactivamente en la interfaz antes de guardarlas.
-* 🧹 **Síntesis de Notas:** Genera versiones agrupadas por tramos de reloj (5, 15, 30 o 60 min), con las líneas del mismo turno unidas en párrafos y el relleno corto descartado. **Nunca modifica la nota original**: cada síntesis es un archivo nuevo que registra de qué original salió.
+* 🧹 **Reagrupar notas (📑):** Genera copias ordenadas por hora y agrupadas por tramos de reloj (5, 15, 30 o 60 min), con las líneas del mismo turno unidas en párrafos que conservan su `[HH:MM]`, sin relleno corto ni ecos del vocabulario y, por defecto, en texto puro (sin imágenes ni indicadores de captura; se pueden conservar desmarcando la casilla). **No resume**: el texto es el de la transcripción, y la cabecera de cada copia lo dice. **Nunca modifica la nota original**: cada copia es un archivo nuevo (`…_reagrupada-1h.md`) que registra de qué original salió.
 * 📝 **Salida Markdown Atómica:** Genera un archivo diario (ej: `daily_2026-09-08_14-30.md`) con soporte para pausar (`⏸`), reanudar (`▶`) y trasladar la carpeta de notas en caliente.
 * 🎧 **Resistente a auriculares y suspensión:** Si una fuente de audio se cae (auriculares desconectados, equipo que despierta), se reabre sola con reintentos mientras la otra sigue; el medidor lo muestra (`🔊 ⛔ reintento 3`). Mantiene el equipo despierto solo mientras hay trabajo (`☕`) y, al cerrar con fragmentos pendientes, avisa de cuántos minutos faltan y deja terminar. Ver [Auriculares, suspensión y cierre](#-auriculares-suspensión-y-cierre).
 
@@ -66,8 +66,9 @@ Recorder detecta el equipo en medio segundo (CPU y sus núcleos P/E, AVX2, RAM, 
 
 | Campo | Que hace |
 | :--- | :--- |
-| `vocab` | Contexto que se le pasa a Whisper antes de oir. Aqui van los terminos y nombres de tu equipo. Es lo que mas mejora la transcripcion. |
-| `keywords` | Palabras que disparan una captura de pantalla. Evita muletillas como *aqui* o *este*, se dicen constantemente. |
+| `vocab` | Contexto que se le pasa a Whisper antes de oir. Aqui van los terminos y nombres de tu equipo. Es lo que mas mejora la transcripcion. Escribelo como frase o lista **sin rotulos** (`Terminos:`, `Nombres del equipo:`): Whisper los repite en los silencios ([docs/anti-hallucination-tuning.md](docs/anti-hallucination-tuning.md), seccion D). |
+| `keywords` | Palabras que disparan una captura de pantalla. Evita muletillas: *este* se ignora siempre (disparo 60 de 212 capturas en una daily); *aqui* y *ahi* disparan mucho. |
+| `captures` | Capturas automaticas por palabra clave: `off`, `light`, `normal` (por defecto) o `high`. Salen de un buffer con una imagen cada 5 s, asi que la captura es la del momento en que se dijo la palabra aunque la transcripcion vaya atrasada ([docs/captura-diferida.md](docs/captura-diferida.md)). Se elige en ⚙ Opciones o en `daily config`; un valor que no sea uno de esos cuatro cae a `normal`. |
 | `fixes` | Sustituciones palabra por palabra tras transcribir, para lo que Whisper confunda siempre igual. |
 | `ignore` | Frases fantasma que Whisper inventa en los silencios. La lista de fabrica cubre las mas comunes en espanol. |
 | `model` | Modelo de Whisper. `small` va en tiempo real en un portatil sin GPU; `medium` es mas preciso pero se retrasa. |
@@ -93,16 +94,17 @@ En ⚙ Opciones, el selector **Qué capturar 📸** lista, además de las pantal
 
 ### 1. Iniciar la Aplicación
 
-* **Desde la terminal (`daily`):** graba ahí mismo, sin abrir la ventana. Las frases van saliendo con su hora (🎤 las del micrófono; debajo, `📸 captura: …` si dispararon una captura) y se quedan en el historial de la terminal; al pie, tres líneas con el estado, los medidores `🔊 🎤` y las teclas: `p` pausar/continuar, `c` captura, `r` reconectar audio, `a` abrir la nota, `q` salir (Ctrl+C también). Si al salir quedan fragmentos por transcribir, pregunta en el mismo pie: `e` esperar a que terminen, `s` salir perdiéndolos, `c` cancelar. En silencio no gasta CPU: solo se redibuja lo que cambia.
+* **Desde la terminal (`daily`):** graba ahí mismo, sin abrir la ventana. Las frases van saliendo con su hora (🎤 las del micrófono; debajo, `📸 captura: …` si dispararon una captura), igual que los avisos de la sesión (las fuentes de audio resueltas al arrancar, una fuente caída o muda, el atraso de la transcripción) y se quedan en el historial de la terminal; al pie, tres líneas con el estado, los medidores `🔊 🎤` (con `⛔` si una fuente cayó y `🔇` si lleva 10 min muda) y las teclas: `p` pausar/continuar, `c` captura, `r` reconectar audio, `a` abrir la nota, `q` salir (Ctrl+C también). Si al salir quedan fragmentos por transcribir, pregunta en el mismo pie: `e` esperar a que terminen, `s` salir perdiéndolos, `c` cancelar. En silencio no gasta CPU: solo se redibuja lo que cambia.
   ```powershell
   daily                 # grabar en la terminal
-  daily menu            # menú numerado: grabar, opciones, calibrar, síntesis, recomendación, ventana
-  daily config          # ⚙ Opciones por secciones; enseña los cambios y guarda al confirmar
+  daily menu            # menú numerado: grabar, opciones, calibrar, reagrupar nota, recomendación, ventana
+  daily config          # ⚙ Opciones por secciones (también la calidad de las capturas por palabra clave); guarda al confirmar
   daily config --ver    # la configuración actual (--editor abre config.json; --recomendado aplica la del equipo)
   daily calibrar        # 🎯 Calibrar: vocabulario, frases a ignorar, correcciones, umbrales y sandbox
-  daily calibrar --probar "frase"   # ¿pasaría los filtros? (sale con 0 si se acepta, 1 si se descarta)
-  daily sintesis        # elige una nota y genera su síntesis; el original no se toca
-  daily sintesis nota.md --cada 15 --si   # lo mismo sin preguntas (--sin-unir, --con-horas, --sin-capturas, --sin-cortas)
+  daily calibrar --probar "frase"   # ¿pasaría los filtros? (sale con 0 si se acepta, 1 si se descarta o es eco del vocab)
+  daily sintesis        # elige una nota y genera su copia reagrupada (no resume); el original no se toca
+  daily sintesis nota.md --cada 15 --si   # lo mismo sin preguntas; por defecto texto puro, sin cortas y sin ecos, como la ventana
+                        # (--sin-unir, --con-horas, --con-imagenes, --con-cortas, --con-ecos invierten las casillas)
   daily recomendar      # equipo detectado y configuración recomendada (--aplicar la guarda)
   daily ventana         # la ventana de siempre (igual que daily --gui)
   daily --ascii         # símbolos ASCII (en la consola clásica, conhost, se detecta solo)
@@ -120,8 +122,9 @@ En ⚙ Opciones, el selector **Qué capturar 📸** lista, además de las pantal
 ### 2. Controles de la Ventana
 
 * **📸 Captura:** Toma una captura manual instantánea del objetivo configurado (pantallas, monitor o ventana) y la anota en el Markdown.
-* **⚙ Opciones:** Permite elegir la carpeta de notas, la carpeta de capturas, los dispositivos de audio WASAPI (altavoces/micrófono), qué capturar (pantallas, un monitor o una ventana), la calidad de transcripción (con la **recomendada para este equipo** y su motivo), los hilos de CPU y, para una GPU AMD/Intel, la carpeta de whisper.cpp, la GPU y *flash attention*.
-* **🎯 Calibrar:** Abre el panel de fine-tuning para ajustar el prompt de contexto, la lista negra de alucinaciones, el diccionario fonético y probar frases en el sandbox.
+* **⚙ Opciones:** Permite elegir la carpeta de notas, la carpeta de capturas, los dispositivos de audio WASAPI (altavoces/micrófono), qué capturar (pantallas, un monitor o una ventana), la calidad de las capturas automáticas por palabra clave (o apagarlas), la calidad de transcripción (con la **recomendada para este equipo** y su motivo), los hilos de CPU y, para una GPU AMD/Intel, la carpeta de whisper.cpp, la GPU y *flash attention*. Si cambias la carpeta de notas en plena reunión, la nota se mueve y sus enlaces a capturas se reescriben para seguir funcionando.
+* **📑 Reagrupar:** Genera una copia ordenada y agrupada de una nota, sin tocar el original ([docs/sintesis-de-notas.md](docs/sintesis-de-notas.md)).
+* **🎯 Calibrar:** Abre el panel de fine-tuning para ajustar el prompt de contexto (sin rótulos: el sandbox marca como eco lo que solo repite el vocabulario), la lista negra de alucinaciones, el diccionario fonético y probar frases en el sandbox.
 * **⏸ Pausar / ▶ Continuar:** Suspende la toma de notas durante pausas de la reunión sin cerrar el archivo diario.
 * **Clic en los medidores `🔊 🎤`:** Reabre las dos fuentes de audio al momento con los dispositivos configurados (plan B si un flujo se queda mudo sin dar error).
 * **Cerrar la ventana:** Si quedan fragmentos por transcribir, pregunta cuántos minutos de audio faltan y deja elegir entre esperar a que terminen o salir perdiéndolos.
@@ -138,6 +141,8 @@ Cada fuente (🔊 salida y 🎤 micrófono) vive en su propio hilo y **se recupe
 
 En la cabecera se ve de un vistazo: el medidor pasa de `🔊 ████░░░░` a `🔊 ⛔ reintento 3` mientras está caída, y vuelve a las barras en cuanto lee audio otra vez. Además queda una línea con hora en la ventana y en la nota (`> ⚠ audio de salida caído…` / `> ✔ audio de salida recuperado`), para saber por qué hay un hueco.
 
+Una fuente también puede estar **muda sin estar caída**: el flujo lee, pero nada llega a formar un fragmento (el micrófono elegido no es el que usa Teams, o es un jack sin micrófono conectado). Si una fuente lleva 10 minutos sin dar fragmentos mientras la otra sí, el medidor muestra `🎤 ░░░░░░░░ 🔇` (en la ventana y en el pie de la terminal) y la nota y el visor lo dicen (`> ⚠ el micrófono 🎤 lleva 10 min sin dar fragmentos…`), una vez, y otra al volver a dar fragmentos. Al arrancar, la nota y el visor apuntan además qué dispositivo resolvió cada fuente (`> Fuentes: 🔊 … · 🎤 …`).
+
 Límites que conviene conocer:
 
 * PortAudio lee la lista de dispositivos **al arrancar**. Desconectar y volver a conectar el mismo dispositivo se recupera solo; pero un dispositivo que **no existía al abrir Recorder**, o cambiar el predeterminado de Windows a **otro** distinto, exige reiniciar Recorder (o elegirlo a mano en ⚙ Opciones si ya estaba en la lista).
@@ -145,7 +150,7 @@ Límites que conviene conocer:
 
 ### Suspensión por inactividad y cierre de la tapa
 
-Mientras hay trabajo (se está oyendo algo, o quedan fragmentos por transcribir), Recorder pide a Windows que **no suspenda el equipo por inactividad** (`SetThreadExecutionState`) y lo indica con `☕` en la cabecera. No es permanente: se suelta cuando la cola está vacía y llevan 15 minutos sin oírse nada, o en pausa (⏸) sin cola. Así un Recorder olvidado abierto no deja el portátil encendido toda la noche. La pantalla sí puede apagarse; solo se retiene el sistema.
+Mientras hay trabajo (se está oyendo algo, o quedan fragmentos por transcribir), Recorder pide a Windows que **no suspenda el equipo por inactividad** (`SetThreadExecutionState`) y lo indica con `☕` en la cabecera. No es permanente: se suelta cuando la cola está vacía y llevan 15 minutos sin ningún fragmento de audio, o en pausa (⏸) sin cola. (Cuenta fragmentos y no nivel: el ruido de un jack sin micrófono pasa el umbral en instantes sueltos y antes retenía el equipo sin fin.) Así un Recorder olvidado abierto no deja el portátil encendido toda la noche. La pantalla sí puede apagarse; solo se retiene el sistema.
 
 **Cerrar la tapa no lo puede impedir ninguna aplicación**: es una directiva de energía de Windows. Si quieres cerrar la tapa y que Recorder siga transcribiendo, configura que al cerrarla no pase nada:
 
@@ -169,6 +174,10 @@ Al cerrar con cola pendiente, Recorder dice cuántos fragmentos y cuántos minut
 
 Con la cola vacía cierra directamente, como siempre.
 
+### Cuando la transcripción va atrasada
+
+Si al transcribir un fragmento ya han pasado más de 2 minutos desde que se dijo, la nota lo marca (`> ⏳ transcripción atrasada 5 min desde 10:42:13`) y vuelve a marcarlo cada vez que el atraso se duplica, y una vez al ponerse al día (`> ✔ transcripción al día desde …`). Las capturas no se ven afectadas mientras el buffer tenga el fotograma; si no lo tiene, la captura se toma en el momento y se anota como `tardía, +N min`. Un fragmento o una captura que tarda más de un minuto también queda anotado, para saber dónde se atasca.
+
 ---
 
 ## 🏛️ Arquitectura del Proyecto
@@ -190,7 +199,7 @@ Recorder/
 │   ├── engine/                     # Trabajador de inferencia faster-whisper
 │   ├── filters/                    # Pipeline anti-alucinaciones, zlib, normalizador y léxico
 │   ├── actions/                    # Capturas de pantalla DPI-aware y notas Markdown
-│   ├── digest/                     # Sintesis de notas: agrupa y limpia sin tocar el original
+│   ├── digest/                     # Reagrupar notas: ordena, agrupa y limpia sin tocar el original (no resume)
 │   ├── cli/                        # Modo terminal (daily): grabación en vivo, menú y subcomandos
 │   └── ui/                         # Interfaz gráfica Catppuccin y diálogos modales
 │
@@ -218,7 +227,9 @@ Para más detalles, consulta la documentación en la carpeta [docs/](docs/):
 * ⚡ [docs/rendimiento.md](docs/rendimiento.md): Qué hace lenta la transcripción en CPU, qué palancas hay y cómo medirlas en tu equipo (`tools/medir_rendimiento.py`).
 * 🎮 [docs/gpu-amd-vulkan.md](docs/gpu-amd-vulkan.md): Transcribir en una GPU AMD (Radeon) con whisper.cpp y Vulkan: instalación, medidas y límites.
 * 🗺️ [docs/plan-fase-3.md](docs/plan-fase-3.md): Plan para identificar a cada participante por su voz.
-* 🧹 [docs/sintesis-de-notas.md](docs/sintesis-de-notas.md): Como generar versiones agrupadas y limpias de una nota sin tocar nunca el original.
+* 🧹 [docs/sintesis-de-notas.md](docs/sintesis-de-notas.md): Como generar copias reagrupadas (ordenadas y limpias, no resumidas) de una nota sin tocar nunca el original.
+* 🔍 [docs/auditoria-daily-2026-09-25.md](docs/auditoria-daily-2026-09-25.md): Auditoría de una daily real (capturas tardías o perdidas, eco del vocabulario, micrófono mudo) y lo que se cambió.
+* 📸 [docs/captura-diferida.md](docs/captura-diferida.md): El buffer circular de capturas: por qué la imagen es la del momento en que se dijo la palabra.
 
 ---
 

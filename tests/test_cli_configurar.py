@@ -16,7 +16,7 @@ from recorder.cli import configurar
 from recorder.config import hardware
 from recorder.config.hardware import HardwareProfile
 from recorder.config.manager import ConfigManager
-from recorder.config.options import AUTO_GPU, DEFAULT_DEV, WINDOW_PREFIX, apply_settings, settings_form
+from recorder.config.options import AUTO_GPU, CAPTURE_LABELS, DEFAULT_DEV, WINDOW_PREFIX, apply_settings, settings_form
 from recorder.config.schema import QUALITY_PRESETS, AppConfig
 from tests.apoyo_cli import argumentos, consola_de_prueba, respuestas, solo_ascii
 
@@ -82,15 +82,31 @@ class TestAsistente(CasoConfig):
 
     def test_audio_y_capturas_en_dos_secciones_antes_de_guardar(self):
         self.guardar(AppConfig())
-        with respuestas(AUDIO, "2", "n", "n", CAPTURAS, "3", "s"):
-            # salida 2 = Altavoces, sin micrófono; no guardar aún; capturar la ventana; guardar
+        with respuestas(AUDIO, "2", "n", "n", CAPTURAS, "3", "1", "s"):
+            # salida 2 = Altavoces, sin micrófono; no guardar aún; capturar la ventana; capturas apagadas; guardar
             codigo, salida = self.correr()
         self.assertEqual(codigo, 0)
         g = self.guardado()
         self.assertEqual((g["out_dev"], g["mic"], g["mic_dev"]), ("Altavoces", False, ""))
         self.assertEqual((g["window"], g["screen"]), (VENTANAS[0], 0))
+        self.assertEqual(g["captures"], "off")
         self.assertIn(WINDOW_PREFIX + VENTANAS[0], salida)
         self.assertIn(DEFAULT_DEV, salida)
+        self.assertIn("Capturas por palabra clave", salida)
+        self.assertIn(CAPTURE_LABELS["off"], salida)
+        self.assertIn(CAPTURE_LABELS["normal"], salida)  # en la tabla de cambios: antes → después
+
+    def test_calidad_de_capturas_como_la_ventana(self):
+        self.guardar(AppConfig(captures="light"))
+        with respuestas(CAPTURAS, "", "4", "s"):  # misma pantalla; máxima calidad; guardar
+            codigo, _ = self.correr()
+        self.assertEqual(codigo, 0)
+        esperado = AppConfig(captures="light")
+        form = settings_form(esperado, PANTALLAS)
+        form.captures = CAPTURE_LABELS["high"]
+        apply_settings(esperado, form, PANTALLAS)
+        self.assertEqual(self.guardado(), esperado.to_dict())
+        self.assertEqual(self.guardado()["captures"], "high")
 
     def test_dispositivo_guardado_que_ya_no_se_detecta_sigue_elegible(self):
         self.guardar(AppConfig(out_dev="Cable virtual"))
@@ -138,8 +154,8 @@ class TestAsistente(CasoConfig):
 
     def test_todo_sin_cambios_no_escribe(self):
         antes = self.guardar(AppConfig())
-        # carpetas (3), audio (3), capturas (1), whisper.cpp (1), recomendado: no, calidad e hilos (2)
-        with respuestas(TODO, "", "", "", "", "", "", "", "", "n", "", "", SALIR):
+        # carpetas (3), audio (3), capturas (2), whisper.cpp (1), recomendado: no, calidad e hilos (2)
+        with respuestas(TODO, "", "", "", "", "", "", "", "", "", "n", "", "", SALIR):
             codigo, salida = self.correr()
         self.assertEqual(codigo, 0)
         self.assertIn("Sin cambios.", salida)
@@ -183,7 +199,8 @@ class TestBanderas(CasoConfig):
         codigo, salida = self.correr("--ver")
         self.assertEqual(codigo, 0)
         for texto in ("Carpeta de notas", "Media: small, haz 5, CPU, int8", WINDOW_PREFIX + "Chat | Microsoft Teams",
-                      "Hilos de CPU", "1 corrección", "9 frases", AUTO_GPU):
+                      "Hilos de CPU", "1 corrección", "10 frases", AUTO_GPU, "Capturas por palabra clave",
+                      CAPTURE_LABELS["normal"]):
             self.assertIn(texto, salida)
 
     def test_ver_en_ascii_no_trae_emoji(self):
@@ -242,13 +259,14 @@ class TestBanderas(CasoConfig):
 class TestQueCambio(unittest.TestCase):
     def test_diferencias_legibles(self):
         antes = AppConfig()
-        despues = AppConfig(out_dev="Altavoces", mic=False, keywords=[], whispercpp_device=1, window="Excel", fixes={"a": "b"})
+        despues = AppConfig(out_dev="Altavoces", mic=False, keywords=[], whispercpp_device=1, window="Excel", fixes={"a": "b"}, captures="off")
         cambios = configurar.diferencias(antes, despues)
         self.assertEqual(cambios, [
             ("Palabras clave", "pendiente, bloqueo, captura", "(ninguna)"),
             ("Transcribir el micrófono", "sí", "no"),
             ("Salida a capturar", DEFAULT_DEV, "Altavoces"),
             ("Ventana a capturar", "(ninguna: se captura la pantalla)", "Excel"),
+            ("Capturas por palabra clave", CAPTURE_LABELS["normal"], CAPTURE_LABELS["off"]),
             ("GPU de whisper.cpp", AUTO_GPU, "1"),
             ("Correcciones", "(ninguna)", "a=b"),
         ])

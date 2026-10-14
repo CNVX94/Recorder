@@ -1,7 +1,7 @@
 """`daily config`: la ventana ⚙ Opciones en la terminal, sobre la misma lógica (config/options.py).
 
-Sin argumentos pregunta por secciones (carpetas, audio, capturas, calidad y motor), enseña qué
-cambió y guarda solo al confirmar. `--ver` muestra la configuración, `--editor` abre config.json
+Sin argumentos pregunta por secciones (carpetas, audio, capturas con la calidad del buffer de
+capturas por palabra clave, calidad y motor), enseña qué cambió y guarda solo al confirmar. `--ver` muestra la configuración, `--editor` abre config.json
 en el editor del sistema y `--recomendado` aplica la configuración recomendada para el equipo
 (lo mismo que `daily recomendar --aplicar`). No importa tkinter.
 
@@ -32,6 +32,8 @@ from ..config.options import (
     WINDOW_PREFIX,
     SettingsForm,
     apply_settings,
+    capture_choice,
+    capture_choices,
     custom_runtime,
     device_choice,
     device_choices,
@@ -74,7 +76,8 @@ ESTILO_ESTADO = {"ok": "ok", "warning": "error", "info": "tenue"}
 ETIQUETAS = {
     "notes_dir": "Carpeta de notas", "caps_dir": "Carpeta de capturas", "keywords": "Palabras clave",
     "mic": "Transcribir el micrófono", "out_dev": "Salida a capturar", "mic_dev": "Micrófono",
-    "screen": "Pantalla", "window": "Ventana a capturar", "model": "Modelo", "beam_size": "Haz",
+    "screen": "Pantalla", "window": "Ventana a capturar", "captures": "Capturas por palabra clave",
+    "model": "Modelo", "beam_size": "Haz",
     "device": "Dispositivo", "compute_type": "Precisión", "whispercpp_dir": "Carpeta de whisper.cpp",
     "whispercpp_flash_attn": "Flash attention", "whispercpp_device": "GPU de whisper.cpp",
     "cpu_threads": "Hilos de CPU", "vocab": "Vocabulario", "ignore": "Frases a ignorar",
@@ -149,7 +152,7 @@ def detectar_entorno(consola: Console) -> Entorno:
 SECCIONES = [
     "Carpetas y palabras clave",
     "Audio: salida a capturar y micrófono",
-    "Capturas: pantalla o ventana",
+    "Capturas: pantalla o ventana, y calidad de las capturas por palabra clave",
     "Calidad y motor: preset, hilos, whisper.cpp y GPU",
 ]
 TODO, GUARDAR, SALIR = "Todo, paso a paso", "Guardar y salir", "Salir sin guardar"
@@ -235,6 +238,13 @@ def paso_capturas(consola: Console, form: SettingsForm, config: AppConfig, entor
     if form.target not in opciones:
         opciones.append(form.target)
     form.target = opciones[elegir(consola, "Qué capturar 📸", opciones, opciones.index(form.target))]
+    # Buffer de capturas por palabra clave (docs/captura-diferida.md): el mismo desplegable que la ventana
+    calidades = capture_choices()
+    imprimir(consola, (
+        "  [tenue]La imagen es la del momento en que se dijo la palabra, aunque la transcripción vaya "
+        "atrasada; el disco solo se ocupa mientras hay atraso.[/]"
+    ))
+    form.captures = calidades[elegir(consola, "Capturas por palabra clave", calidades, calidades.index(form.captures))]
 
 
 def paso_calidad(consola: Console, form: SettingsForm, config: AppConfig, entorno: Entorno) -> None:
@@ -288,6 +298,8 @@ def formatear(campo: str, valor) -> str:
         return AUTO_GPU if valor < 0 else str(valor)
     if campo == "window":
         return valor or "(ninguna: se captura la pantalla)"
+    if campo == "captures":
+        return capture_choice(valor)
     if isinstance(valor, bool):
         return "sí" if valor else "no"
     if isinstance(valor, list):
@@ -336,6 +348,7 @@ def filas_resumen(config: AppConfig) -> List[Tuple[str, str]]:
         ("Salida a capturar 🔊", device_choice(config.out_dev)),
         ("Micrófono 🎤", device_choice(config.mic_dev) if config.mic else "no se transcribe"),
         ("Qué capturar 📸", captura),
+        ("Capturas por palabra clave", capture_choice(config.captures)),
         ("Calidad", f"{calidad}: {describe_runtime(config.model, config.beam_size, config.device, config.compute_type)}"),
         ("Hilos de CPU", str(config.cpu_threads) if config.cpu_threads else "0 (4 de la biblioteca)"),
         ("whisper.cpp", config.whispercpp_dir or "(vacía: sin motor Vulkan)"),

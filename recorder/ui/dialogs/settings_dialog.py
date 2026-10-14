@@ -14,6 +14,7 @@ from ...config.options import (
     WINDOW_PREFIX,
     SettingsForm,
     apply_settings,
+    capture_choices,
     custom_runtime,
     device_choices,
     gpu_choice,
@@ -78,7 +79,7 @@ class SettingsDialog(tk.Toplevel):
         self.vulkan_ready = self._extra_vulkan_ready()
         self._build_ui()
         self._refresh_engine()
-        fit_window(self, 680, 600)
+        fit_window(self, 680, 640)
         if self.hardware is None:
             self._hw_result: List[HardwareProfile] = []
             threading.Thread(target=lambda: self._hw_result.append(cached_hardware()), daemon=True).start()
@@ -93,6 +94,7 @@ class SettingsDialog(tk.Toplevel):
         self.v_out_dev = tk.StringVar(value=f.out_dev)
         self.v_mic_dev = tk.StringVar(value=f.mic_dev)
         self.v_screen = tk.StringVar(value=f.target)
+        self.v_captures = tk.StringVar(value=f.captures)
         self.v_threads = tk.StringVar(value=f.cpu_threads)
         self.v_wcpp_dir = tk.StringVar(value=f.whispercpp_dir)
         self.v_flash = tk.BooleanVar(value=f.whispercpp_flash_attn)
@@ -108,6 +110,7 @@ class SettingsDialog(tk.Toplevel):
             mic_dev=self.v_mic_dev.get(),
             mic=self.v_mic.get(),
             target=self.v_screen.get(),
+            captures=self.v_captures.get(),
             quality=self._current_quality_key(),
             custom_values=self._custom_values,
             cpu_threads=self.v_threads.get(),
@@ -128,12 +131,14 @@ class SettingsDialog(tk.Toplevel):
         self._row_choice(4, "Micrófono 🎤:", self.v_mic_dev, mic_devs)
         self.om_target = self._row_choice(5, "Qué capturar 📸:", self.v_screen, self._targets())
         tk.Button(self, text="🔄", command=self._refresh_targets, **BTN_STYLE).grid(row=5, column=2, padx=(6, 16))
-        self._build_quality_row(6)  # fila 6 = selector, fila 7 = descripción (se aplica al reiniciar)
-        self._build_recommendation_row(8)
-        self._build_engine_rows(9)  # filas 9 a 12: hilos, whisper.cpp, su estado y la GPU de Vulkan
+        # Calidad del buffer de capturas por palabra clave, o apagarlas (docs/captura-diferida.md)
+        self._row_choice(6, "Capturas por palabra clave:", self.v_captures, capture_choices())
+        self._build_quality_row(7)  # fila 7 = selector, fila 8 = descripción (se aplica al reiniciar)
+        self._build_recommendation_row(9)
+        self._build_engine_rows(10)  # filas 10 a 13: hilos, whisper.cpp, su estado y la GPU de Vulkan
 
         bottom = tk.Frame(self, bg=BG)
-        bottom.grid(row=13, column=0, columnspan=3, sticky="ew", padx=16, pady=(8, 4))
+        bottom.grid(row=14, column=0, columnspan=3, sticky="ew", padx=16, pady=(8, 4))
         tk.Checkbutton(
             bottom,
             text="Transcribir también mi micrófono 🎤",
@@ -161,7 +166,7 @@ class SettingsDialog(tk.Toplevel):
 
         # Botonera inferior
         btn_box = tk.Frame(self, bg=BG)
-        btn_box.grid(row=14, column=1, columnspan=2, sticky="e", padx=16, pady=10)
+        btn_box.grid(row=15, column=1, columnspan=2, sticky="e", padx=16, pady=10)
 
         tk.Button(
             btn_box,

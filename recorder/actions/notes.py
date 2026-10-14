@@ -1,9 +1,12 @@
 import datetime as dt
 import os
 import pathlib
+import re
 import shutil
 import threading
 from typing import Optional, Union
+
+RE_IMG = re.compile(r"!\[\]\(([^)]+)\)")
 
 
 def md_ref(path: Union[str, pathlib.Path], notes_dir: Union[str, pathlib.Path]) -> str:
@@ -13,6 +16,20 @@ def md_ref(path: Union[str, pathlib.Path], notes_dir: Union[str, pathlib.Path]) 
     except ValueError:
         rel = str(path)
     return rel.replace("\\", "/")
+
+
+def rebase_links(text: str, old_dir: Union[str, pathlib.Path], new_dir: Union[str, pathlib.Path]) -> str:
+    """Política pura: reescribe los `![](ruta)` relativos para que sigan apuntando a la misma imagen
+    cuando la nota pasa de `old_dir` a `new_dir`. Las capturas no se mueven; la ruta sí."""
+
+    def rebase(m: "re.Match") -> str:
+        ref = m.group(1)
+        if pathlib.PureWindowsPath(ref).is_absolute() or "://" in ref:
+            return m.group(0)
+        target = os.path.normpath(os.path.join(old_dir, ref))
+        return f"![]({md_ref(target, new_dir)})"
+
+    return RE_IMG.sub(rebase, text)
 
 
 class NotesSession:
@@ -39,14 +56,24 @@ class NotesSession:
                 f.write(line + "\n")
 
     def move_notes(self, new_dir: Union[str, pathlib.Path]) -> pathlib.Path:
-        """Cambia la carpeta de notas en caliente: mueve el .md de esta sesión."""
+        """Cambia la carpeta de notas en caliente: mueve el .md de esta sesión.
+
+        Las capturas se quedan donde están (caps_dir no cambia), así que los enlaces relativos
+        ya escritos se reescriben para la nueva ubicación: antes se movía el .md sin más y todas
+        sus imágenes quedaban rotas.
+        """
         target_dir = pathlib.Path(new_dir)
         if target_dir == self.file_path.parent:
             return self.file_path
         target_dir.mkdir(parents=True, exist_ok=True)
         with self.lock:
+            old_dir = self.file_path.parent
             new_file = target_dir / self.file_path.name
             shutil.move(str(self.file_path), str(new_file))
+            text = new_file.read_text(encoding="utf-8")
+            rebased = rebase_links(text, old_dir, target_dir)
+            if rebased != text:
+                new_file.write_text(rebased, encoding="utf-8")
             self.file_path = new_file
             self.notes_dir = target_dir
             return self.file_path

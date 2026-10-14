@@ -14,10 +14,11 @@ from typing import List, Optional
 from .parser import CAM, MIC, Note, parse_file
 from .transforms import DigestOptions, apply_all, group_by_interval, merge_consecutive
 
-SEP = "_sintesis"  # marca en el nombre que el archivo es derivado
+SEP = "_reagrupada"  # marca en el nombre que el archivo es derivado
+SEPS = (SEP, "_sintesis")  # "_sintesis" es el nombre de antes: se sigue reconociendo como derivado
 AVISO = (
-    "Sintesis derivada y con perdida de detalle. "
-    "Para otro agrupamiento, regenera desde el origen; no desde este archivo."
+    "Transcripcion reagrupada, NO un resumen: es el mismo texto que el original, ordenado por hora "
+    "y agrupado, con perdida de detalle. Para otro agrupamiento, regenera desde el origen; no desde este archivo."
 )
 
 
@@ -43,7 +44,7 @@ def list_originals(notes_dir) -> List[pathlib.Path]:
     d = pathlib.Path(notes_dir)
     if not d.is_dir():
         return []
-    notas = [p for p in d.glob("*.md") if SEP not in p.stem and not is_digest(p)]
+    notas = [p for p in d.glob("*.md") if not any(s in p.stem for s in SEPS) and not is_digest(p)]
     return sorted(notas, key=lambda p: p.stat().st_mtime, reverse=True)
 
 
@@ -72,15 +73,29 @@ def _describe(opts: DigestOptions) -> str:
     if opts.drop_short_words:
         partes.append(f"descartadas lineas de menos de {opts.drop_short_words} palabras")
     if not opts.keep_captures:
-        partes.append("sin capturas")
+        partes.append("sin referencias de imagen ni indicadores de captura (texto puro)")
     if opts.inline_stamps:
         partes.append("con marca de tiempo por linea")
+    if opts.drop_echo:
+        partes.append("quitado el eco del vocabulario")
     return ", ".join(partes)
+
+
+def word_count(entries, opts: Optional[DigestOptions] = None) -> int:
+    """Palabras habladas (renglones 🔊 y 🎤, sin marcadores) de las entradas; con `opts`, las que
+    quedan tras aplicar esas transformaciones. Es la cifra que lleva la cabecera de la copia."""
+    if opts is not None:
+        entries = apply_all(entries, opts)
+    return sum(len(e.text.split()) for e in entries if e.source in ("out", "mic"))
 
 
 def render(note: Note, opts: DigestOptions, source_name: str, now: Optional[dt.datetime] = None) -> str:
     """Convierte una nota ya transformada en Markdown."""
     now = now or dt.datetime.now()
+    entradas = apply_all(note.entries, opts)
+    antes, despues = word_count(note.entries), word_count(entradas)
+    reduccion = 100 * (antes - despues) / antes if antes else 0.0
+    agrupada = f"en tramos de {opts.interval_min} min" if opts.interval_min else "sin agrupar"
     out = [
         "---",
         f"origen: {source_name}",
@@ -90,11 +105,14 @@ def render(note: Note, opts: DigestOptions, source_name: str, now: Optional[dt.d
         f"aviso: {AVISO}",
         "---",
         "",
-        f"# {note.title or source_name}" + (f" - sintesis {opts.interval_min} min" if opts.interval_min else " - sintesis"),
+        f"# {note.title or source_name} - reagrupada {agrupada}",
+        "",
+        f"> **No es un resumen.** Es la misma transcripcion, ordenada por hora y agrupada: "
+        f"{antes} palabras en el original, {despues} aqui ({reduccion:.0f} % menos). "
+        f"Las decisiones, tareas y fechas hay que sacarlas leyendola.",
         "",
     ]
 
-    entradas = apply_all(note.entries, opts)
     for etiqueta, grupo in group_by_interval(entradas, opts.interval_min):
         if opts.merge:  # unir dentro del tramo, nunca a traves de tramos
             grupo = merge_consecutive(grupo)
@@ -106,7 +124,11 @@ def render(note: Note, opts: DigestOptions, source_name: str, now: Optional[dt.d
                 out.append(f"> {e.text} {e.stamp}")
                 out.append("")
                 continue
-            marca = f"**{e.stamp}** " if (opts.inline_stamps or not opts.interval_min) else ""
+            # Siempre una hora por parrafo: sin ella, un tramo de una hora no dice cuando se dijo nada.
+            if opts.inline_stamps or not opts.interval_min:
+                marca = f"**{e.stamp}** "
+            else:
+                marca = f"[{e.stamp[:5]}] "
             voz = f"{MIC} " if e.source == "mic" else ""
             out.append(f"- {marca}{voz}{e.text}".rstrip())
             for c in e.captures:

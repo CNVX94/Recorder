@@ -11,12 +11,14 @@ from recorder.digest import (
     bucket_start,
     build_digest,
     digest_path,
+    drop_echo,
     drop_short,
     group_by_interval,
     is_digest,
     list_originals,
     merge_consecutive,
     parse_text,
+    sort_by_time,
     write_digest,
 )
 from recorder.digest.parser import CAM, MIC, Entry
@@ -161,10 +163,11 @@ class TestWriter(unittest.TestCase):
         self.assertEqual(sha(self.src), antes, "la nota original cambio")
 
     def test_slug_naming(self):
-        self.assertEqual(DigestOptions(0).slug(), "sintesis")
-        self.assertEqual(DigestOptions(5).slug(), "sintesis-5min")
-        self.assertEqual(DigestOptions(15).slug(), "sintesis-15min")
-        self.assertEqual(DigestOptions(60).slug(), "sintesis-1h")
+        # dice lo que hace (reagrupar), no lo que no hace (resumir)
+        self.assertEqual(DigestOptions(0).slug(), "reagrupada")
+        self.assertEqual(DigestOptions(5).slug(), "reagrupada-5min")
+        self.assertEqual(DigestOptions(15).slug(), "reagrupada-15min")
+        self.assertEqual(DigestOptions(60).slug(), "reagrupada-1h")
 
     def test_never_overwrites_an_existing_digest(self):
         a = write_digest(self.src, DigestOptions(30))
@@ -232,6 +235,121 @@ class TestWriter(unittest.TestCase):
 
     def test_pause_markers_survive(self):
         self.assertIn("Pausa", build_digest(self.src, DigestOptions(30)))
+
+
+# Una nota con los defectos de la auditoría del 25-SEP, en sintético: frase escrita después de una
+# pausa posterior (cola), dos pausas al cerrar que caen en un tramo nuevo, marcadores de atraso y
+# de fuente, y eco del vocabulario.
+NOTA_COLA = """# Daily 2026-09-25 16:05
+
+- **17:52:40** Frase larga de antes de la pausa con suficiente texto.
+
+> ⏸ Pausa 17:53:25
+
+- **17:53:06** Frase larga transcrita tarde pero dicha antes de la pausa.
+
+> ▶ Continúa 17:53:30
+
+> ⏳ transcripción atrasada 54 min desde 18:08:44
+
+- **18:08:44** Frase larga dicha durante el atraso de la transcripción.
+  - 📸 `aqui` → ![](capturas/2026-09-25_18-08-50_aqui.jpg) · tardía, +54 min
+- **18:16:03** Términos.
+- **18:17:00** Términos crearon tres endpoints nuevos en el servicio.
+- **18:59:58** Última frase larga de la reunión antes de cerrar.
+
+> ⚠ audio de micrófono caído, reintentando: OSError('x') 19:00:10
+
+> ⏸ Pausa 20:03:42
+
+> ▶ Continúa 20:03:43
+"""
+
+
+class TestReagrupadaHonesta(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.src = pathlib.Path(self.tmp.name) / "daily_2026-09-25_16-05.md"
+        self.src.write_text(NOTA_COLA, encoding="utf-8")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_parsea_todos_los_marcadores(self):
+        marcas = [e.text for e in parse_text(NOTA_COLA).entries if e.source == "pausa"]
+        self.assertEqual(marcas[0], "⏸ Pausa")
+        self.assertIn("⏳ transcripción atrasada 54 min desde", marcas)
+        self.assertTrue(any(m.startswith("⚠ audio de micrófono caído") for m in marcas))
+
+    def test_ordena_por_hora(self):
+        horas = [e.stamp for e in sort_by_time(parse_text(NOTA_COLA).entries)]
+        self.assertEqual(horas, sorted(horas))
+        self.assertLess(horas.index("17:53:06"), horas.index("17:53:25"))
+
+    def test_ordenar_respeta_la_medianoche(self):
+        e = [Entry("23:59:50", "out", "a"), Entry("00:00:10", "out", "b"), Entry("23:59:55", "out", "c")]
+        self.assertEqual([x.text for x in sort_by_time(e)], ["a", "c", "b"])
+
+    def test_un_tramo_con_solo_marcadores_no_existe(self):
+        md = build_digest(self.src, DigestOptions(60))
+        self.assertNotIn("## 20:00 - 21:00", md)
+        self.assertIn("Pausa 20:03:42", md)  # el marcador sigue, en el tramo anterior
+        grupos = group_by_interval(sort_by_time(parse_text(NOTA_COLA).entries), 60)
+        self.assertEqual([g[0] for g in grupos], ["17:00 - 18:00", "18:00 - 19:00"])
+
+    def test_hora_por_parrafo_al_agrupar(self):
+        md = build_digest(self.src, DigestOptions(60))
+        self.assertIn("- [17:52] Frase larga de antes", md)
+        self.assertIn("- [18:08] Frase larga dicha durante el atraso", md)
+
+    def test_la_frase_tardia_queda_antes_de_la_pausa(self):
+        md = build_digest(self.src, DigestOptions(60, merge=False))
+        self.assertLess(md.index("transcrita tarde"), md.index("Pausa 17:53:25"))
+
+    def test_marcador_de_atraso_y_captura_tardia_sobreviven(self):
+        md = build_digest(self.src, DigestOptions(60))
+        self.assertIn("⏳ transcripción atrasada 54 min desde 18:08:44", md)
+        self.assertIn("2026-09-25_18-08-50_aqui.jpg", md)
+
+    def test_quitar_eco_y_cortas(self):
+        opts = DigestOptions(60, drop_short_words=4, drop_echo=True, vocab="Términos: API, QA.")
+        md = build_digest(self.src, opts)
+        self.assertNotIn("Términos.", md)
+        self.assertIn("Crearon tres endpoints nuevos", md)
+
+    def test_drop_echo_conserva_lineas_con_captura(self):
+        e = [Entry("00:00:01", "out", "Términos.", captures=["a.png"]), Entry("00:00:02", "out", "Términos.")]
+        d = drop_echo(e, "")
+        self.assertEqual(len(d), 1)
+        self.assertEqual(d[0].captures, ["a.png"])
+
+    def test_la_cabecera_dice_que_no_es_un_resumen(self):
+        md = build_digest(self.src, DigestOptions(60))
+        self.assertIn("No es un resumen", md)
+        titulo = next(l for l in md.splitlines() if l.startswith("# "))
+        self.assertIn("reagrupada", titulo)
+        self.assertRegex(md, r"\d+ palabras en el original, \d+ aqui \(\d+ % menos\)")
+
+    def test_texto_puro_sin_imagenes_ni_indicadores(self):
+        nota = NOTA_COLA + (
+            "- **19:10:00** Ok.\n  - 📸 `aqui` → ![](capturas/c.jpg)\n"
+            "- **19:10:30** 📸 captura manual → ![](capturas/m.png)\n"
+            "- **19:11:00** Términos.\n  - 📸 `ahi` → ![](capturas/d.jpg)\n"
+        )
+        self.src.write_text(nota, encoding="utf-8")
+        md = build_digest(self.src, DigestOptions(60, keep_captures=False, drop_short_words=4, drop_echo=True))
+        for rastro in ("📸", "![](", ".jpg", ".png", "tardía", "captura manual"):
+            self.assertNotIn(rastro, md)
+        # sin su imagen, lo corto y el eco ya no tienen por qué quedarse
+        self.assertNotIn("Ok.", md)
+        self.assertNotRegex(md, r"(?m)^- \[\d\d:\d\d\] *$", "ningún párrafo vacío")
+        self.assertIn("Frase larga dicha durante el atraso", md)
+        self.assertIn("texto puro", md.split("---")[1])
+
+    def test_el_nombre_viejo_sigue_contando_como_derivado(self):
+        viejo = self.src.with_name(self.src.stem + "_sintesis-1h.md")
+        viejo.write_text("# sin cabecera\n", encoding="utf-8")
+        self.assertEqual([p.name for p in list_originals(self.src.parent)], [self.src.name])
 
 
 if __name__ == "__main__":

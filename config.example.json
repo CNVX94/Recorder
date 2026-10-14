@@ -11,6 +11,7 @@
   "mic_dev": "",
   "screen": 0,
   "window": "",
+  "captures": "normal",
   "model": "small",
   "beam_size": 5,
   "device": "cpu",
@@ -19,7 +20,7 @@
   "whispercpp_dir": "",
   "whispercpp_flash_attn": false,
   "whispercpp_device": -1,
-  "vocab": "Daily de desarrollo de software. Términos: backend, frontend, endpoint, despliegue, sprint, incidencia, base de datos, entorno de pruebas, integración continua. Nombres del equipo: Ana, Luis, Marta.",
+  "vocab": "Daily de desarrollo de software sobre backend, frontend, endpoint, despliegue, sprint, incidencia, base de datos, entorno de pruebas e integración continua, con Ana, Luis y Marta.",
   "ignore": [
     "suscríbete",
     "próximo vídeo",
@@ -29,7 +30,8 @@
     "amara.org",
     "gracias por estar aquí",
     "dale like",
-    "nos vemos en el próximo"
+    "nos vemos en el próximo",
+    "más información www"
   ],
   "fixes": {
     "yenkins": "Jenkins",

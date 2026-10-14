@@ -6,6 +6,7 @@ from ...config.schema import AppConfig
 from ...filters.samples import random_sample
 from ...filters.tuning import (
     THRESHOLD_RANGES,
+    VOCAB_HINT,
     TuningForm,
     apply_tuning,
     format_ignore,
@@ -37,7 +38,7 @@ class TuningDialog(tk.Toplevel):
 
         self._init_variables()
         self._build_ui()
-        fit_window(self, 720, 680)
+        fit_window(self, 720, 700)
 
     def _init_variables(self):
         f = tuning_form(self.config)
@@ -101,6 +102,9 @@ class TuningDialog(tk.Toplevel):
         lbl_vocab.pack(anchor="w", pady=(4, 2))
         ent_vocab = tk.Entry(container, textvariable=self.var_vocab, **ENTRY_STYLE)
         ent_vocab.pack(fill="x", ipady=4)
+        tk.Label(
+            container, text=VOCAB_HINT, bg=BG, fg=DIM, font=("Segoe UI", 8), wraplength=680, justify="left",
+        ).pack(anchor="w", pady=(2, 0))
 
         # 2. Frases prohibidas / Lista negra (Blacklist)
         f_ignore = tk.Frame(container, bg=BG)

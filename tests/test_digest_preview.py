@@ -12,6 +12,7 @@ import tempfile
 import unittest
 
 from recorder.digest import (
+    DEFAULT_INTERVAL,
     INTERVAL_LABELS,
     INTERVALS,
     MIN_WORDS,
@@ -42,14 +43,23 @@ class TestOpcionesDesdeLaInterfaz(unittest.TestCase):
         self.assertEqual(INTERVAL_LABELS[60], "Cada hora")
 
     def test_valores_por_defecto_de_la_ventana(self):
-        opts = digest_options(15)
-        self.assertEqual((opts.interval_min, opts.merge, opts.keep_captures), (15, True, True))
-        self.assertEqual(opts.drop_short_words, 0)
-        self.assertFalse(opts.inline_stamps)  # agrupando, quitar marcas esta marcado por defecto
+        # desde el 25-SEP-2026: texto puro, sin lineas cortas y sin eco del vocabulario, por defecto
+        opts = digest_options(DEFAULT_INTERVAL)
+        self.assertEqual((opts.interval_min, opts.merge, opts.keep_captures), (15, True, False))
+        self.assertEqual(opts.drop_short_words, MIN_WORDS)
+        self.assertTrue(opts.drop_echo)
+        self.assertEqual(opts.vocab, "")
+        self.assertFalse(opts.inline_stamps)  # agrupando, la hora corta por parrafo esta marcada por defecto
 
     def test_descartar_cortas_usa_el_minimo_de_palabras(self):
         self.assertEqual(digest_options(15, drop_short=True).drop_short_words, MIN_WORDS)
         self.assertEqual(digest_options(15, drop_short=False).drop_short_words, 0)
+
+    def test_eco_y_vocabulario(self):
+        opts = digest_options(15, drop_echo=False, vocab="QA, IIS")
+        self.assertFalse(opts.drop_echo)
+        self.assertEqual(opts.vocab, "QA, IIS")
+        self.assertEqual(digest_options(15, vocab=None).vocab, "")
 
     def test_sin_agrupar_las_marcas_se_conservan_siempre(self):
         self.assertTrue(digest_options(0, strip_stamps=True).inline_stamps)
@@ -86,15 +96,23 @@ class TestVistaPrevia(unittest.TestCase):
         self.assertEqual(vista.blocks, 2)  # 10:00 - 10:30 y 10:30 - 11:00
         self.assertEqual(vista.lines, len(vista.markdown.splitlines()))
         self.assertEqual(vista.kb, len(vista.markdown) // 1024)
-        self.assertEqual(vista.stats(), f"{vista.source_lines} líneas → 2 bloques · {vista.lines} líneas · ~0 KB")
+        # 24 palabras habladas; «A ver.» (2) se descarta por corta con los valores por defecto
+        self.assertEqual((vista.source_words, vista.words), (24, 22))
+        self.assertEqual(
+            vista.stats(), f"{vista.source_lines} líneas → 2 bloques · {vista.lines} líneas · ~0 KB · 24 → 22 palabras"
+        )
+        self.assertIn("24 palabras en el original, 22 aqui", vista.markdown)  # las mismas cifras que la cabecera
+        conservando = preview_digest(self.src, digest_options(30, drop_short=False))
+        self.assertEqual(conservando.words, 24)
 
     def test_sin_agrupar_no_hay_bloques(self):
         self.assertEqual(preview_digest(self.src, digest_options(0)).blocks, 0)
 
-    def test_se_niega_a_derivar_de_una_sintesis(self):
-        sintesis = write_digest(self.src, digest_options(60))
+    def test_se_niega_a_derivar_de_una_copia(self):
+        copia = write_digest(self.src, digest_options(60))
+        self.assertTrue(copia.name.endswith("_reagrupada-1h.md"))
         with self.assertRaises(DerivedSourceError):
-            preview_digest(sintesis, digest_options(5))
+            preview_digest(copia, digest_options(5))
 
     def test_archivo_inexistente(self):
         with self.assertRaises(OSError):

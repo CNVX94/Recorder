@@ -1,7 +1,8 @@
 import queue
 import threading
 import time
-from typing import Callable, Dict, Iterable, Tuple
+from types import SimpleNamespace
+from typing import Callable, Dict, Iterable, Optional, Tuple
 import numpy as np
 import pyaudiowpatch as pa
 
@@ -16,6 +17,7 @@ DEFAULT_SILENCE_RMS = 150.0
 RETRY_MAX_SEC = 30.0
 FLUSH_MIN_SEC = 1.0  # al morir un flujo, lo que hubiera a medias se salva si dura al menos esto
 WHISPER_RATE = 16000  # los fragmentos de la cola ya están a 16 kHz (ver to_16k)
+MUTE_WARN_SEC = 10 * 60  # una fuente sin voz tanto tiempo mientras la otra sí suena merece un aviso
 
 
 # ---------------------------------------------------------------------------
@@ -31,18 +33,39 @@ def retry_delay(attempt: int) -> float:
     return min(RETRY_MAX_SEC, 2.0 ** (attempt - 1))
 
 
-def meter_label(levels: Dict[str, float], attempts: Dict[str, int]) -> str:
-    """Texto de los medidores de la cabecera: barras si la fuente está viva, aviso si está caída."""
+def meter_label(levels: Dict[str, float], attempts: Dict[str, int], muted: Optional[str] = None) -> str:
+    """Texto de los medidores de la cabecera: barras si la fuente está viva, aviso si está caída,
+    🔇 si lee pero lleva MUTE_WARN_SEC sin dar fragmentos (ver mute_source)."""
     parts = []
     for icon, kind in (("🔊", "out"), ("🎤", "mic")):
         n = attempts.get(kind, 0)
-        parts.append(f"{icon} {bars(levels.get(kind, 0.0))}" if n == 0 else f"{icon} ⛔ reintento {n}")
+        mute = " 🔇" if kind == muted else ""
+        parts.append(f"{icon} {bars(levels.get(kind, 0.0))}{mute}" if n == 0 else f"{icon} ⛔ reintento {n}")
     return "   ".join(parts)
 
 
-def pending_audio_sec(chunks: Iterable[Tuple[float, str, np.ndarray]]) -> float:
-    """Segundos de audio que suman los fragmentos aún sin transcribir."""
-    return sum(len(audio) / WHISPER_RATE for _, _, audio in chunks)
+def pending_audio_sec(chunks: Iterable[tuple]) -> float:
+    """Segundos de audio que suman los fragmentos aún sin transcribir: (t0, kind, audio, t_ini)."""
+    return sum(len(c[2]) / WHISPER_RATE for c in chunks)
+
+
+def mute_source(
+    now: float, last_chunk: Dict[str, float], since: float, mic_enabled: bool, grace: float = MUTE_WARN_SEC
+) -> Optional[str]:
+    """Política pura: la fuente ('out' o 'mic') que lleva `grace` s sin dar fragmentos mientras la otra sí.
+
+    Una fuente muda no da error: el flujo lee, pero nada supera el umbral (un micrófono que no
+    es el que usa Teams, un jack sin micrófono). En una daily de 2 h 39 min no hubo ni un
+    renglón 🎤 y nada lo avisó. Cuenta fragmentos y no frames: el ruido de un jack vacío pasa
+    el umbral en frames sueltos, pero nunca completa un fragmento. `since` es el arranque de la
+    captura: sin él, una fuente recién abierta contaría como muda desde 1970.
+    """
+    kinds = ("out", "mic") if mic_enabled else ()
+    for kind, other in zip(kinds, reversed(kinds)):
+        other_alive = now - last_chunk.get(other, 0.0) < grace
+        if other_alive and now - max(last_chunk.get(kind, 0.0), since) >= grace:
+            return kind
+    return None
 
 
 def pending_summary(pending: int, secs: float) -> str:
@@ -98,18 +121,20 @@ def _read_loop(
     fuente está viva de verdad (abrir puede ir bien y leer fallar igualmente).
     """
     tail = max(1, int(pause_sec * rate / FRAMES_PER_BUFFER))
+    frame_sec = FRAMES_PER_BUFFER / rate
     buf = []
-    t0 = None
+    t0 = None  # primer frame con voz: la hora del renglón
+    t_ini = None  # primer frame del buffer: la base de seg.start de Whisper (docs/captura-diferida.md)
     alive = False
 
     def flush(min_len_sec: float = 0.0):
-        nonlocal buf, t0
-        if buf and t0 is not None and len(buf) * FRAMES_PER_BUFFER / rate >= min_len_sec:
+        nonlocal buf, t0, t_ini
+        if buf and t0 is not None and len(buf) * frame_sec >= min_len_sec:
             pcm = np.concatenate(buf)
             if rms(pcm) > silence_threshold:
-                chunk_queue.put((t0, kind, to_16k(pcm, rate, channels)))
+                chunk_queue.put((t0, kind, to_16k(pcm, rate, channels), t_ini))
         buf = []
-        t0 = None
+        t0 = t_ini = None
 
     try:
         while not stop_event.is_set():
@@ -125,14 +150,17 @@ def _read_loop(
 
             if is_paused() or (kind == "mic" and not is_mic_enabled()):
                 buf = []
-                t0 = None
+                t0 = t_ini = None
                 continue
 
+            now = time.time()
             if t0 is None and current_rms > silence_threshold:
-                t0 = time.time()
+                t0 = now
+            if not buf:
+                t_ini = now - frame_sec  # read() vuelve al completarse el frame: empezó un frame antes
 
             buf.append(raw)
-            secs = len(buf) * FRAMES_PER_BUFFER / rate
+            secs = len(buf) * frame_sec
 
             if (secs >= min_sec and rms(np.concatenate(buf[-tail:])) < silence_threshold) or secs >= max_sec:
                 flush()
@@ -223,6 +251,8 @@ class AudioCaptureManager:
         self.levels: Dict[str, float] = {"out": 0.0, "mic": 0.0}
         self.attempts: Dict[str, int] = {"out": 0, "mic": 0}
         self.last_audio_at = time.time()  # última vez que alguna fuente oyó algo por encima del umbral
+        self.last_chunk_at: Dict[str, float] = {"out": 0.0, "mic": 0.0}  # último fragmento encolado por fuente
+        self.started_at = time.time()
         self.retry_delay = retry_delay  # las pruebas lo sustituyen para no esperar de verdad
         self.open_lock = threading.Lock()  # PortAudio no soporta abrir flujos desde dos hilos a la vez
         self.stop_event = threading.Event()
@@ -241,6 +271,14 @@ class AudioCaptureManager:
         elif before and not attempt:
             self.source_callback(kind, True, "")
 
+    def _put_chunk(self, item: tuple):
+        self.last_chunk_at[item[1]] = time.time()
+        self.chunk_queue.put(item)
+
+    def muted(self, now: float) -> Optional[str]:
+        """La fuente que lleva MUTE_WARN_SEC sin fragmentos mientras la otra sí da (ver mute_source)."""
+        return mute_source(now, self.last_chunk_at, self.started_at, self.mic_enabled)
+
     def _open(self, kind: str):
         """Resuelve el dispositivo (de nuevo en cada llamada) y abre el flujo, en serie."""
         with self.open_lock:
@@ -254,6 +292,8 @@ class AudioCaptureManager:
         # arranque anterior, que seguían leyendo el dispositivo viejo tras cambiarlo en Opciones.
         self.stop_event = threading.Event()
         self._threads = []
+        self.started_at = time.time()
+        sink = SimpleNamespace(put=self._put_chunk)  # _read_loop solo llama a put()
         for kind in ("out", "mic"):
             t = threading.Thread(
                 target=capture_thread,
@@ -261,7 +301,7 @@ class AudioCaptureManager:
                 args=(
                     kind,
                     lambda k=kind: self._open(k),
-                    self.chunk_queue,
+                    sink,
                     self._update_level,
                     self._on_state,
                     lambda: self.paused,

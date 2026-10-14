@@ -22,7 +22,15 @@ COMMON_IGNORE = [
     "hasta el próximo vídeo",
     "subtítulos por",
     "dale a la campanita",
+    "más información www",
 ]
+
+# El veredicto del sandbox cuando el renglón es eco del vocabulario (filters/echo.py).
+ECHO_VERDICT = (
+    "⛔ DESCARTADA: es eco del vocabulario (un rótulo como «Términos:» o una lista de sus "
+    "términos). Escribe el vocabulario sin rótulos."
+)
+VOCAB_HINT = "Como frase o lista, sin rótulos («Términos:», «Nombres del equipo:»): Whisper los repite en los silencios."
 
 # (mínimo, máximo, paso) de cada umbral: lo que recorren los deslizadores de la ventana y lo que
 # una terminal debe admitir. Las claves son los campos de AppConfig.
@@ -92,10 +100,15 @@ class SandboxVerdict:
     processed: str  # el texto tras las correcciones; vacío si se descartó
     hits: List[str]  # palabras clave que dispararían una captura
     message: str  # "⛔ DESCARTADA: ..." o "✅ ACEPTADA: ..."
+    echo: bool = False  # descartada por ser eco del vocabulario (y no por la lista negra)
 
 
 def test_phrase(form: TuningForm, sample: str, keywords: Sequence[str]) -> SandboxVerdict:
-    """Pasa `sample` por los filtros tal como están escritos en `form` (las palabras clave son las de config)."""
+    """Pasa `sample` por los filtros tal como están escritos en `form` (las palabras clave son las de config).
+
+    El vocabulario del formulario cuenta: el filtro de eco (filters/echo.py) descarta lo que solo
+    es rótulo o lista del propio vocabulario, y así se ve antes de guardar.
+    """
     pipeline = TextPipeline(
         keywords=keywords,
         ignore=form.ignore_list,
@@ -103,12 +116,15 @@ def test_phrase(form: TuningForm, sample: str, keywords: Sequence[str]) -> Sandb
         no_speech_thresh=form.no_speech_threshold,
         logprob_thresh=form.logprob_threshold,
         compression_ratio_thresh=form.compression_ratio_threshold,
+        vocab=form.vocab,
     )
     res = pipeline.test_sample(sample)
     if res["is_ignored"]:
         return SandboxVerdict(
             False, "", [], "⛔ DESCARTADA: Contiene una frase de la lista negra de alucinaciones."
         )
+    if res["is_echo"]:
+        return SandboxVerdict(False, "", [], ECHO_VERDICT, echo=True)
     out = f"✅ ACEPTADA: \"{res['processed']}\""
     if res["hits"]:
         out += f"  (📸 Palabras clave detectadas: {', '.join(res['hits'])})"

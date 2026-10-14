@@ -156,6 +156,13 @@ class TestFuenteQueMuere(BaseCaptura):
             self.assertFalse(t.is_alive(), f"{t.name} sigue vivo tras stop()")
         self.assertEqual(self.mgr.attempts, {"out": 0, "mic": 0})
 
+    def test_cuenta_fragmentos_por_fuente(self):
+        self.mgr.start()
+        self.assertTrue(esperar(lambda: self.mgr.last_chunk_at["out"] > 0 and self.mgr.last_chunk_at["mic"] > 0,
+                                limite=30))
+        t0, kind, audio, t_ini = self.chunks.get(timeout=1)
+        self.assertLessEqual(t_ini, t0)
+
     def test_restart_mata_los_hilos_del_arranque_anterior(self):
         self.mgr.start()
         self.assertTrue(esperar(lambda: self.leyendo("out") and self.leyendo("mic")))
@@ -186,9 +193,10 @@ class TestBufferAMedias(unittest.TestCase):
         with self.assertRaises(OSError):
             capture._read_loop("out", flujo, RATE, 2, chunks, lambda k, v: None, lambda: None,
                                lambda: False, lambda: True, stop)
-        t0, kind, audio = chunks.get_nowait()
+        t0, kind, audio, t_ini = chunks.get_nowait()
         self.assertEqual(kind, "out")
         self.assertAlmostEqual(len(audio) / RATE, 2.0, delta=0.2)
+        self.assertLessEqual(t_ini, t0, "el audio empieza en t_ini, no después de la primera voz")
 
 
 class TestPoliticas(unittest.TestCase):
@@ -207,6 +215,25 @@ class TestPoliticas(unittest.TestCase):
         self.assertEqual(secs, 3000)
         self.assertEqual(pending_summary(150, secs), "150 fragmentos (~50 min de audio)")
         self.assertEqual(pending_summary(1, 12), "1 fragmento (~12 s de audio)")
+
+    def test_mute_source(self):
+        g = capture.MUTE_WARN_SEC
+        ahora = 100_000.0
+        arranque = ahora - 2 * g
+        # la salida da fragmentos y el micrófono nunca dio ninguno: el micrófono está mudo
+        self.assertEqual(capture.mute_source(ahora, {"out": ahora - 5, "mic": 0.0}, arranque, True), "mic")
+        # recién arrancado no hay aviso aunque el micrófono aún no haya dado nada
+        self.assertIsNone(capture.mute_source(ahora, {"out": ahora - 5, "mic": 0.0}, ahora - 60, True))
+        # los dos callados (nadie habla): no es culpa de ninguna fuente
+        self.assertIsNone(capture.mute_source(ahora, {"out": ahora - g, "mic": ahora - g}, arranque, True))
+        # el micrófono desactivado nunca se avisa
+        self.assertIsNone(capture.mute_source(ahora, {"out": ahora - 5, "mic": 0.0}, arranque, False))
+        # al revés: la salida muda mientras el micrófono habla
+        self.assertEqual(capture.mute_source(ahora, {"out": 0.0, "mic": ahora - 5}, arranque, True), "out")
+
+    def test_meter_label_marca_la_fuente_muda(self):
+        self.assertEqual(meter_label({"out": 0.0, "mic": 0.0}, {"out": 0, "mic": 0}, "mic"),
+                         "🔊 ░░░░░░░░   🎤 ░░░░░░░░ 🔇")
 
     def test_should_stay_awake(self):
         ahora = 10_000.0

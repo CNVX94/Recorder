@@ -15,8 +15,10 @@ import time
 import unittest
 
 from recorder import session as ses
+from recorder.audio.capture import MUTE_WARN_SEC
 from recorder.cli.consola import make_console
 from recorder.cli.live import CTRL_C, PantallaEnVivo
+from recorder.session import mute_text
 from tests.test_session import BaseSesion
 
 TENUE, ACENTO, MIC, ERROR = "127;132;156", "249;226;175", "137;180;250", "243;139;168"
@@ -134,6 +136,50 @@ class TestLineas(BasePantalla):
     def test_los_corchetes_de_una_frase_no_son_marcado(self):
         self.session.ui_queue.put(("line", "10:00:01", "out", "[Música] y [risas] (bold)", []))
         self.assertIn("[Música] y [risas] (bold)", self.correr("q"))
+
+    def test_las_fuentes_resueltas_se_imprimen_al_arrancar(self):
+        original = ses.resolve_wasapi_device
+        ses.resolve_wasapi_device = lambda p, kind, pref: {"name": "Altavoces" if kind == "out" else "Micro USB"}
+        self.addCleanup(lambda: setattr(ses, "resolve_wasapi_device", original))
+        texto = limpio(self.correr("q"))
+        self.assertIn("Fuentes: 🔊 Altavoces · 🎤 Micro USB", texto)
+        self.assertIn("> Fuentes: 🔊 Altavoces · 🎤 Micro USB", self.nota)
+
+    def test_los_marcadores_del_transcriptor_son_lineas(self):
+        # el atraso y los pasos lentos llegan como líneas normales (así los escribe whisper_worker._marker)
+        self.session.ui_queue.put(("line", "10:42:13", "out", "⏳ transcripción atrasada 5 min desde", []))
+        self.assertIn("10:42:13  ⏳ transcripción atrasada 5 min desde\n", limpio(self.correr("q")))
+
+
+class TestFuenteMuda(BasePantalla):
+    def test_el_aviso_es_una_linea_y_el_medidor_marca_la_fuente(self):
+        self.escuchando()
+        self.audio.started_at = time.time() - 2 * MUTE_WARN_SEC
+        self.audio.last_chunk_at = {"out": time.time() - 5, "mic": 0.0}
+
+        def vuelve(tic):
+            if tic == 3:
+                self.audio.last_chunk_at["mic"] = time.time()
+
+        self.reloj.al_tic = vuelve
+        salida = self.correr(None, None, None, None, "q")
+        texto = limpio(salida)
+        self.assertIn(mute_text("mic", True), texto)
+        self.assertIn("🔊 ░░░░░░░░   🎤 ░░░░░░░░ 🔇", texto, "el medidor del pie marca la fuente muda")
+        self.assertIn(mute_text("mic", False), texto)
+        self.assertLess(texto.index("lleva 10 min"), texto.index("vuelve a dar fragmentos"))
+        self.assertIn("> " + mute_text("mic", True), self.nota)
+        self.assertIsNone(self.session.status.muted)
+
+    def test_en_ascii_el_medidor_dice_mudo(self):
+        self.consola = make_console(ascii_mode=True, file=self.salida, width=200, force_terminal=True,
+                                    force_interactive=True, color_system="truecolor", legacy_windows=False)
+        self.escuchando()
+        self.audio.started_at = time.time() - 2 * MUTE_WARN_SEC
+        self.audio.last_chunk_at = {"out": time.time() - 5, "mic": 0.0}
+        texto = limpio(self.correr(None, "q"))
+        self.assertIn("OUT ........   MIC ........ (mudo)", texto)
+        self.assertIn("! el micrófono MIC lleva 10 min sin dar fragmentos", texto)
 
 
 class TestTeclas(BasePantalla):

@@ -135,6 +135,134 @@ class TestCapturaQueFalla(BaseWorker):
         self.assertEqual(self.worker.errors, 1)
 
 
+class ModeloConHora:
+    """Un segmento con palabra clave y hora dentro del fragmento, como los de faster-whisper."""
+
+    def __init__(self, texto="Toma captura ahora.", start=2.0, end=4.0):
+        self.seg = S(text=texto, start=start, end=end, no_speech_prob=0.1, avg_logprob=-0.3)
+        self.vistos = []
+
+    def transcribe(self, audio, **_):
+        self.vistos.append(audio)
+        return [self.seg], None
+
+
+class BufferFalso:
+    """CaptureBuffer de mentira: 'tiene' decide si hay fotograma cerca de la hora pedida."""
+
+    ext = "jpg"
+
+    def __init__(self, tiene=True):
+        self.tiene, self.pedidos, self.purgas = tiene, [], []
+
+    def take(self, t, dest, max_gap=None):
+        self.pedidos.append(t)
+        if not self.tiene:
+            return None
+        dest = pathlib.Path(dest).with_suffix(".jpg")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(b"jpg")
+        return dest
+
+    def purge_before(self, t):
+        self.purgas.append(t)
+
+
+class TestCapturas(BaseWorker):
+    def setUp(self):
+        super().setUp()
+        self.shots = []
+        original = ww.take_screenshot
+
+        def falsa(tag, caps_dir, screen_idx=0, window=""):
+            p = pathlib.Path(caps_dir) / f"inmediata_{len(self.shots)}.png"
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_bytes(b"png")
+            self.shots.append(p)
+            return p
+
+        ww.take_screenshot = falsa
+        self.addCleanup(lambda: setattr(ww, "take_screenshot", original))
+
+    def test_el_enlace_solo_se_escribe_si_el_archivo_existe(self):
+        ww.take_screenshot = lambda *a, **k: pathlib.Path(self.tmp.name) / "caps" / "nunca-escrita.png"
+        self.cfg.keywords = ["valida"]
+        self.worker.update_pipeline(self.cfg)
+        self.arrancar(ModeloFalso())
+        self.chunks.put((time.time(), "out", "bueno"))
+        self.assertTrue(self.esperar(lambda: "perfectamente valida" in self.nota))
+        self.assertNotIn("![](", self.nota)
+        self.assertIn("captura no guardada", self.nota)
+
+    def test_la_captura_sale_del_buffer_con_la_hora_de_la_palabra(self):
+        buf = BufferFalso()
+        self.worker.buffer = buf
+        modelo = ModeloConHora()
+        self.arrancar(modelo)
+        t_ini = time.time() - 3.0
+        self.chunks.put((t_ini + 1.0, "out", "audio", t_ini))
+        self.assertTrue(self.esperar(lambda: "📸" in self.nota))
+        # "captura" empieza en el carácter 5 de 19, en un segmento de 2 s a 4 s del inicio del audio
+        esperado = t_ini + 2.0 + 5 / 19 * 2.0
+        self.assertAlmostEqual(buf.pedidos[0], esperado, places=3)
+        self.assertIn(ww.capture_name("captura", esperado, "jpg"), self.nota)
+        self.assertNotIn("tardía", self.nota)
+        self.assertEqual(self.shots, [], "con fotograma en el buffer no se captura la pantalla de ahora")
+        self.assertAlmostEqual(buf.purgas[0], t_ini - ww.PURGE_MARGIN_SEC, places=3)
+
+    def test_sin_fotograma_captura_ahora_y_la_marca_tardia(self):
+        self.worker.buffer = BufferFalso(tiene=False)
+        self.arrancar(ModeloConHora())
+        viejo = time.time() - 600  # la frase se dijo hace 10 min: hay cola
+        self.chunks.put((viejo, "out", "audio", viejo))
+        self.assertTrue(self.esperar(lambda: "📸" in self.nota))
+        self.assertEqual(len(self.shots), 1)
+        self.assertIn("tardía, +10 min", self.nota)
+
+    def test_enfriamiento_en_tiempo_de_reunion(self):
+        # Al drenar la cola, dos palabras dichas con 1 min de distancia se procesan con milisegundos
+        # de diferencia: las dos llevan captura. Dos dichas con 5 s de distancia, solo la primera.
+        buf = BufferFalso()
+        self.worker.buffer = buf
+        modelo = ModeloConHora()
+        self.arrancar(modelo)
+        t = time.time() - 100
+        for t_ini in (t, t + 60, t + 65):
+            self.chunks.put((t_ini, "out", f"a{t_ini}", t_ini))
+        self.assertTrue(self.esperar(lambda: len(modelo.vistos) == 3 and not self.worker.busy))
+        self.assertEqual(self.nota.count("📸"), 2)
+
+    def test_capturas_apagadas(self):
+        self.cfg.captures = "off"
+        buf = BufferFalso()
+        self.worker.buffer = buf
+        self.arrancar(ModeloConHora())
+        self.chunks.put((time.time(), "out", "audio"))
+        self.assertTrue(self.esperar(lambda: "Toma captura" in self.nota))
+        self.assertNotIn("📸", self.nota)
+        self.assertEqual((buf.pedidos, self.shots), ([], []))
+
+
+class TestAtraso(BaseWorker):
+    def test_politica_lag_marker(self):
+        self.assertIsNone(ww.lag_marker(60, 0), "un minuto de cola es normal")
+        self.assertEqual(ww.lag_marker(130, 0), 2)
+        self.assertIsNone(ww.lag_marker(200, 2), "no se repite hasta que se duplique")
+        self.assertEqual(ww.lag_marker(4 * 60, 2), 4)
+        self.assertEqual(ww.lag_marker(54 * 60, 0), 54, "un salto grande se anota tal cual")
+        self.assertIsNone(ww.lag_marker(41 * 60, 54), "bajando, no se repite")
+        self.assertEqual(ww.lag_marker(30, 54), 0, "al volver a estar al día se dice una vez")
+        self.assertIsNone(ww.lag_marker(30, 0))
+
+    def test_la_nota_dice_cuando_va_atrasada_y_cuando_se_pone_al_dia(self):
+        self.arrancar(ModeloFalso())
+        self.chunks.put((time.time() - 300, "out", "bueno-1"))
+        self.chunks.put((time.time(), "out", "bueno-2"))
+        self.assertTrue(self.esperar(lambda: "al día" in self.nota))
+        self.assertRegex(self.nota, r"> ⏳ transcripción atrasada 5 min desde \d\d:\d\d:\d\d")
+        self.assertLess(self.nota.index("atrasada"), self.nota.index("> ✔ transcripción al día"))
+
+
 class TestModeloQueNoCarga(BaseWorker):
     def test_sin_modelo_el_hilo_termina_avisando(self):
         previo = sys.modules.get("faster_whisper")

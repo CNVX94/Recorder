@@ -9,6 +9,7 @@ import unittest
 from recorder.config.schema import AppConfig
 from recorder.filters.tuning import (
     COMMON_IGNORE,
+    ECHO_VERDICT,
     THRESHOLD_RANGES,
     TuningForm,
     apply_tuning,
@@ -101,6 +102,22 @@ class TestSandbox(unittest.TestCase):
 
     def test_sin_palabras_clave_no_hay_capturas(self):
         self.assertEqual(test_phrase(formulario(), "Hay un bloqueo.", []).hits, [])
+
+    def test_el_eco_del_vocabulario_se_descarta_con_su_propio_veredicto(self):
+        # el rótulo del vocabulario escrito AHORA en el formulario, y una lista de sus términos
+        for eco in ("Términos.", "QA, IIS."):
+            v = test_phrase(formulario(), eco, KEYWORDS)
+            self.assertFalse(v.accepted, eco)
+            self.assertTrue(v.echo, eco)
+            self.assertEqual(v.message, ECHO_VERDICT)
+            self.assertEqual((v.processed, v.hits), ("", []))
+        legit = test_phrase(formulario(), "Términos de pago a treinta días.", KEYWORDS)
+        self.assertTrue(legit.accepted)
+        self.assertFalse(legit.echo)
+        self.assertFalse(test_phrase(formulario(), "¡Suscríbete!", KEYWORDS).echo, "la lista negra manda antes")
+
+    def test_las_comunes_traen_mas_informacion_www(self):
+        self.assertIn("más información www", COMMON_IGNORE)
 
 
 class TestGuardar(unittest.TestCase):

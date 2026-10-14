@@ -180,6 +180,35 @@ No se ha cambiado ningún valor por defecto de comportamiento: hasta que no haya
 
 ---
 
+## 5 bis. Un atasco no es lentitud: el hueco de 54 min del 25-SEP-2026
+
+En una daily real de 2 h 39 min (`model: small`, beam 5, 4 hilos) la transcripción iba unos 20 s
+por detrás hasta las 18:08 y de pronto 54 min por detrás; luego drenó a ~1,6x tiempo real y terminó
+41 min atrasada. Acotado con las horas de los nombres de archivo de las capturas (se fijan al
+**empezar** a capturar):
+
+| Renglón | Captura empezada | Atraso |
+| :--- | :--- | ---: |
+| 18:08:28 | 18:08:53 | 25 s |
+| 18:08:44 | 19:02:33 | 53 min 49 s |
+
+Entre medias solo hubo **un** paso: o la captura del renglón de las 18:08:28, o la transcripción del
+fragmento de las 18:08:44 (≤ 20 s de audio). La captura de voz siguió (las horas de los renglones son
+continuas), así que no fue una suspensión. Ninguna de las causas de este documento explica que un
+fragmento tarde 54 min: los reintentos por temperatura (hecho 7) sobre ruido sintético llegaron como
+mucho a T=0,4 (dos reintentos, ~8 s por fragmento de 12 s, medido); `_load_cpu_fallback` solo actúa
+con Vulkan, y esta sesión era CPU. La explicación más probable, **sin verificar**, es que
+`PrintWindow` esperara a una ventana colgada: manda `WM_PRINT` y espera sin límite. Detalle y cambios
+en `docs/auditoria-daily-2026-09-25.md`; en resumen, desde ese día:
+
+* el hilo de transcripción ya no captura (lo hace el buffer, en su propio hilo) salvo como plan B, y
+  solo se llama a `PrintWindow` si la ventana atiende un mensaje en 1 s;
+* la nota dice `> ⏳ transcripción atrasada N min desde HH:MM:SS` al pasar de 2 min de atraso (y cada
+  vez que se duplica, y al ponerse al día), y `> ⚠ fragmento lento: …` / `⚠ la captura tardó …`
+  cuando un paso pasa de 1 min. La próxima vez que ocurra, la nota dirá qué paso fue.
+
+---
+
 ## 6. Pendiente de medir (en orden de valor esperado)
 
 1. Barrido de `cpu_threads` 4/6/8/10/12 con `large-v3-turbo`, beam 5, vocabulario, equipo en reposo.

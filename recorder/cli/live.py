@@ -1,10 +1,11 @@
 """La grabación desde la terminal: `daily` sin más.
 
 Lo mismo que la ventana, sobre la misma `RecorderSession`, pero en la propia consola y barato:
-las frases, los avisos y las fuentes que caen o vuelven se imprimen como líneas normales (se
-quedan en el historial de la terminal, se pueden copiar y desplazar) y debajo vive un pie de
-tres líneas que se redibuja solo cuando cambia: la cabecera (`status_text`), los medidores
-(`meter_text`) y las teclas. En silencio no se escribe nada y el proceso no gasta CPU.
+las frases, los avisos (las fuentes resueltas al arrancar, el atraso de la transcripción) y las
+fuentes que caen, vuelven o enmudecen se imprimen como líneas normales (se quedan en el historial
+de la terminal, se pueden copiar y desplazar) y debajo vive un pie de tres líneas que se redibuja
+solo cuando cambia: la cabecera (`status_text`), los medidores (`meter_text`, con 🔇 en la fuente
+muda) y las teclas. En silencio no se escribe nada y el proceso no gasta CPU.
 
 Teclas: [p] pausar/continuar · [c] captura · [r] reconectar audio · [a] abrir la nota · [q] salir
 (Ctrl+C también sale). Al salir con cola pendiente se pregunta en el pie, como en la ventana:
@@ -28,7 +29,7 @@ from rich.live import Live
 from rich.text import Text
 
 from ..config.schema import describe_runtime
-from ..session import Event, Line, Notice, RecorderSession, SourceChanged, Status, StatusSnapshot
+from ..session import Event, Line, Notice, RecorderSession, SourceChanged, SourceMuted, Status, StatusSnapshot
 from .consola import asciify, make_console
 
 INTERVALO = 0.2  # segundos entre sondeos, como la ventana (POLL_MS)
@@ -118,7 +119,7 @@ class PantallaEnVivo:
             self._linea(ev.stamp, ev.kind, ev.text, ev.hits)
         elif isinstance(ev, Notice):
             self._imprimir((f"{ev.stamp}  ", "tenue"), (ev.text, "error" if ev.level == "err" else "tenue"))
-        elif isinstance(ev, SourceChanged):
+        elif isinstance(ev, (SourceChanged, SourceMuted)):
             self._linea(ev.stamp, "out", ev.text, [])
         elif isinstance(ev, Status) and self.plano:
             # Sin pie, los cambios de cabecera quedan como líneas: así el registro dice cuándo

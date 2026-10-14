@@ -58,7 +58,7 @@ class TestMenu(CasoCalibrar):
         with respuestas(SALIR):
             _, salida = self.correr()
         self.assertIn("(vacío)", salida)  # vocabulario de fábrica
-        self.assertIn("9 frases", salida)
+        self.assertIn("10 frases", salida)
         self.assertIn("1 corrección", salida)
         self.assertIn("silencio 0.6 · confianza -1.0 · anti-bucles 2.4", salida)
 
@@ -125,6 +125,14 @@ class TestSandbox(CasoCalibrar):
         self.assertIn('✅ ACEPTADA: "¡Suscríbete!"', salida)
         self.assertEqual(self.mgr.path.read_bytes(), self.antes)
 
+    def test_el_eco_del_vocabulario_escrito_ahora_se_marca(self):
+        with respuestas(VOCAB, "Daily. Términos: QA, IIS.", PROBAR, "Términos.", "QA, IIS.", "Términos de pago.", "", SALIR):
+            codigo, salida = self.correr()
+        self.assertEqual(codigo, 1)  # se salió sin guardar
+        self.assertEqual(salida.count("⛔ DESCARTADA: es eco del vocabulario"), 2)
+        self.assertIn('✅ ACEPTADA: "Términos de pago."', salida)
+        self.assertIn("sin rótulos", salida)  # la pista al editar el vocabulario
+
     def test_frase_de_ejemplo(self):
         with respuestas(PROBAR, calibrar.EJEMPLO, "", SALIR):
             codigo, salida = self.correr()
@@ -146,6 +154,7 @@ class TestProbar(CasoCalibrar):
         self.assertEqual((aceptada, descartada), (0, 1))
         self.assertIn('✅ ACEPTADA: "Hay un bloqueo en QA."', salida)
         self.assertIn("⛔ DESCARTADA", salida2)
+        self.assertEqual(self.correr("--probar", "Nombres del equipo.")[0], 1, "el eco también sale con 1")
 
     def test_en_ascii_no_trae_emoji(self):
         _, salida = self.correr("--probar", "Hay un bloqueo en cuba.", ascii_mode=True)

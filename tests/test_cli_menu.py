@@ -49,7 +49,7 @@ class TestMenu(unittest.TestCase):
         salida = self.salida.getvalue()
         self.assertIn("2  Opciones   ayuda de config", salida)
         self.assertNotIn("Calibrar", salida)
-        self.assertNotIn("Síntesis", salida)
+        self.assertNotIn("Reagrupar", salida)
 
     def test_vuelve_al_menu_tras_un_comando_y_rechaza_lo_que_no_hay(self):
         self.assertEqual(self.correr("2", "3", "5", "0"), 0)

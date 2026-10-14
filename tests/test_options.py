@@ -12,11 +12,15 @@ import unittest
 from recorder.config.hardware import VENDOR_AMD, VENDOR_INTEL, GpuInfo, HardwareProfile
 from recorder.config.options import (
     AUTO_GPU,
+    CAPTURE_LABELS,
     DEFAULT_DEV,
     MAX_THREADS,
     WINDOW_PREFIX,
     SettingsForm,
     apply_settings,
+    capture_choice,
+    capture_choices,
+    capture_from_choice,
     custom_runtime,
     device_choice,
     device_choices,
@@ -35,7 +39,9 @@ from recorder.config.options import (
     threads_hint,
     use_recommendation,
 )
-from recorder.config.schema import CUSTOM_PRESET, QUALITY_PRESETS, AppConfig, Recommendation, apply_preset
+from recorder.config.schema import (
+    CAPTURE_QUALITIES, CUSTOM_PRESET, QUALITY_PRESETS, AppConfig, Recommendation, apply_preset,
+)
 from recorder.engine.whispercpp import SERVER_EXE, whispercpp_status
 
 PANTALLAS = ["(todas las pantallas)", "Pantalla 1: 1920×1080 en (0, 0)", "Pantalla 2: 1920×1080 en (1920, 0)"]
@@ -74,6 +80,7 @@ class TestFormularioDesdeConfig(unittest.TestCase):
         self.assertEqual(f.keywords, "pendiente, bloqueo, captura")
         self.assertEqual((f.out_dev, f.mic_dev), (DEFAULT_DEV, DEFAULT_DEV))  # "" = predeterminado
         self.assertEqual(f.target, PANTALLAS[0])
+        self.assertEqual(f.captures, CAPTURE_LABELS["normal"])
         self.assertEqual(f.quality, "media")  # small, haz 5, cpu, int8
         self.assertIsNone(f.custom_values)
         self.assertEqual(f.cpu_threads, "0")
@@ -129,6 +136,15 @@ class TestGuardar(unittest.TestCase):
         self.assertEqual(cfg.window, "Reunión | Microsoft Teams")
         self.assertEqual(cfg.screen, 2)
 
+    def test_capturas_por_palabra_clave(self):
+        cfg = AppConfig()
+        apply_settings(cfg, formulario(cfg, captures=CAPTURE_LABELS["off"]), PANTALLAS)
+        self.assertEqual(cfg.captures, "off")
+        apply_settings(cfg, formulario(cfg, captures=CAPTURE_LABELS["high"]), PANTALLAS)
+        self.assertEqual(cfg.captures, "high")
+        apply_settings(cfg, formulario(cfg, captures="otra cosa"), PANTALLAS)
+        self.assertEqual(cfg.captures, "normal")  # etiqueta desconocida: el valor de fábrica
+
     def test_capturar_pantalla_borra_la_ventana(self):
         cfg = AppConfig(window="Chat | Microsoft Teams")
         apply_settings(cfg, formulario(cfg, target=PANTALLAS[1]), PANTALLAS)
@@ -180,6 +196,16 @@ class TestOpcionesDeLosSelectores(unittest.TestCase):
         self.assertEqual(device_choice("A"), "A")
         self.assertEqual(device_from_choice(DEFAULT_DEV), "")
         self.assertEqual(device_from_choice("A"), "A")
+
+    def test_calidad_de_las_capturas(self):
+        self.assertEqual(capture_choices(), [CAPTURE_LABELS[k] for k in CAPTURE_QUALITIES])
+        self.assertEqual(capture_choices()[0], "Apagadas (solo la captura manual)")
+        self.assertEqual(capture_choice("light"), CAPTURE_LABELS["light"])
+        self.assertEqual(capture_choice("x"), CAPTURE_LABELS["normal"])
+        for k in CAPTURE_QUALITIES:
+            self.assertEqual(capture_from_choice(capture_choice(k)), k)
+        self.assertEqual(AppConfig(captures="x").captures, "normal", "un valor inválido cae al de fábrica al cargar")
+        self.assertEqual(AppConfig.from_dict({"captures": "off"}).captures, "off")
 
     def test_objetivos_de_captura(self):
         abiertas = ["Bloc de notas", "Chat | Microsoft Teams"]

@@ -1,5 +1,43 @@
 # Captura diferida: ¿vídeo o buffer circular?
 
+> **Estado (25-SEP-2026): implementado el plan de abajo, pasos 1 a 8.** La auditoría de una daily
+> real mostró el fallo en su peor forma: 212 capturas llegaron 11-31 s tarde y, tras un atasco,
+> 54 min tarde (`docs/auditoria-daily-2026-09-25.md`). Qué quedó y dónde se apartó del plan:
+>
+> * **Paso 1.** `capture.py` encola `(t0, fuente, audio, t_ini)`; `TextPipeline.process()` devuelve
+>   además el desfase de la primera palabra clave, interpolado por carácter dentro de su segmento
+>   (`hit_offset`), y el worker calcula `t_hit = t_ini + desfase`. `t_ini` es la hora de llegada
+>   del primer frame menos lo que dura un frame (~21 ms a 48 kHz).
+> * **Paso 2.** `grab_image(pantalla, ventana)` en `screenshot.py`; `take_screenshot` la usa.
+> * **Pasos 3-4.** `actions/capture_buffer.py`: un fotograma cada 5 s en `caps_dir/.buffer/<hora>`
+>   mientras «hay reunión». Se cuenta como reunión el arranque o **el último fragmento de audio**
+>   encolado hace menos de 15 min, no el último frame con nivel: el ruido de un jack sin
+>   micrófono pasa el umbral en frames sueltos y el buffer no habría parado nunca (lo mismo
+>   retenía el equipo despierto sin fin; se corrigió también). La purga no es `t0 - intervalo`
+>   sino `t_ini - 40 s`: un fragmento posterior en la cola puede empezar hasta 20 s (`MAX_SEC`)
+>   antes que el actual y pedir un fotograma a dos intervalos.
+> * **Paso 5.** `take()` mueve el fotograma más cercano a `t_hit` (a menos de 2 intervalos) al
+>   nombre final `AAAA-MM-DD_HH-MM-SS_clave.jpg` con la hora `t_hit`, sin recomprimir. Si no hay,
+>   captura inmediata anotada `· tardía, +N min` cuando llega más de 5 s tarde. El enlace solo se
+>   escribe si el archivo existe en disco.
+> * **Paso 6.** El enfriamiento de 15 s compara `t_hit` (en valor absoluto: dos fuentes pueden
+>   llegar desordenadas).
+> * **Pasos 7-8.** `captures` en `config.json` (`off`, `light`, `normal` por defecto, `high`; otro
+>   valor cae a `normal` al cargar) y un desplegable «Capturas por palabra clave» en ⚙ Opciones y en
+>   `daily config` (sección Capturas; `--ver` lo muestra). La captura manual sigue siendo PNG
+>   instantáneo, en su propio hilo, al margen del buffer.
+> * **Paso 9.** Reunión de prueba: resultados en `docs/auditoria-daily-2026-09-25.md`, sección 4.
+>
+> Además, con el buffer, el hilo de transcripción ya no llama a `PrintWindow` salvo en el plan B,
+> y `PrintWindow` solo se llama si la ventana atiende un mensaje en 1 s (`responsive()`): una
+> ventana colgada no puede volver a parar la transcripción.
+>
+> **Dónde vive.** El buffer lo arranca, rearranca (si ⚙ Opciones cambia la carpeta o la calidad) y
+> para `RecorderSession` (`recorder/session.py`), la sesión sin interfaz que comparten la ventana y
+> `daily` en la terminal; «hay reunión» se decide con el último fragmento encolado por el gestor de
+> audio (`AudioCaptureManager.last_chunk_at`, `started_at`). Así el comportamiento es el mismo en
+> los dos frontales y se prueba sin pantalla (`tests/test_session.py`, `TestBufferDeCapturas`).
+
 **Veredicto: buffer circular de capturas JPEG/PNG, no vídeo.** Un códec de vídeo solo compensa a decenas de fotogramas por segundo; a un fotograma cada pocos segundos el coste real es la captura de pantalla, no la codificación, y el buffer ya tiene ese coste medido, respeta la captura de ventana tapada y no añade ningún binario externo.
 
 ## El fallo, con precisión

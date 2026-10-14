@@ -2,8 +2,9 @@ from .normalizer import normalize
 from .quality import is_segment_valid, calculate_compression_ratio
 from .blacklist import contains_blacklisted_phrase, filter_blacklisted_segments
 from .lexicon import fix, parse_fixes, format_fixes
-from .keywords import find_keywords
-from .pipeline import clean_segments, TextPipeline
+from .echo import strip_prompt_echo
+from .keywords import MULETILLAS, find_keywords, first_keyword_pos
+from .pipeline import clean_segments, hit_offset, keep_segments, TextPipeline
 from .samples import extract_terms, random_sample, sample_kinds
 from .tuning import (
     COMMON_IGNORE,
@@ -27,8 +28,13 @@ __all__ = [
     "fix",
     "parse_fixes",
     "format_fixes",
+    "strip_prompt_echo",
+    "MULETILLAS",
     "find_keywords",
+    "first_keyword_pos",
     "clean_segments",
+    "keep_segments",
+    "hit_offset",
     "TextPipeline",
     "extract_terms",
     "random_sample",

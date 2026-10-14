@@ -12,6 +12,8 @@ MIC = "\U0001F3A4"  # 🎤
 CAM = "\U0001F4F8"  # 📸
 PAUSE = "⏸"  # ⏸
 PLAY = "▶"  # ▶
+# Marcadores que escribe la app: pausa/continúa, atraso de la transcripción, avisos y recuperaciones.
+MARKER_ICONS = PAUSE + PLAY + "⏳⚠✔"
 # La app escribe la flecha Unicode; se admite tambien "->" por si la nota se edito a mano.
 ARROWS = r"(?:→|->)"
 
@@ -21,7 +23,8 @@ RE_ENTRY = re.compile(r"^- \*\*(\d{2}:\d{2}:\d{2})\*\*\s*(" + MIC + r")?\s*(.*)$
 RE_CAPTURE = re.compile(r"^\s+- " + CAM + r"\s*`([^`]*)`\s*" + ARROWS + r"\s*!\[\]\(([^)]*)\)")
 # captura manual, que va en la propia linea de entrada
 RE_MANUAL = re.compile(CAM + r"\s*captura manual\s*" + ARROWS + r"\s*!\[\]\(([^)]*)\)")
-RE_MARKER = re.compile(r"^>\s*(" + PAUSE + r"|" + PLAY + r")\s*(\S+)\s*(\d{2}:\d{2}:\d{2})")
+# > ⏸ Pausa 10:40:00   /   > ⏳ transcripción atrasada 54 min desde 18:08:44   (la hora, al final)
+RE_MARKER = re.compile(r"^>\s*([" + MARKER_ICONS + r"])\s*(.*?)\s*(\d{2}:\d{2}:\d{2})\s*$")
 RE_TITLE = re.compile(r"^#\s+(.*)$")
 # Un archivo derivado lleva este campo en su frontmatter.
 RE_ORIGEN = re.compile(r"^origen:\s*(.+)$", re.M)
@@ -32,7 +35,7 @@ class Entry:
     """Una linea de la transcripcion."""
 
     stamp: str  # "HH:MM:SS"
-    source: str  # "out" | "mic" | "pausa" | "captura"
+    source: str  # "out" | "mic" | "pausa" (cualquier marcador) | "captura"
     text: str
     captures: List[str] = dataclasses.field(default_factory=list)
     keywords: List[str] = dataclasses.field(default_factory=list)
@@ -84,7 +87,7 @@ def parse_text(text: str, source_path: Optional[pathlib.Path] = None) -> Note:
             continue
 
         if m := RE_MARKER.match(line):
-            entries.append(Entry(stamp=m.group(3), source="pausa", text=f"{m.group(1)} {m.group(2)}"))
+            entries.append(Entry(stamp=m.group(3), source="pausa", text=f"{m.group(1)} {m.group(2)}".strip()))
             continue
 
         if m := RE_ENTRY.match(line):

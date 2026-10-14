@@ -11,6 +11,7 @@ en un daily tecnico son justo la informacion que hay que conservar.
 import dataclasses
 from typing import List, Sequence, Tuple
 
+from ..filters.echo import strip_prompt_echo
 from .parser import Entry
 
 # Intervalos que ofrece la interfaz. 0 = no agrupar.
@@ -20,6 +21,8 @@ INTERVALS = [0, 5, 15, 30, 60]
 # Sin este limite, media hora de conversacion acaba en un solo parrafo ilegible.
 MERGE_GAP_SEC = 45
 MERGE_MAX_CHARS = 600
+HALF_DAY = 12 * 3600
+DAY = 24 * 3600
 
 
 @dataclasses.dataclass
@@ -27,16 +30,18 @@ class DigestOptions:
     interval_min: int = 30  # 0 = sin agrupar
     merge: bool = True  # unir lineas seguidas del mismo hablante
     drop_short_words: int = 0  # descartar lineas con menos de N palabras (0 = ninguna)
-    keep_captures: bool = True  # conservar las capturas incrustadas
-    inline_stamps: bool = False  # conservar HH:MM:SS dentro de cada grupo
+    keep_captures: bool = True  # False = texto puro: ni imagen, ni "📸 `clave` →", ni captura manual
+    inline_stamps: bool = False  # HH:MM:SS por linea; si no, [HH:MM] por parrafo
+    drop_echo: bool = False  # quitar el eco del vocabulario ("Terminos.", listas del prompt)
+    vocab: str = ""  # el vocabulario con que se grabo, para reconocer su eco
 
     def slug(self) -> str:
-        """Sufijo del nombre de archivo. Describe el agrupamiento, que es la decision principal."""
+        """Sufijo del nombre de archivo. Dice lo que hace (reagrupar), no lo que no hace (resumir)."""
         if not self.interval_min:
-            return "sintesis"
+            return "reagrupada"
         if self.interval_min >= 60 and self.interval_min % 60 == 0:
-            return f"sintesis-{self.interval_min // 60}h"
-        return f"sintesis-{self.interval_min}min"
+            return f"reagrupada-{self.interval_min // 60}h"
+        return f"reagrupada-{self.interval_min}min"
 
 
 def bucket_start(seconds: int, minutes: int) -> int:
@@ -51,8 +56,26 @@ def hhmm(seconds: int) -> str:
     return f"{seconds // 3600 % 24:02d}:{seconds % 3600 // 60:02d}"
 
 
+def sort_by_time(entries: Sequence[Entry]) -> List[Entry]:
+    """Ordena por hora, estable. La nota se escribe en orden de transcripcion, no de habla.
+
+    Con cola, una frase de las 17:53:06 se escribe despues del marcador de pausa de las 17:53:25
+    (la pausa se anota al pulsar; la frase, al terminar de transcribirla). La clave es relativa a
+    la primera entrada para que una reunion que cruza la medianoche no se parta en dos.
+    """
+    if not entries:
+        return []
+    base = entries[0].seconds
+    return sorted(entries, key=lambda e: (e.seconds - base + HALF_DAY) % DAY)
+
+
 def group_by_interval(entries: Sequence[Entry], minutes: int) -> List[Tuple[str, List[Entry]]]:
-    """Agrupa por tramos de reloj. Devuelve [(etiqueta, entradas), ...] en orden."""
+    """Agrupa por tramos de reloj. Devuelve [(etiqueta, entradas), ...] en orden.
+
+    Un tramo con solo marcadores (pausas, avisos) no es un tramo: sus marcadores van al tramo
+    anterior (o al siguiente, si no lo hay). Antes, dos pausas pulsadas al cerrar la reunion
+    creaban un "## 20:00 - 21:00" vacio.
+    """
     if minutes <= 0:
         return [("", list(entries))]
     grupos: List[Tuple[str, List[Entry]]] = []
@@ -63,7 +86,18 @@ def group_by_interval(entries: Sequence[Entry], minutes: int) -> List[Tuple[str,
             grupos[-1][1].append(e)
         else:
             grupos.append((etiqueta, [e]))
-    return grupos
+
+    salida: List[Tuple[str, List[Entry]]] = []
+    sueltos: List[Entry] = []  # marcadores antes del primer tramo con contenido
+    for etiqueta, grupo in grupos:
+        if all(e.source == "pausa" for e in grupo):
+            (salida[-1][1] if salida else sueltos).extend(grupo)
+        else:
+            salida.append((etiqueta, sueltos + grupo))
+            sueltos = []
+    if sueltos:  # la nota solo tiene marcadores
+        salida.append((grupos[0][0], sueltos))
+    return salida
 
 
 def merge_consecutive(
@@ -121,8 +155,25 @@ def drop_short(entries: Sequence[Entry], min_words: int) -> List[Entry]:
     ]
 
 
+def drop_echo(entries: Sequence[Entry], vocab: str) -> List[Entry]:
+    """Quita el eco del vocabulario (filters/echo.py) de las lineas habladas.
+
+    Una linea que era solo eco desaparece, salvo que lleve captura (como en drop_short).
+    """
+    salida = []
+    for e in entries:
+        if e.source not in ("out", "mic"):
+            salida.append(e)
+            continue
+        texto = strip_prompt_echo(e.text, vocab)
+        if texto or e.captures:
+            salida.append(dataclasses.replace(e, text=texto, captures=list(e.captures), keywords=list(e.keywords)))
+    return salida
+
+
 def strip_captures(entries: Sequence[Entry]) -> List[Entry]:
-    """Elimina las referencias a imagenes, dejando el texto intacto."""
+    """Texto puro: quita las imagenes y con ellas su indicador ("📸 `clave` → ...", "tardia") y las
+    entradas de captura manual. El texto hablado queda intacto."""
     salida = []
     for e in entries:
         if e.source == "captura":
@@ -138,9 +189,12 @@ def apply_all(entries: Sequence[Entry], opts: DigestOptions) -> List[Entry]:
 
     Unir NO se hace aqui: depende del tramo, asi que se aplica dentro de cada
     grupo en el renderizado. Descartar va primero para que unir no resucite
-    lineas que se acababan de tirar.
+    lineas que se acababan de tirar. Quitar imagenes va antes que descartar: una
+    linea corta o de eco se salva por llevar captura, y sin captura ya no tiene por que.
     """
-    salida = drop_short(entries, opts.drop_short_words)
+    salida = sort_by_time(entries)
     if not opts.keep_captures:
         salida = strip_captures(salida)
-    return salida
+    if opts.drop_echo:
+        salida = drop_echo(salida, opts.vocab)
+    return drop_short(salida, opts.drop_short_words)

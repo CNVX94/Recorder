@@ -15,9 +15,10 @@ from unittest import mock
 
 from recorder.config import hardware
 from recorder.config.hardware import HardwareProfile
-from recorder.config.options import DEFAULT_DEV, WINDOW_PREFIX
+from recorder.config.options import CAPTURE_LABELS, DEFAULT_DEV, WINDOW_PREFIX
 from recorder.config.schema import AppConfig
-from recorder.filters.tuning import COMMON_IGNORE
+from recorder.digest import digest_options
+from recorder.filters.tuning import COMMON_IGNORE, ECHO_VERDICT
 from recorder.ui.dialogs import settings_dialog
 from recorder.ui.dialogs.digest_dialog import DigestDialog
 from recorder.ui.dialogs.settings_dialog import SettingsDialog
@@ -72,6 +73,7 @@ class TestSettingsDialog(CasoTk):
         self.assertTrue(d.winfo_exists())
         self.assertEqual((d.v_out_dev.get(), d.v_mic_dev.get()), (DEFAULT_DEV, DEFAULT_DEV))
         self.assertEqual(d.v_screen.get(), PANTALLAS[0])
+        self.assertEqual(d.v_captures.get(), CAPTURE_LABELS["normal"])
         self.assertEqual(d.v_quality.get(), "Media")
         self.assertTrue(d.v_wcpp_status.get().startswith("Vacía: sin motor Vulkan."))
         self.assertEqual(d.v_threads_hint.get(), "0 = 4 de la biblioteca · recomendado: 5 (6 núcleos)")
@@ -91,10 +93,12 @@ class TestSettingsDialog(CasoTk):
             d.v_notes.set(tmp)
             d.v_mic.set(False)
             d.v_screen.set(WINDOW_PREFIX + VENTANAS[0])
+            d.v_captures.set(CAPTURE_LABELS["off"])
             d.v_threads.set("7")
             d._save()
             self.assertEqual(llamadas, [(cfg, True, True)])
             self.assertEqual((cfg.notes_dir, cfg.mic, cfg.window, cfg.cpu_threads), (tmp, False, VENTANAS[0], 7))
+            self.assertEqual(cfg.captures, "off")
         self.assertFalse(d.winfo_exists())
 
     def test_guardar_sin_cambios_no_avisa(self):
@@ -129,6 +133,11 @@ class TestTuningDialog(CasoTk):
         for frase in COMMON_IGNORE:
             self.assertIn(frase, d.var_ignore.get())
         self.assertTrue(d.var_test_result.get().startswith("⛔ DESCARTADA"))
+        # el eco del vocabulario escrito ahora en el diálogo se marca con su propio veredicto
+        d.var_vocab.set("Daily con QA e IIS.")
+        d.var_test_input.set("Términos.")
+        d._run_test()
+        self.assertEqual(d.var_test_result.get(), ECHO_VERDICT)
         d.destroy()
         self.assertFalse(d.winfo_exists())
 
@@ -169,10 +178,14 @@ class TestDigestDialog(CasoTk):
         self.assertTrue(d.lista.get(0).endswith("● en curso"))
         self.assertIn("2 bloques", d.var_stats.get())  # cada 15 min por defecto: 10:15 - 10:30 y 10:45 - 11:00
         self.assertIn("## 10:15 - 10:30", d.preview.get("1.0", "end"))
+        self.assertIn("No es un resumen", d.preview.get("1.0", "end"))
+        # las casillas traen lo mismo que propone `daily sintesis` (digest_options)
+        self.assertEqual(d._opciones(), digest_options(15, vocab=self.cfg.vocab))
+        self.assertTrue(d.var_sin_imagenes.get() and d.var_drop.get() and d.var_echo.get())
         d._generar()
-        self.assertTrue(d.var_estado.get().startswith("✅ Creada daily_2026-09-08_10-20_sintesis-15min.md"))
+        self.assertTrue(d.var_estado.get().startswith("✅ Creada daily_2026-09-08_10-20_reagrupada-15min.md"))
         self.assertEqual(src.read_text(encoding="utf-8"), NOTA)  # el original sigue intacto
-        self.assertTrue((src.parent / "daily_2026-09-08_10-20_sintesis-15min.md").exists())
+        self.assertTrue((src.parent / "daily_2026-09-08_10-20_reagrupada-15min.md").exists())
         d.destroy()
         self.assertFalse(d.winfo_exists())
 

@@ -36,12 +36,12 @@ import pyaudiowpatch as pa
 from recorder.actions import (
     NotesSession, find_window, md_ref, monitors, pick_window, screen_labels, take_screenshot, windows,
 )
-from recorder.actions import should_stay_awake
+from recorder.actions import nearest_frame, should_buffer, should_stay_awake
 from recorder.audio import (
-    bars, meter_label, pending_summary, resolve_wasapi_device, retry_delay, rms, to_16k, wasapi_devices,
+    bars, meter_label, mute_source, pending_summary, resolve_wasapi_device, retry_delay, rms, to_16k, wasapi_devices,
 )
 from recorder.config import AppConfig, ConfigManager
-from recorder.filters import clean_segments, find_keywords, fix, normalize, parse_fixes
+from recorder.filters import clean_segments, find_keywords, fix, normalize, parse_fixes, strip_prompt_echo
 # A propósito no se importa recorder.ui aquí: carga tkinter, y desde la terminal no hace falta.
 
 # Valores por defecto para compatibilidad
@@ -82,9 +82,16 @@ def selftest():
     assert bars(0) == "░" * 8 and bars(32768) == "█" * 8 and bars(327.68) == "██░░░░░░"  # -40 dB
     assert retry_delay(1) == 1 and retry_delay(3) == 4 and retry_delay(99) == 30  # espera creciente acotada
     assert meter_label({"out": 0.0, "mic": 0.0}, {"out": 2, "mic": 0}) == "🔊 ⛔ reintento 2   🎤 ░░░░░░░░"
+    assert meter_label({"out": 0.0, "mic": 0.0}, {"out": 0, "mic": 0}, "mic") == "🔊 ░░░░░░░░   🎤 ░░░░░░░░ 🔇"
     assert pending_summary(150, 3000) == "150 fragmentos (~50 min de audio)"
     assert should_stay_awake(100.0, 0.0, pending=1, busy=False, paused=True)  # con cola, siempre despierto
     assert not should_stay_awake(9999.0, 0.0, pending=0, busy=False, paused=False)  # en silencio largo, no
+    assert mute_source(2000.0, {"out": 1995.0, "mic": 0.0}, 0.0, True) == "mic"  # el micrófono lleva 10 min mudo
+    assert mute_source(2000.0, {"out": 1995.0, "mic": 0.0}, 1990.0, True) is None  # recién arrancado, no
+    assert strip_prompt_echo("Términos.", "Daily. Términos: QA.") == ""  # eco del vocabulario
+    assert strip_prompt_echo("Términos de pago a 30 días.", "") == "Términos de pago a 30 días."
+    assert should_buffer(1000.0, 990.0, paused=False) and not should_buffer(1000.0, 990.0, paused=True)
+    assert nearest_frame([100.0, 105.0], 106.0, 10) == 105.0 and nearest_frame([100.0], 130.0, 10) is None
     assert md_ref(r"C:\n\caps\x.png", r"C:\n") == "caps/x.png"
     assert md_ref(r"C:\otro\x.png", r"C:\n") == "../otro/x.png"
     assert md_ref(r"D:\x.png", r"C:\n") == "D:/x.png"
@@ -92,10 +99,12 @@ def selftest():
     with tempfile.TemporaryDirectory() as tmp:
         session = NotesSession(pathlib.Path(tmp) / "a", custom_name="d.md")
         session.write_line("hola")
+        session.write_line("  - 📸 `aqui` → ![](caps/x.png)")
         session.move_notes(pathlib.Path(tmp) / "b")
         assert session.file_path == pathlib.Path(tmp, "b", "d.md")
         content = session.file_path.read_text(encoding="utf-8")
         assert "hola\n" in content
+        assert "![](../a/caps/x.png)" in content  # al mover la nota, los enlaces siguen apuntando a la imagen
         session.write_line("otra")
         content = session.file_path.read_text(encoding="utf-8")
         assert "otra\n" in content

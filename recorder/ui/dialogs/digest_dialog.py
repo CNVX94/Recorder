@@ -1,8 +1,10 @@
-"""Dialogo de sintesis de notas.
+"""Dialogo «Reagrupar nota» (antes «Sintesis de notas»).
 
 Implementa el diseno acordado: seleccion de nota origen marcada como solo lectura,
 agrupamiento temporal como decision principal, limpieza en rejilla, vista previa en
-vivo ampliable, aviso de perdida justo antes del nombre de salida, y botonera.
+vivo ampliable, aviso de perdida justo antes del nombre de salida, y botonera. La logica
+(casillas -> opciones, vista previa, cifras) esta en digest/preview.py, compartida con
+`daily sintesis`; aqui solo hay widgets.
 """
 
 import pathlib
@@ -12,6 +14,7 @@ from typing import List, Optional
 
 from ...config.schema import AppConfig
 from ...digest import (
+    DEFAULT_INTERVAL,
     INTERVAL_LABELS,
     INTERVALS,
     MIN_WORDS,
@@ -28,12 +31,12 @@ from ...digest import (
 from ..theme import ACC, BG, BORDER, BTN_STYLE, DIM, ERR, FG, LABEL_STYLE, MIC, PANEL, SUCCESS, fit_window
 
 SEMIBOLD = {**LABEL_STYLE, "font": ("Segoe UI Semibold", 9)}
-ALTO_NORMAL, ALTO_AMPLIADO = 780, 940  # a 100 %; fit_window escala y limita a la pantalla
+ALTO_NORMAL, ALTO_AMPLIADO = 810, 970  # a 100 %; fit_window escala y limita a la pantalla
 LINEAS_NORMAL, LINEAS_AMPLIADO = 6, 16
 
 
 class DigestDialog(tk.Toplevel):
-    """Genera copias resumidas de una nota. El original nunca se modifica."""
+    """Genera copias ordenadas y agrupadas de una nota (no resume). El original nunca se modifica."""
 
     def __init__(self, parent: tk.Widget, config: AppConfig, active_note: Optional[pathlib.Path] = None):
         super().__init__(parent)
@@ -41,7 +44,7 @@ class DigestDialog(tk.Toplevel):
         self.active_note = pathlib.Path(active_note).name if active_note else None
         self.notas: List[pathlib.Path] = list_originals(config.notes_dir)
 
-        self.title("Síntesis de notas")
+        self.title("Reagrupar nota")
         self.configure(bg=BG)
         self.transient(parent)
         self.grab_set()
@@ -55,12 +58,15 @@ class DigestDialog(tk.Toplevel):
 
     # --------------------------------------------------------------- estado
     def _init_vars(self):
+        # Los valores iniciales son los de `digest_options`: los mismos que propone la terminal.
+        por_defecto = digest_options(DEFAULT_INTERVAL)
         self.ampliado = False
-        self.var_interval = tk.IntVar(value=15)
-        self.var_merge = tk.BooleanVar(value=True)
-        self.var_strip_stamps = tk.BooleanVar(value=True)
-        self.var_captures = tk.BooleanVar(value=True)
-        self.var_drop = tk.BooleanVar(value=False)
+        self.var_interval = tk.IntVar(value=DEFAULT_INTERVAL)
+        self.var_merge = tk.BooleanVar(value=por_defecto.merge)
+        self.var_strip_stamps = tk.BooleanVar(value=not por_defecto.inline_stamps)
+        self.var_sin_imagenes = tk.BooleanVar(value=not por_defecto.keep_captures)  # texto puro por defecto
+        self.var_drop = tk.BooleanVar(value=bool(por_defecto.drop_short_words))
+        self.var_echo = tk.BooleanVar(value=por_defecto.drop_echo)
         self.var_stats = tk.StringVar(value="")
         self.var_estado = tk.StringVar(value="")
 
@@ -69,8 +75,10 @@ class DigestDialog(tk.Toplevel):
             self.var_interval.get(),
             merge=self.var_merge.get(),
             strip_stamps=self.var_strip_stamps.get(),
-            keep_captures=self.var_captures.get(),
+            keep_captures=not self.var_sin_imagenes.get(),
             drop_short=self.var_drop.get(),
+            drop_echo=self.var_echo.get(),
+            vocab=self.config.vocab,
         )
 
     def _origen(self) -> Optional[pathlib.Path]:
@@ -79,12 +87,13 @@ class DigestDialog(tk.Toplevel):
 
     # ------------------------------------------------------------------- ui
     def _build_ui(self):
-        tk.Label(self, text="📑 Síntesis de notas", bg=BG, fg=ACC,
+        tk.Label(self, text="📑 Reagrupar una nota", bg=BG, fg=ACC,
                  font=("Segoe UI Semibold", 13)).pack(fill="x", padx=16, pady=(14, 8))
         tk.Label(
             self,
-            text="Crea una copia resumida y agrupada de una nota diaria. El archivo original nunca se "
-            "modifica: siempre se genera un clon con otro nombre.",
+            text="Crea una copia ordenada por hora, agrupada en tramos y sin relleno ni ecos. NO resume: "
+            "el texto es el de la transcripción. El archivo original nunca se modifica: siempre se "
+            "genera un clon con otro nombre.",
             bg=BG, fg=DIM, font=("Segoe UI", 9), wraplength=728, justify="left",
         ).pack(fill="x", padx=16, pady=(0, 10))
 
@@ -145,7 +154,7 @@ class DigestDialog(tk.Toplevel):
         pie.pack(fill="x", pady=(2, 0))
         tk.Label(pie, text="🔒 El archivo elegido nunca se modifica, mueve ni renombra.",
                  bg=BG, fg=SUCCESS, font=("Segoe UI", 9)).pack(side="left")
-        tk.Label(pie, text="Las síntesis anteriores no se listan.",
+        tk.Label(pie, text="Las copias reagrupadas no se listan.",
                  bg=BG, fg=DIM, font=("Segoe UI", 9)).pack(side="right")
 
     def _seccion_agrupamiento(self, cont):
@@ -175,9 +184,10 @@ class DigestDialog(tk.Toplevel):
         rejilla.columnconfigure(1, minsize=356)
         casillas = [
             ("Unir líneas seguidas del mismo hablante", self.var_merge, 0, 0),
-            ("Quitar marcas de tiempo dentro de cada bloque", self.var_strip_stamps, 0, 1),
-            ("Conservar capturas incrustadas 📸", self.var_captures, 1, 0),
+            ("Hora corta [HH:MM] por párrafo, no HH:MM:SS", self.var_strip_stamps, 0, 1),
+            ("Quitar referencias de imagen (texto puro)", self.var_sin_imagenes, 1, 0),
             (f"Descartar líneas de menos de {MIN_WORDS} palabras", self.var_drop, 1, 1),
+            ("Quitar el eco del vocabulario («Términos.»)", self.var_echo, 2, 0),
         ]
         self.chk_stamps = None
         for texto, var, f, c in casillas:
@@ -215,13 +225,13 @@ class DigestDialog(tk.Toplevel):
     def _aviso(self, cont):
         caja = tk.Frame(cont, bg=PANEL, highlightthickness=1, highlightbackground=ACC)
         caja.pack(side="bottom", fill="x", pady=(10, 0))
-        tk.Label(caja, text="⚠ Las síntesis son derivadas y con pérdida", bg=PANEL, fg=ACC,
+        tk.Label(caja, text="⚠ Las copias reagrupadas son derivadas y con pérdida", bg=PANEL, fg=ACC,
                  font=("Segoe UI Semibold", 9), anchor="w").pack(fill="x", padx=12, pady=(8, 0))
         tk.Label(
             caja,
             text="Una nota agrupada por hora ya no se puede volver a partir por minutos ni recuperar lo "
             "que se quitó. Para cambiar el agrupamiento, regenera siempre desde la nota original, nunca "
-            "a partir de otra síntesis.",
+            "a partir de otra copia reagrupada.",
             bg=PANEL, fg=FG, font=("Segoe UI", 9), wraplength=690, justify="left", anchor="w",
         ).pack(fill="x", padx=12, pady=(2, 8))
 
@@ -249,7 +259,7 @@ class DigestDialog(tk.Toplevel):
         tk.Button(acciones, text="Cancelar", command=self.destroy, bg=PANEL, fg=DIM,
                   relief="flat", padx=12, font=("Segoe UI", 9)).pack(side="right", padx=(8, 0))
         self.btn_generar = tk.Button(
-            acciones, text="📑 Generar síntesis", command=self._generar,
+            acciones, text="📑 Generar copia", command=self._generar,
             **{**BTN_STYLE, "fg": ACC, "font": ("Segoe UI Semibold", 10)},
         )
         self.btn_generar.pack(side="right")
@@ -266,7 +276,7 @@ class DigestDialog(tk.Toplevel):
     def _refresh(self, *_):
         origen = self._origen()
         agrupa = bool(self.var_interval.get())
-        if self.chk_stamps is not None:  # sin agrupar, quitar marcas no tiene sentido
+        if self.chk_stamps is not None:  # sin agrupar, la hora completa es lo unico que ordena
             self.chk_stamps.config(state="normal" if agrupa else "disabled")
         if origen is None:
             self.btn_generar.config(state="disabled", fg=DIM)
@@ -316,4 +326,3 @@ class DigestDialog(tk.Toplevel):
             return
         self.var_estado.set(f"✅ Creada {destino.name}. El original sigue intacto.")
         self._refresh()  # el siguiente nombre libre cambia tras crear este
-
