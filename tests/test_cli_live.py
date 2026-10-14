@@ -18,7 +18,7 @@ import unittest
 
 from recorder import session as ses
 from recorder.audio.capture import MUTE_WARN_SEC
-from recorder.cli.consola import make_console
+from recorder.cli.consola import emoji_seguro, make_console, presentar
 from recorder.cli.live import CTRL_C, ENTER, ESC, RETROCESO, PantallaEnVivo
 from recorder.session import mute_text
 from tests.test_session import BaseSesion
@@ -140,25 +140,44 @@ class BasePantalla(BaseSesion):
         self.audio.source_callback("out", False, "OSError(-9999)")
 
 
+class TestSimbolos(unittest.TestCase):
+    """`presentar`: ASCII en la consola clásica; en las demás, los símbolos que rich mide a una
+    celda y Windows Terminal dibuja a dos (pisando el espacio siguiente) van en su versión emoji."""
+
+    def test_emoji_seguro_mide_lo_mismo_para_rich_y_para_la_terminal(self):
+        from rich.cells import cell_len
+
+        self.assertEqual(emoji_seguro("✔ vuelve · ⚙ Opciones · 🖥 equipo"), "✅ vuelve · 🔧 Opciones · 💻 equipo")
+        for original, seguro in (("✔", "✅"), ("⚙", "🔧"), ("🖥", "💻")):
+            self.assertEqual((cell_len(original), cell_len(seguro)), (1, 2))
+        self.assertEqual(emoji_seguro("⚠ ● ⏸ ▶ ⏳ ☕ ⛔ 🔊 🎤"), "⚠ ● ⏸ ▶ ⏳ ☕ ⛔ 🔊 🎤", "los demás se quedan")
+
+    def test_presentar_segun_la_consola(self):
+        self.assertEqual(presentar("✔ ok ⚙", make_console(ascii_mode=False, file=io.StringIO())), "✅ ok 🔧")
+        self.assertEqual(presentar("✔ ok ⚙ 🔧", make_console(ascii_mode=True, file=io.StringIO())), "OK ok  ")
+
+
 class TestLineas(BasePantalla):
     def test_pinta_como_la_ventana_y_cierra_sin_cola(self):
         self.encolar_lineas()
         salida = self.correr(None, "q")  # un sondeo sin tecla para que el pie llegue a pintarse
         texto = limpio(salida)
 
-        self.assertIn(f"Recorder · nota: {self.session.file_path}", texto)
-        self.assertIn("small, haz 5, CPU, int8, hilos de la biblioteca", texto)
-        self.assertIn("[p] pausar · [c] captura · [r] reconectar audio · [a] abrir nota · [o] opciones · [q] salir", texto)
+        cabecera = texto.splitlines()[:2]
+        self.assertEqual(cabecera, [f"Recorder · {self.session.file_path.name}", "Calidad Media · CPU"], "dos líneas, sin jerga ni teclas")
+        self.assertIn("[p] pausar · [c] captura · [r] reconectar · [a] nota · [o] opciones · [q] salir", texto)
+        self.assertNotIn("[p]", "\n".join(cabecera), "las teclas solo viven en el pie")
         self.assertIn("10:00:01  🎤 Hola equipo\n", texto)
+        self.assertIn("10:00:05  🔊 Hay un bloqueo\n", texto, "la salida lleva su icono, en la misma columna")
         self.assertIn(color(TENUE, "10:00:01  "), salida, "la hora en tenue")
         self.assertIn(color(MIC, "🎤 "), salida, "el micrófono en su color")
         self.assertIn(color(ACENTO, "Hay un bloqueo"), salida, "con palabra clave, en acento")
-        self.assertIn(color(TENUE, "          📸 captura: bloqueo"), salida)
+        self.assertIn(color(TENUE, "             📸 captura: bloqueo"), salida, "la captura, bajo el texto")
         self.assertIn(color(ERROR, "⚠ algo falló"), salida)
-        self.assertIn("⚠ audio de salida caído, reintentando: OSError(-9999)", texto)
-        self.assertIn("● Escuchando + 🎤 · pendientes: 0 · ☕", texto, "la cabecera va en el pie")
-        self.assertIn("🔊 ░░░░░░░░   🎤 ░░░░░░░░", texto, "los medidores también")
-        self.assertIn("Grabación terminada", texto)
+        self.assertIn("10:00:07     ⚠ algo falló\n", texto, "un aviso: columna de icono en blanco y su símbolo")
+        self.assertIn("     ⚠ audio de salida caído, reintentando: OSError(-9999)", texto)
+        self.assertIn("● Escuchando + 🎤 · pendientes: 0 · ☕   🔊 ░░░░░░░░   🎤 ░░░░░░░░", texto, "cabecera y medidores, en una línea del pie")
+        self.assertIn(f"Grabación terminada · nota: {self.session.file_path}", texto, "la ruta entera, al final")
         self.assertNotIn("se perdieron", texto)
 
         self.assertEqual(self.audio.llamadas, [("start",), ("stop",)], "arranca al entrar y para al salir")
@@ -178,9 +197,29 @@ class TestLineas(BasePantalla):
         self.assertIn("> Fuentes: 🔊 Altavoces · 🎤 Micro USB", self.nota)
 
     def test_los_marcadores_del_transcriptor_son_lineas(self):
-        # el atraso y los pasos lentos llegan como líneas normales (así los escribe whisper_worker._marker)
-        self.session.ui_queue.put(("line", "10:42:13", "out", "⏳ transcripción atrasada 5 min desde", []))
-        self.assertIn("10:42:13  ⏳ transcripción atrasada 5 min desde\n", limpio(self.correr("q")))
+        # el atraso y los pasos lentos llegan como hechos de la sesión (así los escribe whisper_worker._marker)
+        self.session.ui_queue.put(("line", "10:42:13", "info", "⏳ transcripción atrasada 5 min", []))
+        self.assertIn("10:42:13     ⏳ transcripción atrasada 5 min\n", limpio(self.correr("q")))
+
+    def test_las_lineas_no_se_parten_al_ancho_de_rich(self):
+        # rich cree un ancho (el de arranque, o 80 si no lo sabe); la terminal real puede ser otra. Las
+        # líneas van sin partir y las parte la terminal: cambiar el tamaño de la ventana no deja frases rotas.
+        self.consola = make_console(ascii_mode=False, file=self.salida, width=60, force_terminal=True,
+                                    force_interactive=True, color_system="truecolor", legacy_windows=False)
+        larga = "palabra " * 20  # 160 caracteres, más que las 60 columnas
+        self.session.ui_queue.put(("line", "10:00:09", "out", larga, []))
+        self.session.ui_queue.put(("notice", "10:00:10", f"⚠ {larga}", "err"))
+        texto = limpio(self.correr("q"))
+        self.assertIn(f"10:00:09  🔊 {larga}\n", texto)
+        self.assertIn(f"10:00:10     ⚠ {larga}\n", texto)
+
+    def test_los_simbolos_que_la_terminal_pisa_van_en_version_emoji(self):
+        # ✔ y ⚙ miden una celda para rich y dos para Windows Terminal: «✔vuelve», «⚙Opciones». En la
+        # terminal se pintan ✅ y 🔧 (dos celdas para los dos); la nota y la ventana conservan ✔ y ⚙.
+        self.audio.source_callback("out", True, "")
+        texto = limpio(self.correr("q"))
+        self.assertIn("     ✅ audio de salida recuperado\n", texto)
+        self.assertIn("> ✔ audio de salida recuperado", self.nota)
 
 
 class TestFuenteMuda(BasePantalla):
@@ -196,11 +235,17 @@ class TestFuenteMuda(BasePantalla):
         self.reloj.al_tic = vuelve
         salida = self.correr(None, None, None, None, "q")
         texto = limpio(salida)
-        self.assertIn(mute_text("mic", True), texto)
+        # la frase acaba sola (la hora ya va delante) y la acción es la de esta pantalla: [o], no ⚙ Opciones
+        self.assertIn(
+            f"     {mute_text('mic', True)}. Si hablaste, pulsa [o] y elige el dispositivo que usa Teams.\n", texto,
+        )
+        self.assertNotIn("Opciones", texto)
+        self.assertNotIn("a las\n", texto, "nada queda colgando al final de la línea")
         self.assertIn("🔊 ░░░░░░░░   🎤 ░░░░░░░░ 🔇", texto, "el medidor del pie marca la fuente muda")
-        self.assertIn(mute_text("mic", False), texto)
+        self.assertIn("     ✅ vuelve a haber audio de micrófono 🎤\n", texto)
         self.assertLess(texto.index("sin audio de"), texto.index("vuelve a haber audio"))
-        self.assertIn("> " + mute_text("mic", True), self.nota)
+        self.assertRegex(self.nota, "> " + re.escape(mute_text("mic", True)) + r"\. Detectado a las \d\d:\d\d:\d\d\n")
+        self.assertRegex(self.nota, r"> ✔ vuelve a haber audio de micrófono 🎤 desde \d\d:\d\d:\d\d\n")
         self.assertIsNone(self.session.status.muted)
 
     def test_en_ascii_el_medidor_dice_mudo(self):
@@ -218,10 +263,10 @@ class TestTeclas(BasePantalla):
     def test_pausar_y_continuar(self):
         self.escuchando()
         salida = limpio(self.correr("p", None, "P", None, "q"))
-        self.assertIn("⏸ pausa: no se captura audio nuevo", salida)
+        self.assertIn("     ⏸ pausa: no se captura audio nuevo", salida)
         self.assertIn("⏸ En pausa · sin pendientes", salida)
-        self.assertIn("[p] continuar", salida)
-        self.assertIn("▶ continúa, se vuelve a capturar audio", salida)
+        self.assertIn("[p] seguir", salida)
+        self.assertIn("     ▶ continúa, se vuelve a capturar audio", salida)
         self.assertIn("> ⏸ Pausa", self.nota)
         self.assertIn("> ▶ Continúa", self.nota)
         self.assertFalse(self.session.paused)
@@ -231,8 +276,9 @@ class TestTeclas(BasePantalla):
         ses.take_screenshot = lambda tag, caps_dir, screen_idx=0, window="": pathlib.Path(caps_dir) / "manual_x.png"
         self.addCleanup(lambda: setattr(ses, "take_screenshot", original))
 
-        salida = self.correr("c", (lambda s: "(captura manual)" in s, "q"))
-        self.assertIn("📸 captura: manual", salida)
+        texto = limpio(self.correr("c", (lambda s: "(captura manual)" in s, "q")))
+        self.assertIn("     (captura manual)\n", texto, "un hecho de la sesión: sin icono de fuente")
+        self.assertIn("             📸 captura: manual\n", texto)
         self.assertIn("📸 captura manual → ![](../caps/manual_x.png)", self.nota)
 
     def test_reconectar_y_abrir_la_nota(self):
@@ -327,7 +373,7 @@ class TestPanelOpciones(BasePantalla):
     def test_abre_el_indice_y_esc_lo_cierra_sin_cambios(self):
         texto = limpio(self.correr("o", None, ESC, None, "q"))
         self.assertIn(self.INDICE, texto)
-        self.assertIn("⚙ Opciones   ahora: 🔊 (predeterminado de Windows) · 🎤 (predeterminado de Windows) · 📸 todas las pantallas · capturas normales", texto)
+        self.assertIn("🔧 Opciones   ahora: 🔊 (predeterminado de Windows) · 🎤 (predeterminado de Windows) · 📸 todas las pantallas · capturas normales", texto)
         self.assertLess(texto.index("[Esc/o] volver"), texto.rindex("[p] pausar"), "al cerrar vuelven las teclas de siempre")
         self.assertEqual(self.audio.llamadas, [("start",), ("stop",)], "no se reabre nada")
         self.assertEqual(self.config_guardada()["out_dev"], "")
@@ -335,7 +381,7 @@ class TestPanelOpciones(BasePantalla):
 
     def test_elige_la_salida_por_numero(self):
         texto = limpio(self.correr("o", "1", None, "3", None, "q"))
-        self.assertIn("⚙ Salida de audio 🔊  elige con el número", texto)
+        self.assertIn("🔧 Salida de audio 🔊  elige con el número", texto)
         self.assertIn("  [1] (predeterminado de Windows)  (actual)\n", texto)
         self.assertIn("  [2] Altavoces\n", texto)
         self.assertIn("  [3] Auriculares\n", texto)
@@ -344,8 +390,8 @@ class TestPanelOpciones(BasePantalla):
         self.assertIn(("restart", "Auriculares", "", True), self.audio.llamadas, "solo se reabre el audio")
         self.assertEqual(self.config_guardada()["out_dev"], "Auriculares", "se guarda en el config.json temporal")
         self.assertEqual(self.session.config.out_dev, "Auriculares")
-        self.assertIn("⚙ salida de audio 🔊: Auriculares", texto, "la confirmación")
-        self.assertIn("⚙ Fuentes: 🔊 Auriculares · 🎤 Micro USB", texto, "y lo que resolvió la sesión")
+        self.assertIn("     🔧 salida de audio 🔊: Auriculares\n", texto, "la confirmación")
+        self.assertIn("     🔧 Fuentes: 🔊 Auriculares · 🎤 Micro USB\n", texto, "y lo que resolvió la sesión")
         self.assertRegex(self.nota, r"> ⚙ Fuentes: 🔊 Auriculares · 🎤 Micro USB \d\d:\d\d:\d\d\n")
         self.assertLess(texto.index("[1-3] elegir"), texto.rindex("[p] pausar"), "tras elegir, el panel se cierra")
         self.assertTrue(self.session.stop_event.is_set())
@@ -353,7 +399,7 @@ class TestPanelOpciones(BasePantalla):
     def test_elegir_la_actual_no_aplica_nada(self):
         texto = limpio(self.correr("o", "1", "1", None, "q"))
         self.assertNotIn("restart", [c[0] for c in self.audio.llamadas])
-        self.assertNotIn("⚙ salida de audio", texto)
+        self.assertNotIn("🔧 salida de audio", texto)
         self.assertLess(texto.index("[1-3] elegir"), texto.rindex("[p] pausar"), "el panel se cierra igual")
 
     def test_mas_de_nueve_opciones_se_teclean_y_enter(self):
@@ -363,7 +409,7 @@ class TestPanelOpciones(BasePantalla):
         self.assertIn("[1-13] y Enter, elegir · [Esc] volver · [o] cerrar", texto)
         self.assertIn("› 1_  [1-13] y Enter, elegir", texto, "se ve lo tecleado")
         self.assertIn(("restart", "Salida 12", "", True), self.audio.llamadas, "13 es la última: se elige sin Enter")
-        self.assertIn("⚙ salida de audio 🔊: Salida 12", texto)
+        self.assertIn("🔧 salida de audio 🔊: Salida 12", texto)
 
     def test_enter_confirma_y_retroceso_borra(self):
         self.entorno.salidas = [f"Salida {i}" for i in range(1, 13)]
@@ -387,8 +433,8 @@ class TestPanelOpciones(BasePantalla):
         self.assertIn("  [2] (predeterminado de Windows)  (actual)\n", texto)
         self.assertIn("  [3] Micro USB\n", texto)
         self.assertIn(("restart", "", "", False), self.audio.llamadas, "apagar el micrófono reabre sin él")
-        self.assertIn("⚙ micrófono 🎤: apagado: no se transcribe el micrófono", texto)
-        self.assertIn("⚙ Fuentes: 🔊 Altavoces · 🎤 desactivado", texto)
+        self.assertIn("🔧 micrófono 🎤: apagado: no se transcribe el micrófono", texto)
+        self.assertIn("🔧 Fuentes: 🔊 Altavoces · 🎤 desactivado", texto)
         self.assertIn(("restart", "", "Micro USB", True), self.audio.llamadas, "elegir uno lo enciende con ese dispositivo")
         self.assertEqual((self.config_guardada()["mic"], self.config_guardada()["mic_dev"]), (True, "Micro USB"))
         self.assertIn("  [1] apagado: no se transcribe el micrófono  (actual)\n", texto, "la segunda vez estaba apagado")
@@ -403,7 +449,7 @@ class TestPanelOpciones(BasePantalla):
         self.assertEqual(self.entorno.releidas, 2, "[r] vuelve a leer las ventanas abiertas")
         self.assertEqual(self.config_guardada()["window"], "notas.txt - Bloc de notas")
         self.assertEqual(self.session.config.screen, 0)
-        self.assertIn("⚙ qué capturar 📸: Ventana: notas.txt - Bloc de notas", texto)
+        self.assertIn("🔧 qué capturar 📸: Ventana: notas.txt - Bloc de notas", texto)
         self.assertNotIn("restart", [c[0] for c in self.audio.llamadas], "las capturas no tocan el audio")
         self.assertEqual(len(self.buffers), 1, "misma carpeta y calidad: el buffer sigue")
 
@@ -419,7 +465,7 @@ class TestPanelOpciones(BasePantalla):
         self.assertEqual(self.config_guardada()["captures"], "light")
         self.assertEqual([b.quality for b in self.buffers], ["normal", "light"], "el buffer se rearranca con la nueva calidad")
         self.assertEqual(self.buffers[0].llamadas, ["start", "stop"])
-        self.assertIn("⚙ calidad de capturas: Ligeras: JPEG a media resolución (~90 MB/h)", texto)
+        self.assertIn("🔧 calidad de capturas: Ligeras: JPEG a media resolución (~90 MB/h)", texto)
         self.assertNotIn("restart", [c[0] for c in self.audio.llamadas])
 
     def test_las_frases_siguen_saliendo_con_el_panel_abierto(self):
@@ -461,7 +507,7 @@ class TestPanelOpciones(BasePantalla):
         texto = limpio(self.correr("o", "1", "3", None, "q"))
         self.assertIn("⚠ no se pudo guardar config.json: disco lleno; lo cambiado vale solo para esta sesión", texto)
         self.assertIn(("restart", "Auriculares", "", True), self.audio.llamadas)
-        self.assertIn("⚙ salida de audio 🔊: Auriculares", texto)
+        self.assertIn("🔧 salida de audio 🔊: Auriculares", texto)
 
 
 class TestPieBarato(BasePantalla):
@@ -518,10 +564,11 @@ class TestSinTerminal(BasePantalla):
         self.encolar(20)
         salida = self.correr("q", "s")
         self.assertNotIn("\x1b", salida, "ni colores ni pie: va a un archivo")
-        self.assertIn(f"10:00:09  {larga}\n", salida, "hacia un archivo no se parte a lo ancho de la consola")
-        self.assertIn("  ● Escuchando\n", salida, "sin pie, los cambios de cabecera quedan como líneas")
+        self.assertIn("[p] pausar · [c] captura · [r] reconectar · [a] nota · [o] opciones · [q] salir   (Ctrl+C también sale)\n", salida, "sin pie, las teclas van una vez en la cabecera")
+        self.assertIn(f"10:00:09  🔊 {larga}\n", salida, "hacia un archivo no se parte a lo ancho de la consola")
+        self.assertIn("     ● Escuchando\n", salida, "sin pie, los cambios de cabecera quedan como líneas")
         self.assertIn("10:00:01  🎤 Hola equipo\n", salida)
-        self.assertIn("10:00:05  Hay un bloqueo\n          📸 captura: bloqueo\n", salida)
+        self.assertIn("10:00:05  🔊 Hay un bloqueo\n             📸 captura: bloqueo\n", salida)
         self.assertIn("Quedan 1 fragmento (~20 s de audio) sin transcribir. [e] esperar · [s] salir perdiéndolos · [c] cancelar\n", salida)
         self.assertIn("⚠ se perdieron 1 fragmento", salida)
         self.assertTrue(self.session.stop_event.is_set())
@@ -536,9 +583,17 @@ class TestSinTerminal(BasePantalla):
 
     def test_sin_pie_las_opciones_solo_avisan(self):
         salida = self.correr("o", "1", "q")
-        self.assertIn("  ⚙ opciones: hacen falta una terminal y su pie; con la salida redirigida usa `daily config` al terminar\n", salida)
+        self.assertIn("     🔧 opciones: hacen falta una terminal y su pie; con la salida redirigida usa `daily config` al terminar\n", salida)
         self.assertNotIn("elige con el número", salida)
         self.assertEqual(self.audio.llamadas, [("start",), ("stop",)])
+
+    def test_sin_pie_la_accion_de_la_fuente_muda_es_daily_config(self):
+        self.escuchando()
+        self.audio.started_at = time.time() - 2 * MUTE_WARN_SEC
+        self.audio.last_chunk_at = {"out": time.time() - 5, "mic": 0.0}
+        salida = self.correr(None, "q")
+        self.assertIn(f"{mute_text('mic', True)}. Si hablaste, elige el dispositivo que usa Teams con `daily config`.\n", salida)
+        self.assertNotIn("[o]", salida.split("(Ctrl+C también sale)")[1], "sin pie no hay panel que pulsar")
 
 
 if __name__ == "__main__":

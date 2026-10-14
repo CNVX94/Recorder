@@ -39,6 +39,9 @@ from .audio.devices import resolve_wasapi_device
 from .config.hardware import HardwareProfile, cached_hardware, describe_hardware
 from .config.manager import ConfigManager
 from .config.schema import (
+    ACTION_DEVICES,
+    ACTION_RECOMMEND,
+    ACTION_SETTINGS,
     DEFAULT_CAPTURES,
     AppConfig,
     Recommendation,
@@ -67,11 +70,12 @@ class Status:
 
 @dataclasses.dataclass(frozen=True)
 class Line:
-    """Una línea del visor: una frase transcrita o un hecho de la sesión (pausa, captura manual,
-    marcadores del transcriptor como el atraso)."""
+    """Una línea del visor: una frase transcrita ("out" o "mic") o un hecho de la sesión ("info":
+    pausa, captura manual, marcadores del transcriptor como el atraso), que el frontal pinta sin
+    icono de fuente."""
 
     stamp: str
-    kind: str  # "out" o "mic"
+    kind: str  # "out", "mic" o "info"
     text: str
     hits: List[str]  # palabras clave que dispararon captura; vacío si no hubo
 
@@ -80,11 +84,13 @@ class Line:
 class Notice:
     """Una línea con hora en el visor, informativa (config ilegible, primer arranque, las fuentes
     de audio resueltas, una captura manual fallida); lo que de ella merece quedar en la nota ya
-    está escrito cuando llega."""
+    está escrito cuando llega. `action` (ACTION_*) dice qué puede hacer el usuario, y cada frontal
+    lo añade con sus palabras; vacío si nada."""
 
     stamp: str
     text: str
     level: str  # "info" o "err"
+    action: str = ""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -101,13 +107,15 @@ class SourceChanged:
 @dataclasses.dataclass(frozen=True)
 class SourceMuted:
     """Una fuente lleva MUTE_WARN_SEC sin audio mientras la otra sí (`muted`: silenciada, o es otro
-    el dispositivo), o vuelve a tenerlo; `text` es la frase ya compuesta (también va a la nota).
+    el dispositivo), o vuelve a tenerlo; `text` es la frase ya compuesta (también va a la nota) y
+    `action` es ACTION_DEVICES mientras está muda (el frontal dice cómo elegir otro dispositivo).
     Una vez por episodio. Ver `audio.capture.mute_source` y `mute_text`."""
 
     stamp: str
     kind: str  # "out" o "mic"
     muted: bool
     text: str
+    action: str = ""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -163,18 +171,28 @@ def compose_status(
     return f"● Escuchando{mic_tag} · pendientes: {pending}{aviso}{cafe}"
 
 
+def with_action(text: str, action_text: str) -> str:
+    """El aviso seguido de la frase de acción del frontal («Se cambia en ⚙ Opciones.», «pulsa
+    [o]…»), como una oración más: con punto entre medias si el aviso no cierra con uno."""
+    if not action_text:
+        return text
+    separador = " " if text.rstrip().endswith((".", "!", "?", "…")) else ". "
+    return f"{text}{separador}{action_text}"
+
+
 def mute_text(kind: str, muted: bool) -> str:
-    """La frase del aviso de fuente sin audio (sin la hora, que va detrás): política pura, la misma
-    para la nota, la ventana y la terminal. Neutra: estar callado o silenciado es normal; lo que
-    se señala es que, si se habló, puede ser otro el dispositivo."""
+    """La frase del aviso de fuente sin audio: política pura, la misma para la nota, la ventana y
+    la terminal, y completa por sí sola (en el visor la hora va delante; en la nota, detrás con
+    su conector, ver `_check_mute`). Neutra: estar callado o silenciado es normal; lo que se
+    señala es que, si se habló, puede ser otro el dispositivo, y eso lo dice el frontal con
+    `SourceMuted.action`."""
     if muted:
         other = "mic" if kind == "out" else "out"
         return (
             f"⚠ sin audio de {SOURCE_NAMES[kind]} desde hace {MUTE_WARN_SEC // 60} min (¿silenciado?; "
-            f"{SOURCE_ARTICLES[other]} {SOURCE_NAMES[other]} sí suena). Si hablaste, elige el dispositivo que usa "
-            f"Teams en ⚙ Opciones o `daily config`. Detectado a las"
+            f"{SOURCE_ARTICLES[other]} {SOURCE_NAMES[other]} sí suena)"
         )
-    return f"✔ vuelve a haber audio de {SOURCE_NAMES[kind]} desde"
+    return f"✔ vuelve a haber audio de {SOURCE_NAMES[kind]}"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -341,14 +359,14 @@ class RecorderSession:
                 self._events.append(Notice(
                     _now(),
                     f"🖥 Primer arranque en este equipo: {describe_hardware(profile)}. Se aplicó la "
-                    f"configuración recomendada, {describe_recommendation(rec)}: {rec.reason}{guardado} "
-                    f"Se puede cambiar en ⚙ Opciones.",
+                    f"configuración recomendada, {describe_recommendation(rec)}: {rec.reason}{guardado}",
                     "info",
+                    ACTION_SETTINGS,
                 ))
             self._start_transcriber()  # también si se está cerrando: es quien vacía la cola
             return
-        for aviso in startup_notices(self.config, profile, rec):
-            self._events.append(Notice(_now(), aviso, "err" if aviso.startswith("⚠") else "info"))
+        for aviso, accion in startup_notices(self.config, profile, rec):
+            self._events.append(Notice(_now(), aviso, "err" if aviso.startswith("⚠") else "info", accion))
 
     def _avisar_config_ilegible(self):
         """Si la configuración no se pudo leer, decirlo en vez de arrancar como si nada.
@@ -535,8 +553,9 @@ class RecorderSession:
         kind = muted or self.muted
         texto = mute_text(kind, bool(muted))
         stamp = _now()
-        self.notes_session.write_line(f"\n> {texto} {stamp}\n")
-        self._events.append(SourceMuted(stamp, kind, bool(muted), texto))
+        # En la nota la hora va detrás con su conector («… sí suena). Detectado a las 09:58:27», «… desde 10:00:41»)
+        self.notes_session.write_line(f"\n> {texto}{'. Detectado a las' if muted else ' desde'} {stamp}\n")
+        self._events.append(SourceMuted(stamp, kind, bool(muted), texto, ACTION_DEVICES if muted else ""))
         self.muted = muted
 
     # ------------------------------------------------------------------ acciones
@@ -564,7 +583,7 @@ class RecorderSession:
             f = take_screenshot("manual", caps_dir, screen, window)
             ref = md_ref(f, self.notes_session.file_path.parent)
             self.notes_session.write_line(f"- **{stamp}** 📸 captura manual → ![]({ref})")
-            msg = ("line", stamp, "out", "(captura manual)", ["manual"])
+            msg = ("line", stamp, "info", "(captura manual)", ["manual"])
         except Exception as e:
             self.capture_errors += 1
             msg = ("notice", stamp, f"⚠ captura manual fallida: {e!r}", "err")
@@ -594,7 +613,7 @@ class RecorderSession:
         self.notes_session.write_line(f"\n> {state_msg} {stamp}\n")
         return Line(
             stamp,
-            "out",
+            "info",
             self._mensaje_pausa() if is_paused else "▶ continúa, se vuelve a capturar audio",
             [],
         )

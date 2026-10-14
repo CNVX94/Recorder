@@ -260,7 +260,12 @@ class TestAtraso(BaseWorker):
         self.chunks.put((time.time(), "out", "bueno-2"))
         self.assertTrue(self.esperar(lambda: "al día" in self.nota))
         self.assertRegex(self.nota, r"> ⏳ transcripción atrasada 5 min desde \d\d:\d\d:\d\d")
+        self.assertRegex(self.nota, r"> ✔ transcripción al día desde \d\d:\d\d:\d\d")
         self.assertLess(self.nota.index("atrasada"), self.nota.index("> ✔ transcripción al día"))
+        # en el visor la hora va delante: la frase acaba sola, sin «desde» colgando
+        lineas = [m for m in list(self.ui.queue) if m[0] == "line"]
+        self.assertIn(("info", "⏳ transcripción atrasada 5 min"), [(m[2], m[3]) for m in lineas])
+        self.assertIn(("info", "✔ transcripción al día"), [(m[2], m[3]) for m in lineas])
 
 
 class TestModeloQueNoCarga(BaseWorker):

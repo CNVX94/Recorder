@@ -21,7 +21,7 @@ from ..filters.pipeline import TextPipeline
 from .whispercpp import EngineUnavailable, load_whispercpp_model, whispercpp_ready
 
 CAP_COOLDOWN_SEC = 15.0  # en tiempo de reunión: entre dos palabras clave dichas, no entre dos transcritas
-kind_lost = "out"  # los avisos se pintan como una linea normal en la ventana
+kind_lost = "info"  # los avisos y marcadores son hechos de la sesión: una línea sin icono de fuente
 DEFAULT_LANGUAGE = "es"
 LAG_WARN_SEC = 120.0  # a partir de este atraso la nota lo dice: lo que se lee va por detrás de lo que se oye
 LATE_CAPTURE_SEC = 5.0  # una captura de respaldo tomada más tarde que esto tras la palabra se marca tardía
@@ -218,10 +218,12 @@ class TranscriberWorker:
             pass
         self.ui_queue.put(("line", stamp, kind_lost, f"⚠ fragmento perdido: {err!r}", []))
 
-    def _marker(self, t: float, text: str):
-        """Marcador en la nota y en el visor ("> ⏳ … HH:MM:SS"); el digest lo conserva ordenado por hora."""
+    def _marker(self, t: float, text: str, conector: str):
+        """Marcador en la nota («> ⏳ … desde HH:MM:SS»; el digest lo conserva ordenado por hora) y
+        en el visor, donde la hora ya va delante: `text` acaba la frase solo y `conector` («desde»,
+        «a las») solo enlaza con la hora en la nota."""
         stamp = dt.datetime.fromtimestamp(t).strftime("%H:%M:%S")
-        self.notes_session.write_line(f"\n> {text} {stamp}\n")
+        self.notes_session.write_line(f"\n> {text} {conector} {stamp}\n")
         self.ui_queue.put(("line", stamp, kind_lost, text, []))
 
     def _check_lag(self, t0: float):
@@ -231,9 +233,9 @@ class TranscriberWorker:
             return
         self.lag_marked_min = m
         if m:
-            self._marker(t0, f"⏳ transcripción atrasada {m} min desde")
+            self._marker(t0, f"⏳ transcripción atrasada {m} min", "desde")
         else:
-            self._marker(t0, "✔ transcripción al día desde")
+            self._marker(t0, "✔ transcripción al día", "desde")
 
     def _capture(self, tag: str, t_hit: float) -> Tuple[pathlib.Path, float]:
         """(archivo, segundos de retraso de la imagen respecto a la palabra).
@@ -270,7 +272,7 @@ class TranscriberWorker:
         text, hits, offset = self.pipeline.process(segs)  # el generador se consume aquí: esto es lo que tarda
         took = time.time() - started
         if took > SLOW_STEP_SEC:
-            self._marker(t0, f"⚠ fragmento lento: {human_secs(took)} para {human_secs(len(audio) / 16000)} de audio, a las")
+            self._marker(t0, f"⚠ fragmento lento: {human_secs(took)} para {human_secs(len(audio) / 16000)} de audio", "a las")
         if not text:
             return
 

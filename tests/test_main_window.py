@@ -103,7 +103,8 @@ class TestFuenteMudaEnVentana(BaseVentana):
         self.audio.last_chunk_at = {"out": time.time() - 5, "mic": 0.0}
         self.win._tick()
         visor = self.win.txt.get("1.0", "end")
-        self.assertIn(mute_text("mic", True), visor)
+        self.assertIn(mute_text("mic", True) + ". Si hablaste, elige el dispositivo que usa Teams en ⚙ Opciones.\n", visor,
+                      "la acción, con las palabras de la ventana")
         self.assertEqual(self.win.lbl_meter.cget("text"), "🔊 ░░░░░░░░   🎤 ░░░░░░░░ 🔇")
         self.audio.last_chunk_at["mic"] = time.time()
         self.win._tick()

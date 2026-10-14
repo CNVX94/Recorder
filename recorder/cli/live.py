@@ -1,11 +1,15 @@
 """La grabación desde la terminal: `daily` sin más.
 
-Lo mismo que la ventana, sobre la misma `RecorderSession`, pero en la propia consola y barato:
-las frases, los avisos (las fuentes resueltas al arrancar, el atraso de la transcripción) y las
-fuentes que caen, vuelven o enmudecen se imprimen como líneas normales (se quedan en el historial
-de la terminal, se pueden copiar y desplazar) y debajo vive un pie de tres líneas que se redibuja
-solo cuando cambia: la cabecera (`status_text`), los medidores (`meter_text`, con 🔇 en la fuente
-muda) y las teclas. En silencio no se escribe nada y el proceso no gasta CPU.
+Lo mismo que la ventana, sobre la misma `RecorderSession`, pero en la propia consola y barato.
+Una cabecera de dos líneas (la nota de hoy y la calidad, sin jerga) y, debajo, las frases, los
+avisos (las fuentes resueltas al arrancar, el atraso de la transcripción) y las fuentes que
+caen, vuelven o enmudecen como líneas normales, que se quedan en el historial de la terminal (se
+pueden copiar y desplazar): la hora en tenue, una columna de icono (🔊 la salida, 🎤 el
+micrófono, nada en los hechos de la sesión y los avisos, que llevan su propio símbolo) y el
+texto. Al pie, dos líneas que se redibujan solo cuando cambian: la cabecera (`status_text`) con
+los medidores (`meter_text`, con 🔇 en la fuente muda) y las teclas. En silencio no se escribe
+nada y el proceso no gasta CPU. Las líneas se imprimen sin partir (`soft_wrap`): las parte la
+terminal a su ancho real, así que cambiar el tamaño de la ventana no deja frases rotas.
 
 Teclas: [p] pausar/continuar · [c] captura · [r] reconectar audio · [a] abrir la nota ·
 [o] opciones · [q] salir (Ctrl+C también sale). Al salir con cola pendiente se pregunta en el
@@ -21,8 +25,12 @@ config.json y solo se reabre el audio; el transcriptor y la cola no se tocan. Lo
 que se conectan después de arrancar no aparecen: PortAudio enumera al inicializar y no se puede
 reinicializar con el loopback abierto (ver `RecorderSession.shutdown`); el panel lo avisa.
 
-Con la salida redirigida (`daily > log.txt`) no hay pie: las líneas van tal cual, los cambios de
-cabecera también, [o] solo avisa y Ctrl+C cierra igual de limpio.
+Los avisos que piden algo al usuario (`action` del evento) se completan aquí con la acción de
+esta interfaz («pulsa [o]», «daily config»), no con la de la ventana.
+
+Con la salida redirigida (`daily > log.txt`) no hay pie: las teclas se imprimen una vez en la
+cabecera, las líneas van tal cual, los cambios de cabecera también, [o] solo avisa y Ctrl+C
+cierra igual de limpio.
 
 Se prueba con la sesión de mentira de tests/test_session.py: la sesión, el lector de teclas, la
 espera, la consola, el entorno (dispositivos, pantallas, ventanas) y cómo se abre la nota se
@@ -37,6 +45,7 @@ import signal
 import time
 from typing import Callable, Deque, List, Optional, Sequence, Tuple
 
+from rich.cells import cell_len
 from rich.console import Console, Group, RenderableType
 from rich.live import Live
 from rich.text import Text
@@ -53,18 +62,32 @@ from ..config.options import (
     target_choice,
     target_choices,
 )
-from ..config.schema import describe_runtime
-from ..session import Event, Line, Notice, RecorderSession, SourceChanged, SourceMuted, Status, StatusSnapshot
-from .consola import asciify, make_console
+from ..config.schema import describe_quality
+from ..session import (
+    ACTION_DEVICES, ACTION_RECOMMEND, ACTION_SETTINGS,
+    Event, Line, Notice, RecorderSession, SourceChanged, SourceMuted, Status, StatusSnapshot, with_action,
+)
+from .consola import make_console, presentar
 
 INTERVALO = 0.2  # segundos entre sondeos, como la ventana (POLL_MS)
 CTRL_C = "\x03"  # lo que el manejador de SIGINT mete en la cola de teclas
 ESC, ENTER, RETROCESO = "\x1b", "\r", "\x08"  # como los devuelve msvcrt.getwch
 
-TECLAS = (("p", "pausar"), ("c", "captura"), ("r", "reconectar audio"), ("a", "abrir nota"), ("o", "opciones"), ("q", "salir"))
-TECLAS_PAUSA = (("p", "continuar"),) + TECLAS[1:]
+# La barra de teclas cabe en 80 columnas (79 con «seguir» en pausa): un pie de dos líneas.
+TECLAS = (("p", "pausar"), ("c", "captura"), ("r", "reconectar"), ("a", "nota"), ("o", "opciones"), ("q", "salir"))
+TECLAS_PAUSA = (("p", "seguir"),) + TECLAS[1:]
 TECLAS_CIERRE = (("e", "esperar"), ("s", "salir perdiéndolos"), ("c", "cancelar"))
 TECLAS_TERMINANDO = (("s", "salir sin esperar, perdiendo lo pendiente"),)
+
+ICONOS = {"out": "🔊", "mic": "🎤"}  # la columna de icono de cada frase; los hechos de la sesión van sin él
+
+# Lo que esta interfaz añade a un aviso según su `action`: con pie, el panel [o]; sin él, `daily config`.
+ACCIONES = {
+    ACTION_DEVICES: "Si hablaste, pulsa [o] y elige el dispositivo que usa Teams.",
+    ACTION_SETTINGS: "Se cambia con `daily config` (vale desde la próxima grabación).",
+    ACTION_RECOMMEND: "`daily config` → Calidad → usar la recomendada (vale desde la próxima grabación).",
+}
+ACCIONES_SIN_PIE = {**ACCIONES, ACTION_DEVICES: "Si hablaste, elige el dispositivo que usa Teams con `daily config`."}
 
 # El panel de opciones: (tecla, sección, título). Lo que se puede cambiar sin parar la grabación.
 SECCIONES = (
@@ -161,7 +184,7 @@ class PantallaEnVivo:
         self._abrir = abrir
         self._entorno = entorno or Entorno(self.session.pa)
         self.ascii = getattr(self.consola, "ascii_mode", False)
-        self.plano = not self.consola.is_interactive  # salida redirigida: sin pie y sin partir líneas
+        self.plano = not self.consola.is_interactive  # salida redirigida: sin pie
         self._teclas: Deque[str] = collections.deque()  # lo que mete el manejador de Ctrl+C; va antes que el teclado
         self._live: Optional[Live] = None  # el pie; None en modo plano
         self._preguntando = False  # el pie muestra la pregunta de cerrar con cola pendiente
@@ -171,47 +194,67 @@ class PantallaEnVivo:
 
     # ------------------------------------------------------------------ pintar
     def _texto(self, *partes: Tuple[str, str]) -> Text:
-        """Trozos (texto, estilo) → Text, sin marcado de rich y en ASCII si toca."""
-        return Text.assemble(*[(asciify(t) if self.ascii else t, e) for t, e in partes])
+        """Trozos (texto, estilo) → Text, sin marcado de rich y con los símbolos de esta consola."""
+        return Text.assemble(*[(presentar(t, self.consola), e) for t, e in partes])
 
     def _imprimir(self, *partes: Tuple[str, str]) -> None:
         """Una línea por encima del pie (o tal cual sin pie). Sin marcado de rich: una frase con
-        corchetes, «[música]», se tomaría por una etiqueta de estilo y desaparecería. Hacia un
-        archivo no se parte a 80 columnas: cada frase es una línea del registro."""
-        self.consola.print(self._texto(*partes), soft_wrap=self.plano)
+        corchetes, «[música]», se tomaría por una etiqueta de estilo y desaparecería. Sin partir
+        (`soft_wrap`): la parte la terminal a su ancho real, no al que rich creyó al arrancar, y
+        hacia un archivo cada frase es una línea del registro."""
+        self.consola.print(self._texto(*partes), soft_wrap=True)
+
+    def _icono(self, kind: str) -> str:
+        """La columna de icono, del mismo ancho para todas las líneas: 🔊 o 🎤 (OUT, MIC en ASCII)
+        y un espacio; en blanco para los hechos de la sesión y los avisos."""
+        icono = ICONOS.get(kind, "")
+        if self.ascii:
+            return (presentar(icono, self.consola) or "   ") + " "
+        return (icono or "  ") + " "
 
     def _linea(self, stamp: str, kind: str, text: str, hits: List[str]) -> None:
-        """Como `MainWindow.add_line`: hora, 🎤 si es el micrófono, la frase y las palabras clave."""
-        partes: Partes = [(f"{stamp}  ", "tenue")]
-        if kind == "mic":
-            partes.append(("🎤 ", "mic"))
-        partes.append((text, "acento" if hits else "texto"))
+        """Como `MainWindow.add_line`: hora, icono de la fuente, la frase y las palabras clave."""
+        icono = self._icono(kind)
+        partes: Partes = [(f"{stamp}  ", "tenue"), (icono, "mic" if kind == "mic" else "tenue"), (text, "acento" if hits else "texto")]
         self._imprimir(*partes)
         if hits:
-            self._imprimir((f"          📸 captura: {', '.join(hits)}", "tenue"))
+            sangria = " " * (len(stamp) + 2 + cell_len(icono))  # bajo el texto, no bajo la hora
+            self._imprimir((f"{sangria}📸 captura: {', '.join(hits)}", "tenue"))
+
+    def _hecho(self, stamp: str, texto: str, estilo: str = "tenue") -> None:
+        """Una línea sin icono de fuente: un aviso o un hecho de la sesión, con su propio símbolo."""
+        self._imprimir((f"{stamp}  ", "tenue"), (self._icono("info"), "tenue"), (texto, estilo))
 
     def _aviso(self, texto: str, estilo: str = "tenue") -> None:
-        """Una línea con la hora de ahora, de la propia pantalla (no de la sesión)."""
-        self._imprimir((f"{_ahora()}  ", "tenue"), (texto, estilo))
+        """Un hecho con la hora de ahora, de la propia pantalla (no de la sesión)."""
+        self._hecho(_ahora(), texto, estilo)
+
+    def _con_accion(self, texto: str, action: str) -> str:
+        """El texto de un aviso con lo que puede hacer el usuario, dicho como lo ofrece esta pantalla."""
+        acciones = ACCIONES_SIN_PIE if self.plano else ACCIONES
+        return with_action(texto, acciones.get(action, ""))
 
     def _pintar(self, ev: Event) -> None:
         if isinstance(ev, Line):
             self._linea(ev.stamp, ev.kind, ev.text, ev.hits)
         elif isinstance(ev, Notice):
-            self._imprimir((f"{ev.stamp}  ", "tenue"), (ev.text, "error" if ev.level == "err" else "tenue"))
-        elif isinstance(ev, (SourceChanged, SourceMuted)):
-            self._linea(ev.stamp, "out", ev.text, [])
+            self._hecho(ev.stamp, self._con_accion(ev.text, ev.action), "error" if ev.level == "err" else "tenue")
+        elif isinstance(ev, SourceMuted):
+            self._linea(ev.stamp, "info", self._con_accion(ev.text, ev.action), [])
+        elif isinstance(ev, SourceChanged):
+            self._linea(ev.stamp, "info", ev.text, [])
         elif isinstance(ev, Status) and self.plano:
             # Sin pie, los cambios de cabecera quedan como líneas: así el registro dice cuándo
             # se cargó el modelo o se quedó escuchando. Con pie ya se ven ahí.
-            self._imprimir((f"{_ahora()}  ", "tenue"), (ev.text, "tenue"))
+            self._hecho(_ahora(), ev.text)
 
     def _cabecera(self) -> None:
-        cfg = self.session.config
-        hilos = f"{cfg.cpu_threads} hilos" if cfg.cpu_threads else "hilos de la biblioteca"
-        self._imprimir(("Recorder", "bold"), (" · nota: ", "tenue"), (str(self.session.file_path), "texto"))
-        self._imprimir((f"{describe_runtime(cfg.model, cfg.beam_size, cfg.device, cfg.compute_type)}, {hilos}", "tenue"))
-        self._imprimir(*partes_teclas(TECLAS), ("   (Ctrl+C también sale)", "tenue"))
+        """Dos líneas: la nota de hoy (la ruta entera sale al terminar y la abre [a]) y la calidad
+        sin jerga. Las teclas viven en el pie; sin pie se imprimen aquí una vez."""
+        self._imprimir(("Recorder", "bold"), (" · ", "tenue"), (self.session.file_path.name, "texto"))
+        self._imprimir((describe_quality(self.session.config), "tenue"))
+        if self.plano:
+            self._imprimir(*partes_teclas(TECLAS), ("   (Ctrl+C también sale)", "tenue"))
 
     def _despedida(self) -> None:
         self._imprimir(("Grabación terminada", "bold"), (" · nota: ", "tenue"), (str(self.session.file_path), "texto"))
@@ -241,11 +284,9 @@ class PantallaEnVivo:
         self._live.update(self._pie(st, teclas), refresh=True)
 
     def _pie(self, st: StatusSnapshot, teclas: Sequence[Tuple[str, str]]) -> RenderableType:
-        """El pie: cabecera, medidores y las teclas, la pregunta de cierre o el panel de opciones."""
-        lineas = [
-            self._texto((st.status_text, "bold" if st.status_highlight else "tenue")),
-            self._texto((st.meter_text, "tenue")),
-        ]
+        """El pie: cabecera y medidores en una línea; debajo las teclas, la pregunta de cierre o
+        el panel de opciones."""
+        lineas = [self._texto((st.status_text, "bold" if st.status_highlight else "tenue"), ("   ", ""), (st.meter_text, "tenue"))]
         if self._panel is not None:
             lineas += self._lineas_panel()
         elif self._preguntando:
@@ -447,7 +488,7 @@ class PantallaEnVivo:
         """Se eligió esperar: la cola solo baja y el bucle acaba cuando `status.finished`."""
         self.session.begin_drain()
         if self.plano:
-            self._imprimir((f"{_ahora()}  ", "tenue"), (self.session.status.status_text, "tenue"))
+            self._hecho(_ahora(), self.session.status.status_text)
 
     def _abrir_nota(self) -> None:
         try:

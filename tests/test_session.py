@@ -22,7 +22,9 @@ from recorder.config.hardware import HardwareProfile
 from recorder.config.manager import ConfigManager
 from recorder.config.schema import AppConfig, recommended_cpu_threads
 from recorder.session import (
+    ACTION_DEVICES, ACTION_RECOMMEND, ACTION_SETTINGS,
     HardwareReady, Line, Notice, RecorderSession, SourceChanged, SourceMuted, Status, compose_status, mute_text,
+    with_action,
 )
 
 RATE = 16000
@@ -326,7 +328,7 @@ class TestPausa(BaseSesion):
         linea = self.session.toggle_pause()
         self.assertTrue(self.session.paused)
         self.assertTrue(self.audio.paused, "la pausa se le dice al gestor de captura")
-        self.assertEqual(linea, Line(linea.stamp, "out", "⏸ pausa: no se captura audio nuevo", []))
+        self.assertEqual(linea, Line(linea.stamp, "info", "⏸ pausa: no se captura audio nuevo", []), "un hecho de la sesión, sin icono de fuente")
         self.assertIn(f"> ⏸ Pausa {linea.stamp}", self.nota)
 
         self.audio.started_at = 0.0
@@ -521,7 +523,7 @@ class TestCapturaManual(BaseSesion):
         suelta.set()
         eventos = self.sondear_hasta(lambda evs: any(isinstance(e, Line) for e in evs))
         linea = next(e for e in eventos if isinstance(e, Line))
-        self.assertEqual(linea, Line(linea.stamp, "out", "(captura manual)", ["manual"]))
+        self.assertEqual(linea, Line(linea.stamp, "info", "(captura manual)", ["manual"]))
         self.assertIn(f"- **{linea.stamp}** 📸 captura manual → ![](../caps/manual_x.png)", self.nota)
         self.assertEqual(len(pedidas), 1)
         hilo, *peticion = pedidas[0]
@@ -609,18 +611,19 @@ class TestFuenteMuda(BaseSesion):
         aviso = next(e for e in eventos if isinstance(e, SourceMuted))
         self.assertEqual((aviso.kind, aviso.muted), ("mic", True))
         self.assertEqual(aviso.text, mute_text("mic", True))
-        self.assertIn("sin audio de micrófono 🎤 desde hace 10 min (¿silenciado?; la salida 🔊 sí suena)", aviso.text)
-        self.assertIn("daily config", aviso.text)
-        self.assertIn(f"> {aviso.text} {aviso.stamp}\n", self.nota)
+        self.assertEqual(aviso.text, "⚠ sin audio de micrófono 🎤 desde hace 10 min (¿silenciado?; la salida 🔊 sí suena)")
+        self.assertEqual(aviso.action, ACTION_DEVICES, "qué hacer lo dice cada frontal con sus palabras")
+        self.assertNotIn("Opciones", aviso.text)
+        self.assertIn(f"> {aviso.text}. Detectado a las {aviso.stamp}\n", self.nota)
         self.assertEqual(self.session.status.muted, "mic")
         self.assertEqual(self.session.status.meter_text, "🔊 ░░░░░░░░   🎤 ░░░░░░░░ 🔇")
         self.assertEqual([e for e in self.session.poll() if isinstance(e, SourceMuted)], [], "no se repite")
 
         self.audio.last_chunk_at["mic"] = time.time()
         vuelta = next(e for e in self.session.poll() if isinstance(e, SourceMuted))
-        self.assertEqual((vuelta.kind, vuelta.muted), ("mic", False))
-        self.assertEqual(vuelta.text, "✔ vuelve a haber audio de micrófono 🎤 desde")
-        self.assertIn(f"> {vuelta.text} {vuelta.stamp}\n", self.nota)
+        self.assertEqual((vuelta.kind, vuelta.muted, vuelta.action), ("mic", False, ""))
+        self.assertEqual(vuelta.text, "✔ vuelve a haber audio de micrófono 🎤")
+        self.assertIn(f"> {vuelta.text} desde {vuelta.stamp}\n", self.nota, "la hora, con su conector, solo en la nota")
         self.assertIsNone(self.session.status.muted)
         self.assertNotIn("🔇", self.session.status.meter_text)
 
@@ -663,11 +666,15 @@ class TestFuenteMuda(BaseSesion):
         self.assertEqual([e for e in self.session.poll() if isinstance(e, SourceMuted)], [])
         self.assertIsNone(self.session.status.muted)
 
-    def test_mute_text_es_pura_y_neutra(self):
-        self.assertTrue(mute_text("out", True).startswith("⚠ sin audio de salida 🔊 desde hace 10 min (¿silenciado?;"))
-        self.assertTrue(mute_text("out", True).endswith("Detectado a las"))
+    def test_mute_text_es_pura_neutra_y_acaba_la_frase(self):
+        self.assertEqual(mute_text("out", True), "⚠ sin audio de salida 🔊 desde hace 10 min (¿silenciado?; el micrófono 🎤 sí suena)")
         self.assertNotIn("muda", mute_text("mic", True))
-        self.assertEqual(mute_text("out", False), "✔ vuelve a haber audio de salida 🔊 desde")
+        self.assertEqual(mute_text("out", False), "✔ vuelve a haber audio de salida 🔊")
+
+    def test_with_action_une_el_aviso_y_la_accion_como_una_oracion(self):
+        self.assertEqual(with_action("⚠ sin audio (sí suena)", "Pulsa [o]."), "⚠ sin audio (sí suena). Pulsa [o].")
+        self.assertEqual(with_action("💡 Puede ir en la GPU.", "⚙ Opciones."), "💡 Puede ir en la GPU. ⚙ Opciones.")
+        self.assertEqual(with_action("⚠ algo", ""), "⚠ algo")
 
 
 class TestBufferDeCapturas(BaseSesion):
@@ -751,6 +758,8 @@ class TestArranqueConConfigPesada(BaseSesion):
         avisos = [e for e in eventos if isinstance(e, Notice) and e.level == "err"]
         self.assertEqual(len(avisos), 1, avisos)
         self.assertIn("más pesada que la recomendada", avisos[0].text)
+        self.assertEqual(avisos[0].action, ACTION_RECOMMEND)
+        self.assertNotIn("⚙", avisos[0].text, "la acción no cita una interfaz: la pone cada frontal")
 
 
 class TestPrimerArranque(BaseSesion):
@@ -765,9 +774,10 @@ class TestPrimerArranque(BaseSesion):
         listo, eventos = self.esperar_hardware()
         self.assertTrue(listo.applied)
         aviso = next(e for e in eventos if isinstance(e, Notice) and e.text.startswith("🖥"))
-        self.assertEqual(aviso.level, "info")
+        self.assertEqual((aviso.level, aviso.action), ("info", ACTION_SETTINGS))
         self.assertIn("🖥 Primer arranque en este equipo", aviso.text)
         self.assertIn("Media", aviso.text)
+        self.assertNotIn("Opciones", aviso.text)
 
         hilos = recommended_cpu_threads(self.perfil)
         self.assertEqual(hilos, 5)

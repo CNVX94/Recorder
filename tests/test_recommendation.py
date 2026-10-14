@@ -29,6 +29,7 @@ from recorder.config.schema import (
     resolve_runtime,
     startup_notices,
 )
+from recorder.config.schema import ACTION_RECOMMEND, ACTION_SETTINGS
 from recorder.engine import whisper_worker as ww
 from recorder.engine.whispercpp import VulkanLogDevice
 
@@ -205,10 +206,12 @@ class TestComparaciones(unittest.TestCase):
 
 
 class TestAvisosAlArrancar(unittest.TestCase):
+    """(texto, acción): el texto es neutro y la acción (ACTION_*) la dice cada frontal a su manera."""
+
     def test_gpu_dedicada_con_whispercpp_dir_vacio(self):
         perfil = con_gpu(i5_9500(), RX)
         avisos = startup_notices(AppConfig(), perfil, recommend_config(perfil))
-        self.assertTrue(any("whispercpp_dir" in a and a.startswith("⚠") for a in avisos), avisos)
+        self.assertTrue(any("whispercpp_dir" in a and a.startswith("⚠") and accion == ACTION_SETTINGS for a, accion in avisos), avisos)
 
     def test_configuracion_mas_pesada_que_la_recomendada(self):
         perfil = i5_9500()
@@ -216,14 +219,18 @@ class TestAvisosAlArrancar(unittest.TestCase):
         apply_preset(cfg, "alta")
         avisos = startup_notices(cfg, perfil, recommend_config(perfil))
         self.assertEqual(len(avisos), 1)
-        self.assertIn("más pesada", avisos[0])
+        texto, accion = avisos[0]
+        self.assertIn("más pesada", texto)
+        self.assertEqual(accion, ACTION_RECOMMEND)
+        self.assertNotIn("Opciones", texto)
 
     def test_en_cpu_pudiendo_usar_la_gpu_lo_sugiere_sin_alarma(self):
         perfil = con_gpu(i5_9500(), RX)
         cfg = AppConfig(whispercpp_dir="E:/whispercpp")
         avisos = startup_notices(cfg, perfil, recommend_config(perfil, vulkan_turbo_ready=True))
         self.assertEqual(len(avisos), 1)
-        self.assertTrue(avisos[0].startswith("💡"))
+        self.assertTrue(avisos[0][0].startswith("💡"))
+        self.assertEqual(avisos[0][1], ACTION_RECOMMEND)
 
     def test_la_recomendada_no_avisa_de_nada(self):
         perfil = con_gpu(i5_9500(), RX)

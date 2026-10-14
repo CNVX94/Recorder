@@ -6,7 +6,10 @@ from typing import Optional
 from .. import registro
 from ..config.manager import ConfigManager
 from ..config.schema import AppConfig
-from ..session import Event, Line, Notice, RecorderSession, SourceChanged, SourceMuted, StatusSnapshot
+from ..session import (
+    ACTION_DEVICES, ACTION_RECOMMEND, ACTION_SETTINGS,
+    Event, Line, Notice, RecorderSession, SourceChanged, SourceMuted, StatusSnapshot, with_action,
+)
 from .dialogs.settings_dialog import SettingsDialog
 from .dialogs.digest_dialog import DigestDialog
 from .dialogs.tuning_dialog import TuningDialog
@@ -16,6 +19,18 @@ POLL_MS = 200  # sondeo con la ventana a la vista
 POLL_HIDDEN_MS = 1000  # minimizada: no hay nada que pintar; basta vaciar la cola y decidir el ☕
 MAX_LINES = 5000  # líneas que conserva el visor; la nota en disco guarda la reunión entera
 TRIM_LINES = 500  # cuántas se borran de golpe al pasarse, para no recortar en cada inserción
+
+# Lo que la ventana añade a un aviso según su `action`: aquí la acción está en ⚙ Opciones.
+ACCIONES = {
+    ACTION_DEVICES: "Si hablaste, elige el dispositivo que usa Teams en ⚙ Opciones.",
+    ACTION_SETTINGS: "Se cambia en ⚙ Opciones.",
+    ACTION_RECOMMEND: "⚙ Opciones → «Usar recomendado».",
+}
+
+
+def con_accion(texto: str, action: str) -> str:
+    """El texto del aviso con lo que puede hacer el usuario, dicho como lo ofrece la ventana."""
+    return with_action(texto, ACCIONES.get(action, ""))
 
 
 class MainWindow:
@@ -49,9 +64,11 @@ class MainWindow:
         if isinstance(ev, Line):
             self.add_line(ev.stamp, ev.kind, ev.text, ev.hits)
         elif isinstance(ev, Notice):
-            self._visor(ev.stamp, ev.text, ev.level)
-        elif isinstance(ev, (SourceChanged, SourceMuted)):
-            self.add_line(ev.stamp, "out", ev.text, [])
+            self._visor(ev.stamp, con_accion(ev.text, ev.action), ev.level)
+        elif isinstance(ev, SourceMuted):
+            self.add_line(ev.stamp, "info", con_accion(ev.text, ev.action), [])
+        elif isinstance(ev, SourceChanged):
+            self.add_line(ev.stamp, "info", ev.text, [])
 
     def _visor(self, stamp: str, texto: str, tag: str):
         """Una línea con hora en la ventana, sin tocar la nota (no es parte de la reunión)."""

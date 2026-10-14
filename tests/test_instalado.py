@@ -142,7 +142,7 @@ class TestMensajesConRutas(CasoInstalado):
         self.assertIn(f"-Modelos large-v3-turbo", recommend_config(perfil, vulkan_large_ready=True).reason)
         self.assertIn(orden, recommend_config(perfil, vulkan_large_ready=True).reason)
         avisos = startup_notices(AppConfig(), perfil, rec)
-        self.assertIn(f"ejecuta {orden} o indica la carpeta", avisos[0])
+        self.assertIn(f"ejecuta {orden} o indica la carpeta", avisos[0][0])
         self.assertIn(f"Ejecuta {orden} ({url})", whispercpp_status("", perfil).text)
         self.assertIn(url, whispercpp_status("").text)
         self.assertIn(url, preset_availability("extra", 0, False).reason)

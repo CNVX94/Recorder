@@ -640,6 +640,27 @@ def describe_runtime(model: str, beam_size: int, device: str, compute_type: str)
     return f"{model}, haz {beam_size}, {_DEVICE_TEXT.get(device, device)}, {compute_type}"
 
 
+_DEVICE_SHORT = {"cpu": "CPU", "cuda": "GPU (CUDA)", "vulkan": "GPU (whisper.cpp)", "gpu": "GPU"}
+
+
+def describe_quality(config: AppConfig) -> str:
+    """"Calidad Media · CPU", "Calidad Extra · GPU (whisper.cpp)": el preset y dónde corre, sin
+    jerga, para una cabecera. El detalle (modelo, haz, precisión, hilos) queda en
+    `describe_runtime` y en `daily config --ver`. Una combinación propia sale como
+    «Personalizado (large-v3, haz 5)»."""
+    key = preset_key_for_config(config)
+    calidad = f"Calidad {QUALITY_PRESETS[key].label}" if key else f"Personalizado ({config.model}, haz {config.beam_size})"
+    return f"{calidad} · {_DEVICE_SHORT.get(config.device, config.device)}"
+
+
+# Qué puede hacer el usuario ante un aviso. El aviso lleva la clave y cada frontal la dice a su
+# manera (la ventana «⚙ Opciones», la terminal «pulsa [o]» o «daily config»): así el texto del
+# aviso es neutro y no cita una interfaz que no es la que lo pinta.
+ACTION_DEVICES = "devices"  # elegir otro dispositivo de audio
+ACTION_SETTINGS = "settings"  # cambiar la configuración general
+ACTION_RECOMMEND = "recommend"  # aplicar la configuración recomendada para el equipo
+
+
 def describe_recommendation(rec: Recommendation) -> str:
     """"Media (small, haz 5, CPU int8, 5 hilos)"."""
     partes = describe_runtime(rec.model, rec.beam_size, rec.device, rec.compute_type)
@@ -666,31 +687,33 @@ def config_heavier_than(config: AppConfig, rec: Recommendation) -> bool:
     return cfg > ref or (cfg == ref and config.beam_size > rec.beam_size)
 
 
-def startup_notices(config: AppConfig, profile: HardwareProfile, rec: Recommendation) -> List[str]:
-    """Avisos para el visor al arrancar, contrastando la configuracion con el equipo.
+def startup_notices(config: AppConfig, profile: HardwareProfile, rec: Recommendation) -> List[Tuple[str, str]]:
+    """Avisos para el visor al arrancar, contrastando la configuracion con el equipo: (texto, accion).
 
     * Una GPU dedicada que solo se aprovecha con whisper.cpp (AMD, Intel, NVIDIA sin CUDA) y
       `whispercpp_dir` vacio: es como un usuario perdio la GPU sin enterarse.
     * Una configuracion mas pesada que la recomendada (`config_heavier_than`).
     * Una recomendacion de GPU con la configuracion en CPU: informativo.
+
+    El texto es neutro; la accion (ACTION_SETTINGS, ACTION_RECOMMEND) la dice cada frontal con
+    sus palabras (⚙ Opciones, `daily config`).
     """
     avisos = []
     vk = _vulkan_candidate(profile)
     if vk is not None and profile.cuda_devices <= 0 and not config.whispercpp_dir.strip():
-        avisos.append(
+        avisos.append((
             f"⚠ Hay una GPU dedicada, {describe_gpu(vk)}, que Recorder solo usa con whisper.cpp y "
             f"Vulkan, pero «whispercpp_dir» está vacío: ejecuta {como_instalar_whispercpp()} o "
-            f"indica la carpeta en ⚙ Opciones."
-        )
+            f"indica la carpeta de whisper.cpp.",
+            ACTION_SETTINGS,
+        ))
     actual = describe_runtime(config.model, config.beam_size, config.device, config.compute_type)
     if config_heavier_than(config, rec):
-        avisos.append(
+        avisos.append((
             f"⚠ La configuración actual ({actual}) es más pesada que la recomendada para este equipo, "
-            f"{describe_recommendation(rec)}: la cola de pendientes puede crecer. ⚙ Opciones → «Usar recomendado»."
-        )
+            f"{describe_recommendation(rec)}: la cola de pendientes puede crecer.",
+            ACTION_RECOMMEND,
+        ))
     elif rec.device != "cpu" and config.device == "cpu" and not avisos:
-        avisos.append(
-            f"💡 Este equipo puede transcribir en la GPU: {describe_recommendation(rec)}. "
-            f"⚙ Opciones → «Usar recomendado»."
-        )
+        avisos.append((f"💡 Este equipo puede transcribir en la GPU: {describe_recommendation(rec)}.", ACTION_RECOMMEND))
     return avisos

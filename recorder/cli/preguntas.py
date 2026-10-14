@@ -13,7 +13,7 @@ from rich.console import Console
 from rich.markup import escape
 from rich.prompt import Confirm, FloatPrompt, IntPrompt, InvalidResponse, Prompt
 
-from .consola import asciify
+from .consola import presentar
 
 VACIAR = "-"  # escrito solo en un campo de texto, lo deja vacío (Enter conserva lo que hay)
 MARCA_ACTUAL = "▶"  # señala en una lista la opción que está guardada ahora (la que Enter conserva)
@@ -28,8 +28,9 @@ class Cancelado(Exception):
 
 # ------------------------------------------------------------------ texto para esta consola
 def texto(consola: Console, s: str) -> str:
-    """`s` tal como lo pinta esta consola: en la clásica (conhost), sin emoji ni bloques."""
-    return asciify(s) if getattr(consola, "ascii_mode", False) else s
+    """`s` tal como lo pinta esta consola: en la clásica (conhost), sin emoji ni bloques; en las
+    demás, con los símbolos que no pisan el espacio siguiente (`consola.presentar`)."""
+    return presentar(s, consola)
 
 
 def imprimir(consola: Console, s: str = "", **kwargs) -> None:

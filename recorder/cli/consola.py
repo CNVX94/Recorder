@@ -20,9 +20,15 @@ TEMA = Theme({
 # Equivalentes para la consola clásica (conhost), que pinta mal los emoji y los bloques.
 ASCII = {
     "🔊": "OUT", "🎤": "MIC", "🔇": "(mudo)", "📸": "[cap]", "⚠": "!", "⛔": "x", "✅": "OK", "✔": "OK",
-    "●": "*", "⏸": "||", "▶": ">", "⏳": "...", "☕": "(despierto)", "🖥": "", "⚙": "", "🎯": "",
-    "🧪": "", "🧹": "", "📝": "", "📑": "", "█": "#", "░": ".", "→": "->", "➔": "->", "…": "...",
+    "●": "*", "⏸": "||", "▶": ">", "⏳": "...", "☕": "(despierto)", "🖥": "", "💻": "", "⚙": "", "🔧": "",
+    "🎯": "", "🧪": "", "🧹": "", "📝": "", "📑": "", "█": "#", "░": ".", "→": "->", "➔": "->", "…": "...",
 }
+
+# Símbolos con presentación de texto (✔ ⚙ 🖥: Emoji_Presentation=No) que rich mide a una celda
+# pero Windows Terminal dibuja con un glifo de dos (el de Segoe UI Symbol/Emoji), pisando el
+# espacio que sigue: «✔vuelve», «⚙Opciones». Su equivalente con presentación emoji mide dos celdas
+# para los dos. Los demás símbolos de Recorder (⚠ ● ⏸ ▶ ⏳ ☕ y los emoji) ya se miden igual.
+EMOJI_SEGURO = {"✔": "✅", "⚙": "🔧", "🖥": "💻"}
 
 
 def asciify(texto: str) -> str:
@@ -31,6 +37,20 @@ def asciify(texto: str) -> str:
         texto = texto.replace(simbolo, sustituto)
     # Lo que quede fuera de los alfabetos latinos (emoji, flechas, bloques) no se ve en conhost.
     return "".join(c for c in texto if ord(c) < 0x2000 or c in "–—·").replace("️", "")
+
+
+def emoji_seguro(texto: str) -> str:
+    """El texto con los símbolos que la terminal pintaría encima del espacio siguiente sustituidos
+    por su versión emoji (ver EMOJI_SEGURO). La nota y la ventana conservan los originales."""
+    for simbolo, sustituto in EMOJI_SEGURO.items():
+        texto = texto.replace(simbolo, sustituto)
+    return texto
+
+
+def presentar(texto: str, consola) -> str:
+    """`texto` tal como lo pinta esta consola: ASCII en la clásica (conhost); si no, con los
+    símbolos seguros. Es por donde pasa todo lo que la terminal escribe con símbolos."""
+    return asciify(texto) if getattr(consola, "ascii_mode", False) else emoji_seguro(texto)
 
 
 def make_console(ascii_mode: Optional[bool] = None, **kwargs) -> Console:

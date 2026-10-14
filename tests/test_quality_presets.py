@@ -23,11 +23,30 @@ from recorder.config.schema import (
     QUALITY_PRESETS,
     AppConfig,
     apply_preset,
+    describe_quality,
     detect_cuda_device_count,
     preset_availability,
     preset_key_for_config,
 )
 from recorder.engine.whisper_worker import TranscriberWorker
+
+
+class TestDescribirLaCalidad(unittest.TestCase):
+    """La cabecera de la terminal y el menú dicen el preset y dónde corre, sin jerga."""
+
+    def test_preset_y_dispositivo(self):
+        self.assertEqual(describe_quality(AppConfig()), "Calidad Media · CPU")
+        cfg = AppConfig()
+        apply_preset(cfg, "extra")
+        self.assertEqual(describe_quality(cfg), "Calidad Extra · GPU")
+        cfg.device = "vulkan"
+        self.assertEqual(describe_quality(cfg), "Personalizado (large-v3, haz 5) · GPU (whisper.cpp)")
+        cfg.device = "cuda"
+        self.assertEqual(describe_quality(cfg), "Personalizado (large-v3, haz 5) · GPU (CUDA)")
+
+    def test_personalizado(self):
+        cfg = AppConfig(model="medium", beam_size=3)
+        self.assertEqual(describe_quality(cfg), "Personalizado (medium, haz 3) · CPU")
 
 
 class TestMapeoDePresets(unittest.TestCase):
