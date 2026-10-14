@@ -21,6 +21,7 @@ Qué va dentro y qué no:
 """
 import os
 import re
+import sys
 
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 from PyInstaller.utils.win32.versioninfo import (
@@ -102,7 +103,13 @@ datas += [
 
 # Los subcomandos de la terminal (recorder.cli.configurar, calibrar, sintesis, recomendar) se
 # cargan por nombre con importlib.import_module, que el análisis estático no ve: se declaran.
+# collect_submodules importa el paquete, así que la raíz del repo tiene que estar en sys.path
+# aunque se compile desde otra carpeta; si no, devuelve vacío sin avisar y faltan comandos.
+if RAIZ not in sys.path:
+    sys.path.insert(0, RAIZ)
 hiddenimports = collect_submodules("recorder")
+if "recorder.cli.configurar" not in hiddenimports:
+    raise SystemExit("No se encontraron los subcomandos de recorder.cli: revisa que se pueda importar el paquete.")
 
 a = Analysis(
     [os.path.join(RAIZ, "recorder.py")],
