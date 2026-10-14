@@ -64,6 +64,12 @@ Los pasos y los archivos son los mismos para los dos; cambia solo el nivel de de
 Ejecutar `install.bat` mas de una vez es seguro: no duplica nada, no reinstala el entorno
 virtual si ya existe, y nunca toca un `config.json` que ya tengas.
 
+Esta guia es la de Recorder **desde el codigo**, y ahi `config.json` vive en la raiz del
+repositorio. Con Recorder **instalado** como ejecutable (`Recorder.exe` / `daily.exe`, sin Python)
+la configuracion esta en `%APPDATA%\Recorder\config.json`, que se crea solo en el primer arranque, y
+los fallos quedan en `%LOCALAPPDATA%\Recorder\logs\recorder.log`
+([architecture.md](architecture.md), §2.8).
+
 ### Desinstalar
 
 Recorder no deja nada fuera de su propia carpeta salvo el comando `daily`. Para quitarlo

@@ -28,6 +28,8 @@
 
 📘 [Guía de instalación rápida](docs/instalacion.md): instalador de un clic (`install.bat`) que deja todo listo, sin pasos manuales.
 
+📦 Sin Python: [docs/empaquetado.md](docs/empaquetado.md) explica cómo construir `Recorder.exe`, `daily.exe` y el instalador de Windows (`packaging\build.ps1`), qué llevan dentro y cómo publicar una versión.
+
 1. **Requisitos:**
    * Windows 10 o Windows 11.
    * Python 3.10 o superior.
@@ -52,7 +54,7 @@
 
 ## ⚙️ Configuracion
 
-Toda la configuracion vive en `config.json`, en la raiz del proyecto. **Ese archivo esta en `.gitignore` y nunca se sube**, porque guarda tu vocabulario, tus rutas y tus dispositivos. Lo que si se publica es `config.example.json`, una plantilla generica que puedes copiar.
+Toda la configuracion vive en `config.json`, en la raiz del proyecto. **Ese archivo esta en `.gitignore` y nunca se sube**, porque guarda tu vocabulario, tus rutas y tus dispositivos. Lo que si se publica es `config.example.json`, una plantilla generica que puedes copiar. Con Recorder **instalado** como ejecutable (`Recorder.exe` / `daily.exe`) el archivo esta en `%APPDATA%\Recorder\config.json` y se crea solo en el primer arranque; la variable de entorno `RECORDER_CONFIG` apunta a otro `config.json` en los dos casos (ver [docs/architecture.md](docs/architecture.md), §2.8).
 
 Una vez copiada, editala desde la propia aplicacion con los botones ⚙️ Opciones y 🎯 Calibrar. No hace falta tocar el JSON a mano.
 
@@ -181,6 +183,8 @@ Recorder/
 │
 ├── recorder/                       # Paquete principal
 │   ├── session.py                  # La sesión de grabación sin interfaz, la misma para ventana y terminal
+│   ├── rutas.py                    # Dónde está cada cosa desde el código o instalado (config, docs, logs)
+│   ├── registro.py                 # Registro de fallos: excepciones sin atrapar a %LOCALAPPDATA%\Recorder\logs
 │   ├── config/                     # Esquemas tipados (AppConfig) y persistencia
 │   ├── audio/                      # Captura WASAPI loopback, RMS, decibeles y 16 kHz
 │   ├── engine/                     # Trabajador de inferencia faster-whisper

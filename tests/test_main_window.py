@@ -7,7 +7,9 @@ se repinta al momento, la captura manual no congela la ventana, el visor se reco
 nota y el sondeo acaba cuando la cola se vació. Sin Tk disponible, se saltan.
 """
 
+import io
 import pathlib
+import sys
 import threading
 import time
 import tkinter as tk
@@ -152,6 +154,22 @@ class TestVisorAcotado(BaseVentana):
         self.assertTrue(lineas[-1].startswith(f"{total - 1:08d}"), "lo último siempre se conserva")
         self.assertTrue(lineas[0].startswith(f"{total - len(lineas):08d}"), "se borra por arriba, en orden")
         self.assertEqual(self.nota, nota_antes, "el visor es solo lo que se ve; la nota en disco no se toca")
+
+
+class TestFalloEnCallback(BaseVentana):
+    def test_una_excepcion_en_un_callback_de_tk_va_al_registro_y_a_stderr_como_siempre(self):
+        self.assertEqual(self.root.report_callback_exception, self.win._fallo_en_callback)
+        try:
+            raise RuntimeError("en un botón")
+        except RuntimeError:
+            info = sys.exc_info()
+        with patch("recorder.registro.anotar") as anotar, patch.object(sys, "stderr", io.StringIO()) as err:
+            self.root.report_callback_exception(*info)
+        anotar.assert_called_once_with("en la ventana", info)
+        self.assertIn("Exception in Tkinter callback", err.getvalue())
+        self.assertIn("RuntimeError: en un botón", err.getvalue())
+        with patch("recorder.registro.anotar"), patch.object(sys, "stderr", None):
+            self.root.report_callback_exception(*info)  # sin consola: solo el registro, sin reventar
 
 
 class TestCierre(BaseVentana):

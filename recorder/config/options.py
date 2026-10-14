@@ -12,6 +12,7 @@ pantallas y ventanas abiertas las consulta quien llama y las pasa como datos.
 import dataclasses
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from ..rutas import citar_documentos
 from .hardware import GpuInfo, HardwareProfile, describe_gpu
 from .schema import (
     AppConfig,
@@ -236,7 +237,7 @@ def quality_description(
         )
     preset = QUALITY_PRESETS[key]
     avail = preset_availability(key, cuda_devices, vulkan_ready)
-    text = preset.summary
+    text = citar_documentos(preset.summary)  # instalado, los docs/… del resumen pasan a su URL
     if not avail.available:
         text += f" ⚠ {avail.reason} Si se guarda igual, Recorder cae a CPU solo, sin romperse."
     return text

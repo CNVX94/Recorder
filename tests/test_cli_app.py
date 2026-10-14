@@ -137,8 +137,11 @@ class TestRecorderPy(unittest.TestCase):
     """recorder.py como script: --recomendar sigue igual y la terminal no carga tkinter."""
 
     def correr(self, *argv):
-        with patch.object(sys, "argv", ["recorder.py", *argv]), self.assertRaises(SystemExit) as ctx:
+        # El registro de fallos no se instala en el proceso de las pruebas (cambiaría sys.excepthook)
+        with patch.object(sys, "argv", ["recorder.py", *argv]), patch("recorder.registro.instalar") as registro, \
+                self.assertRaises(SystemExit) as ctx:
             runpy.run_path(str(RECORDER_PY), run_name="__main__")
+        registro.assert_called_once_with()
         return ctx.exception.code
 
     def test_recomendar_sigue_funcionando_con_y_sin_aplicar(self):

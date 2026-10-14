@@ -1,14 +1,16 @@
+import sys
 import tkinter as tk
 from tkinter import messagebox, scrolledtext
 from typing import Optional
 
+from .. import registro
 from ..config.manager import ConfigManager
 from ..config.schema import AppConfig
 from ..session import Event, Line, Notice, RecorderSession, SourceChanged, StatusSnapshot
 from .dialogs.settings_dialog import SettingsDialog
 from .dialogs.digest_dialog import DigestDialog
 from .dialogs.tuning_dialog import TuningDialog
-from .theme import ACC, BG, BTN_STYLE, DIM, ERR, FG, HEADER_STYLE, MIC, PANEL, fit_window
+from .theme import ACC, BG, BTN_STYLE, DIM, ERR, FG, HEADER_STYLE, MIC, PANEL, app_icon, fit_window
 
 POLL_MS = 200  # sondeo con la ventana a la vista
 POLL_HIDDEN_MS = 1000  # minimizada: no hay nada que pintar; basta vaciar la cola y decidir el ☕
@@ -72,6 +74,9 @@ class MainWindow:
         self.root = tk.Tk()
         self.root.title("Recorder · Daily")
         self.root.configure(bg=BG)
+        app_icon(self.root)  # el icono de la ventana y de sus diálogos, si viene con el programa
+        # Una excepción en un botón o en el sondeo la atrapa Tk: queda en el registro de fallos
+        self.root.report_callback_exception = self._fallo_en_callback
         fit_window(self.root, 1040, 560)  # la cabecera con "⛔ reintento N" y "☕" no cabe en 860
 
         # Cabecera
@@ -151,6 +156,13 @@ class MainWindow:
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         # Al volver de la barra de tareas se repinta ya, sin esperar al sondeo lento (ver _tick)
         self.root.bind("<Map>", self._on_map)
+
+    def _fallo_en_callback(self, tipo, valor, tb):
+        """Lo que Tk hace con una excepción en un callback (imprimirla en stderr), más dejarla en
+        el registro: sin consola es la única huella. La ventana sigue, como siempre."""
+        registro.anotar("en la ventana", (tipo, valor, tb))
+        if sys.stderr is not None:
+            tk.Tk.report_callback_exception(self.root, tipo, valor, tb)
 
     def add_line(self, stamp: str, kind: str, text: str, hits: list):
         self.txt.insert("end", f"{stamp}  ", "t")

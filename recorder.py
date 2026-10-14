@@ -12,9 +12,21 @@ Pausa:     botón ⏸ deja de tomar nota sin cambiar de archivo; ▶ continúa e
 Selftest:  python recorder.py --selftest
 Equipo:    python recorder.py --recomendar [--aplicar]  -> qué se detecta, qué se recomienda y por qué;
            con --aplicar lo escribe en config.json (lo usa install.ps1 al crear la configuración)
+Instalado: Recorder.exe (ventana) y daily.exe (terminal) son este archivo congelado con PyInstaller;
+           config.json va a %APPDATA%\\Recorder y los fallos a %LOCALAPPDATA%\\Recorder\\logs
+           (ver recorder/rutas.py y recorder/registro.py)
 """
-import pathlib
 import sys
+
+if __name__ == "__main__" and "--vulkan" in sys.argv:
+    # La consulta de Vulkan en otro proceso (config/hardware.py). Instalado no hay intérprete con
+    # el que ejecutar hardware.py como script, así que se relanza este ejecutable; va antes de
+    # importar numpy o PyAudio para que tarde milisegundos y no cargue nada en ese proceso.
+    from recorder.config.hardware import sonda_vulkan
+
+    sys.exit(sonda_vulkan())
+
+import pathlib
 import tempfile
 from types import SimpleNamespace as S
 
@@ -118,6 +130,9 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    from recorder.registro import instalar
+
+    instalar()  # las excepciones sin atrapar quedan en %LOCALAPPDATA%\Recorder\logs (ver registro.py)
     if "--selftest" in sys.argv:
         selftest()
     elif "--recomendar" in sys.argv:

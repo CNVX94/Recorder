@@ -1,0 +1,41 @@
+﻿Recorder: transcripción en vivo de reuniones y micrófono a una nota Markdown.
+
+ANTES DE EMPEZAR
+
+* Aviso de Windows SmartScreen. El instalador y los ejecutables no están firmados
+  con un certificado comercial, así que Windows puede mostrar "Windows protegió su
+  PC". Pulsa "Más información" y después "Ejecutar de todas formas". Pasa solo la
+  primera vez.
+
+* Primer uso. La primera vez que transcribas, Recorder descarga el modelo de
+  Whisper que tengas configurado (se elige solo según tu equipo): desde unos
+  500 MB (calidad Media, modelo small) hasta 1,5 GB (Alta y Extra, large-v3-turbo).
+  Hace falta internet solo esa vez; después queda guardado en tu equipo, en
+  %USERPROFILE%\.cache\huggingface\hub.
+
+* Tarjeta gráfica. Con una NVIDIA, la transcripción en GPU necesita CUDA y cuDNN
+  instalados aparte; sin ellos funciona en CPU. Con una AMD o Intel se usa
+  whisper.cpp con Vulkan: el script tools\instalar_whispercpp.ps1 va dentro de la
+  carpeta de instalación y la guía en docs\gpu-amd-vulkan.md.
+
+DÓNDE QUEDA CADA COSA
+
+* Programa:       la carpeta que elijas (por defecto %LOCALAPPDATA%\Programs\Recorder).
+* Configuración:  %APPDATA%\Recorder\config.json (vocabulario, dispositivos, carpetas).
+* Notas:          Documentos\Dailies, salvo que elijas otra carpeta en Opciones.
+* Registros:      %LOCALAPPDATA%\Recorder\logs (si algo falla, ahí está el detalle).
+* Modelos:        %USERPROFILE%\.cache\huggingface\hub.
+
+Al desinstalar se quitan solo los archivos del programa: la configuración, las
+notas, los registros y los modelos se conservan.
+
+DESDE LA TERMINAL
+
+Con la casilla "Añadir daily a la terminal" marcada, abre una terminal NUEVA de
+PowerShell (las abiertas antes de instalar no ven el cambio) y escribe:
+
+    daily            graba en la terminal
+    daily menu       menú con todo lo que se puede hacer
+    daily -h         todos los subcomandos
+
+El acceso directo "Recorder (terminal)" del menú Inicio abre ese mismo menú.

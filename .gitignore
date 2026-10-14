@@ -7,3 +7,10 @@ config.json
 !config.example.json
 *.wav
 *.mp3
+# Empaquetado: packaging\build.ps1 construye en %LOCALAPPDATA%\RecorderBuild, pero por si alguien
+# ejecuta PyInstaller o Inno Setup dentro del repo (OneDrive sincronizaria cientos de MB).
+build/
+dist/
+*.spec.bak
+packaging/Output/
+*.pyinstaller.log

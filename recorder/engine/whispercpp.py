@@ -31,6 +31,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 import numpy as np
 
 from ..config.hardware import HardwareProfile, describe_gpu
+from ..rutas import como_instalar_whispercpp, documento
 
 SERVER_EXE = "whisper-server.exe"
 VAD_MODEL = "ggml-silero-v6.2.0.bin"
@@ -119,11 +120,12 @@ def whispercpp_status(whispercpp_dir: str, hardware: Optional[HardwareProfile] =
     if not carpeta:
         if dgpu is not None:
             return WhisperCppStatus(
-                f"⚠ Vacía: la GPU {describe_gpu(dgpu)} no se usa. Ejecuta tools\\instalar_whispercpp.ps1 "
-                f"(docs/gpu-amd-vulkan.md) o indica aquí su carpeta.", "warning",
+                f"⚠ Vacía: la GPU {describe_gpu(dgpu)} no se usa. Ejecuta {como_instalar_whispercpp()} "
+                f"({documento('gpu-amd-vulkan')}) o indica aquí su carpeta.", "warning",
             )
         return WhisperCppStatus(
-            "Vacía: sin motor Vulkan. Solo hace falta para una GPU AMD o Intel (docs/gpu-amd-vulkan.md).", "info"
+            f"Vacía: sin motor Vulkan. Solo hace falta para una GPU AMD o Intel ({documento('gpu-amd-vulkan')}).",
+            "info",
         )
     if not server_exe_path(pathlib.Path(carpeta)).is_file():
         return WhisperCppStatus(f"⚠ No hay bin\\whisper-server.exe en «{carpeta}».", "warning")

@@ -1,6 +1,22 @@
 import ctypes
 import ctypes.wintypes as wt
 
+from ..rutas import recurso
+
+ICONO = "recorder/assets/recorder.ico"  # lo añade el empaquetado; desde el código puede no estar
+
+
+def app_icon(root):
+    """Pone el icono de Recorder a la ventana raíz y, con `default`, a todos los diálogos que abra.
+    Si el archivo no está (desde el código) o Tk no lo acepta, no pasa nada."""
+    icono = recurso(ICONO)
+    if not icono.is_file():
+        return
+    try:
+        root.iconbitmap(default=str(icono))
+    except Exception:
+        pass
+
 
 class _MONITORINFO(ctypes.Structure):
     _fields_ = [("cbSize", wt.DWORD), ("rcMonitor", wt.RECT), ("rcWork", wt.RECT), ("dwFlags", wt.DWORD)]

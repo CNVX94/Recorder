@@ -2,6 +2,7 @@ import dataclasses
 import pathlib
 from typing import Tuple, Dict, List, Optional, Sequence
 
+from ..rutas import como_instalar_whispercpp, documento
 from .hardware import VENDOR_NVIDIA, GpuInfo, HardwareProfile, describe_gpu, gb, short_cpu_name
 
 
@@ -231,8 +232,8 @@ def preset_availability(key: str, cuda_device_count: int, vulkan_ready: bool = F
         return PresetAvailability(True, "")
     return PresetAvailability(
         False,
-        "Requiere una GPU NVIDIA con CUDA, o whisper.cpp con Vulkan instalado para una GPU AMD "
-        "(docs/gpu-amd-vulkan.md); no se detecto ninguna de las dos en este equipo.",
+        f"Requiere una GPU NVIDIA con CUDA, o whisper.cpp con Vulkan instalado para una GPU AMD "
+        f"({documento('gpu-amd-vulkan')}); no se detecto ninguna de las dos en este equipo.",
     )
 
 
@@ -545,7 +546,7 @@ def recommend_config(
             reason=(
                 f"{describe_gpu(vk)} con whisper.cpp, pero solo está descargado large-v3: Extra, 2,6x "
                 f"medido {donde}. large-v3-turbo iría 3,3x más rápido con el mismo WER: descárgalo "
-                f"con tools\\instalar_whispercpp.ps1 -Modelos large-v3-turbo."
+                f"con {como_instalar_whispercpp()} -Modelos large-v3-turbo."
             ),
         )
 
@@ -565,12 +566,12 @@ def recommend_config(
         notas.append(
             f"Hay una {describe_gpu(nvidia_sin_cuda[0])} pero CUDA no responde (driver, o faltan las "
             f"bibliotecas de CUDA 12 y cuDNN 9 que usa faster-whisper): hasta resolverlo, CPU. También "
-            f"puede usarse con whisper.cpp y Vulkan (tools\\instalar_whispercpp.ps1)."
+            f"puede usarse con whisper.cpp y Vulkan ({como_instalar_whispercpp()})."
         )
     if vk is not None and vk.vendor_id != VENDOR_NVIDIA:
         notas.append(
             f"La GPU {describe_gpu(vk)} solo se aprovecha con whisper.cpp y Vulkan: ejecuta "
-            f"tools\\instalar_whispercpp.ps1 (docs/gpu-amd-vulkan.md) y vuelve a pulsar «Usar recomendado»."
+            f"{como_instalar_whispercpp()} ({documento('gpu-amd-vulkan')}) y vuelve a pulsar «Usar recomendado»."
         )
     elif vk is None and profile.has_igpu:
         notas.append(
@@ -656,7 +657,7 @@ def startup_notices(config: AppConfig, profile: HardwareProfile, rec: Recommenda
     if vk is not None and profile.cuda_devices <= 0 and not config.whispercpp_dir.strip():
         avisos.append(
             f"⚠ Hay una GPU dedicada, {describe_gpu(vk)}, que Recorder solo usa con whisper.cpp y "
-            f"Vulkan, pero «whispercpp_dir» está vacío: ejecuta tools\\instalar_whispercpp.ps1 o "
+            f"Vulkan, pero «whispercpp_dir» está vacío: ejecuta {como_instalar_whispercpp()} o "
             f"indica la carpeta en ⚙ Opciones."
         )
     actual = describe_runtime(config.model, config.beam_size, config.device, config.compute_type)

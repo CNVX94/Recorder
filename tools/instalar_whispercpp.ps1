@@ -30,15 +30,31 @@
 .PARAMETER SinModelos
     Solo compila; no descarga modelos.
 
+.PARAMETER ConfigPath
+    El config.json en el que escribir "whispercpp_dir". Por defecto, el mismo que usa Recorder
+    (recorder/rutas.py): la variable RECORDER_CONFIG si esta definida; si no, config.json junto a
+    recorder.py cuando el script esta en el repositorio (desde el codigo), y si no (Recorder
+    instalado, con el script en _internal\tools) %APPDATA%\Recorder\config.json.
+
+.PARAMETER SoloConfig
+    No compila ni descarga nada: solo escribe "whispercpp_dir" = -Destino (que debe existir) en el
+    config.json. Para registrar una carpeta de whisper.cpp ya preparada, o para probar este paso.
+
 .EXAMPLE
     .\tools\instalar_whispercpp.ps1 -Destino E:\whispercpp
+
+.EXAMPLE
+    powershell -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\Programs\Recorder\_internal\tools\instalar_whispercpp.ps1" -Destino E:\whispercpp
+    Con Recorder instalado: deja whispercpp_dir en %APPDATA%\Recorder\config.json.
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)] [string]$Destino,
     [string]$Version = "v1.9.4",
     [string[]]$Modelos = @("large-v3", "large-v3-turbo"),
-    [switch]$SinModelos
+    [switch]$SinModelos,
+    [string]$ConfigPath = "",
+    [switch]$SoloConfig
 )
 
 $ErrorActionPreference = "Stop"
@@ -46,6 +62,53 @@ $ErrorActionPreference = "Stop"
 function Write-Step { param([string]$Texto) Write-Host ""; Write-Host "==> $Texto" -ForegroundColor Cyan }
 function Write-Ok { param([string]$Texto) Write-Host "    OK: $Texto" -ForegroundColor Green }
 function Stop-Con { param([string]$Texto) Write-Host "    ERROR: $Texto" -ForegroundColor Red; exit 1 }
+
+# El config.json que usa Recorder, con la misma regla que recorder/rutas.py (ruta_config).
+function Get-RecorderConfigPath {
+    if ($env:RECORDER_CONFIG) { return $env:RECORDER_CONFIG }
+    $raiz = Split-Path -Parent $PSScriptRoot
+    if (Test-Path (Join-Path $raiz "recorder.py")) { return Join-Path $raiz "config.json" }
+    return Join-Path $env:APPDATA "Recorder\config.json"
+}
+
+# Escribe "whispercpp_dir": -Destino en el config.json (seccion 6). Solo se cambia esa clave, como
+# texto: el resto del archivo (vocabulario, correcciones, formato) queda tal cual. Sin esta linea,
+# la GPU no se usa aunque todo este instalado.
+function Set-WhisperCppDir {
+    if (-not $ConfigPath) { $ConfigPath = Get-RecorderConfigPath }
+    $DestinoAbs = (Resolve-Path -LiteralPath $Destino).Path
+    $par = '"whispercpp_dir": "' + (($DestinoAbs -replace '\\', '\\') -replace '"', '\"') + '"'
+    if (Test-Path -LiteralPath $ConfigPath) {
+        Write-Step "Guardando whispercpp_dir en $ConfigPath..."
+        $texto = [IO.File]::ReadAllText($ConfigPath)
+        $evaluador = [Text.RegularExpressions.MatchEvaluator] { param($m) $par }
+        $clave = [regex]'"whispercpp_dir"\s*:\s*"(?:[^"\\]|\\.)*"'
+        if ($clave.IsMatch($texto)) {
+            $nuevo = $clave.Replace($texto, $evaluador, 1)
+        } else {
+            $nuevo = ([regex]'\{').Replace($texto, [Text.RegularExpressions.MatchEvaluator] { param($m) "{`r`n  $par," }, 1)
+        }
+        $valido = $true
+        try { $null = $nuevo | ConvertFrom-Json } catch { $valido = $false }
+        if ($valido) {
+            [IO.File]::WriteAllText($ConfigPath, $nuevo, (New-Object Text.UTF8Encoding $false))
+            Write-Ok "$par"
+        } else {
+            Write-Host "    AVISO: no se pudo editar $ConfigPath sin romperlo; anade a mano: $par" -ForegroundColor Yellow
+        }
+        Write-Step "Listo. Abre Recorder y en Opciones pulsa 'Usar recomendado' (o: daily recomendar --aplicar)."
+    } else {
+        Write-Step "Listo. Todavia no existe $ConfigPath (Recorder lo crea al arrancar); cuando exista, anade:"
+        Write-Host "    $par" -ForegroundColor White
+        Write-Host "    y en Opciones pulsa 'Usar recomendado'." -ForegroundColor White
+    }
+}
+
+if ($SoloConfig) {
+    if (-not (Test-Path -LiteralPath $Destino -PathType Container)) { Stop-Con "No existe la carpeta $Destino." }
+    Set-WhisperCppDir
+    exit 0
+}
 
 # Git y CMake escriben avisos en stderr. Con la salida redirigida, Windows PowerShell 5.1 los
 # convierte en errores y "Stop" cortaria el script aunque el programa termine bien: para los
@@ -165,32 +228,4 @@ if ((Test-Path $bench) -and $modeloBench) {
 # ---------------------------------------------------------------------------
 # 6. whispercpp_dir en config.json
 # ---------------------------------------------------------------------------
-# Solo se cambia esa clave, como texto: el resto del archivo (vocabulario, correcciones,
-# formato) queda tal cual. Sin esta linea, la GPU no se usa aunque todo este instalado.
-$ConfigPath = Join-Path (Split-Path -Parent $PSScriptRoot) "config.json"
-$DestinoAbs = (Resolve-Path -LiteralPath $Destino).Path
-$par = '"whispercpp_dir": "' + (($DestinoAbs -replace '\\', '\\') -replace '"', '\"') + '"'
-if (Test-Path $ConfigPath) {
-    Write-Step "Guardando whispercpp_dir en config.json..."
-    $texto = [IO.File]::ReadAllText($ConfigPath)
-    $evaluador = [Text.RegularExpressions.MatchEvaluator] { param($m) $par }
-    $clave = [regex]'"whispercpp_dir"\s*:\s*"(?:[^"\\]|\\.)*"'
-    if ($clave.IsMatch($texto)) {
-        $nuevo = $clave.Replace($texto, $evaluador, 1)
-    } else {
-        $nuevo = ([regex]'\{').Replace($texto, [Text.RegularExpressions.MatchEvaluator] { param($m) "{`r`n  $par," }, 1)
-    }
-    $valido = $true
-    try { $null = $nuevo | ConvertFrom-Json } catch { $valido = $false }
-    if ($valido) {
-        [IO.File]::WriteAllText($ConfigPath, $nuevo, (New-Object Text.UTF8Encoding $false))
-        Write-Ok "$par"
-    } else {
-        Write-Host "    AVISO: no se pudo editar config.json sin romperlo; anade a mano: $par" -ForegroundColor Yellow
-    }
-    Write-Step "Listo. Abre Recorder y en Opciones pulsa 'Usar recomendado' (o: python recorder.py --recomendar --aplicar)."
-} else {
-    Write-Step "Listo. No hay config.json todavia; cuando exista, anade:"
-    Write-Host "    $par" -ForegroundColor White
-    Write-Host "    y en Opciones pulsa 'Usar recomendado'." -ForegroundColor White
-}
+Set-WhisperCppDir

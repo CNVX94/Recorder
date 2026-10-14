@@ -3,9 +3,9 @@ import pathlib
 import shutil
 from typing import Optional, Union
 
+from ..rutas import ruta_config
 from .schema import AppConfig
 
-DEFAULT_CONFIG_PATH = pathlib.Path(__file__).resolve().parent.parent.parent / "config.json"
 SUFIJO_ROTO = ".roto"
 
 
@@ -23,7 +23,9 @@ class ConfigManager:
     """
 
     def __init__(self, path: Optional[Union[str, pathlib.Path]] = None):
-        self.path = pathlib.Path(path) if path else DEFAULT_CONFIG_PATH
+        # Sin ruta, la que toca según cómo corre Recorder (rutas.ruta_config): config.json en la
+        # raíz del repositorio desde el código, %APPDATA%\Recorder instalado, o RECORDER_CONFIG.
+        self.path = pathlib.Path(path) if path else ruta_config()
         self.last_error = ""  # vacío mientras la carga vaya bien
         # True si la última carga no encontró el archivo: es el primer arranque y el archivo se
         # crea al guardar. La interfaz lo usa para aplicar la configuración recomendada para el

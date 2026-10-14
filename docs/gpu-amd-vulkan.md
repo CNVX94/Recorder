@@ -44,7 +44,12 @@ OneDrive**: sincronizaría GB de modelos.
 
 Al terminar, el script ejecuta `whisper-bench` y muestra qué GPU toma (`ggml_vulkan: 0 = … | uma:
 0`, `using Vulkan0 backend`), avisando si es una integrada, y **escribe `whispercpp_dir` en
-`config.json`** si existe, cambiando solo esa clave. Después, en ⚙ Opciones, **Usar recomendado**
+`config.json`** si existe, cambiando solo esa clave. Qué `config.json`: el de `-ConfigPath` si se
+da; si no, el mismo que usa Recorder (`RECORDER_CONFIG`, o el de la raíz del repositorio desde el
+código, o `%APPDATA%\Recorder\config.json` con Recorder instalado, donde el script va en
+`_internal\tools` y se lanza con `powershell -ExecutionPolicy Bypass -File "…\instalar_whispercpp.ps1"
+-Destino E:\whispercpp`). Con `-SoloConfig` solo hace ese paso, para registrar una carpeta ya
+preparada. Después, en ⚙ Opciones, **Usar recomendado**
 pone turbo en la GPU con *flash attention* (o `python recorder.py --recomendar --aplicar`). La
 carpeta también se puede elegir en Opciones con 📁. A mano, en `config.json`:
 

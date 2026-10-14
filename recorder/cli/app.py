@@ -25,6 +25,7 @@ from typing import Dict, Optional, Sequence
 
 from rich.console import Console
 
+from .. import registro
 from .consola import make_console
 
 COMANDOS = (
@@ -103,10 +104,25 @@ def ejecutar_comando(
 
 
 def abrir_ventana() -> int:
-    """La ventana de siempre. Se importa aquí y no arriba: la terminal no carga tkinter."""
+    """La ventana de siempre. Se importa aquí y no arriba: la terminal no carga tkinter.
+
+    Sin consola (Recorder.exe, pythonw) se le da un sumidero a stdout/stderr, que son None, y si
+    la ventana no llega ni a abrirse se avisa con un cuadro de diálogo que señala el registro de
+    fallos: no hay terminal donde ver el traceback. Con consola, el fallo sale como siempre.
+    """
     from ..ui.main_window import MainWindow
 
-    MainWindow().run()
+    sin_consola = sys.stdout is None
+    if sin_consola:
+        registro.sumidero_sin_consola()
+    try:
+        ventana = MainWindow()
+    except Exception:
+        if not sin_consola:
+            raise
+        registro.fallo_de_arranque("al abrir la ventana", avisar=True)
+        return 1
+    ventana.run()
     return 0
 
 

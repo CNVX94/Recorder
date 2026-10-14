@@ -24,7 +24,9 @@ apunta el motivo en `detection_errors`. Las piezas que interpretan datos crudos
 puras para poder probarlas sin el hardware. Ver docs/recomendacion-hardware.md.
 
 Este modulo solo importa la biblioteca estandar en su nivel superior: se ejecuta tambien como
-script (`python -I hardware.py --vulkan`) para la consulta de Vulkan.
+script (`python -I hardware.py --vulkan`) para la consulta de Vulkan. Instalado (PyInstaller) no
+hay interprete ni archivo que ejecutar: se relanza el propio ejecutable con `--vulkan`, que
+recorder.py atiende con `sonda_vulkan()` antes de importar nada pesado.
 """
 
 import ctypes
@@ -546,13 +548,27 @@ def _vulkan_raw_devices() -> List[dict]:
         vk.vkDestroyInstance(inst, None)
 
 
-def _run_vulkan_probe(timeout: float = VULKAN_PROBE_TIMEOUT_SEC) -> List[dict]:
-    """Ejecuta este archivo con `--vulkan` en otro proceso y lee su JSON."""
-    # Basta la biblioteca estandar: el interprete base (no el lanzador del venv) y -I, que no
-    # mira la carpeta actual ni variables de entorno de Python.
+def vulkan_probe_command() -> List[str]:
+    """La linea de comandos de la consulta de Vulkan en otro proceso.
+
+    Desde el codigo, este archivo como script: basta la biblioteca estandar, con el interprete base
+    (no el lanzador del venv) y -I, que no mira la carpeta actual ni variables de entorno de Python.
+    Instalado, `__file__` apunta dentro del archivo de PyInstaller y no hay interprete: se relanza
+    el ejecutable con `--vulkan` (el de consola, daily.exe, si esta junto al que corre; ver
+    rutas.ejecutable_consola), y recorder.py lo atiende con `sonda_vulkan()` sin cargar nada mas.
+    """
+    if getattr(sys, "frozen", False):
+        from ..rutas import ejecutable_consola
+
+        return [ejecutable_consola(), "--vulkan"]
     python = getattr(sys, "_base_executable", "") or sys.executable
+    return [python, "-I", os.path.abspath(__file__), "--vulkan"]
+
+
+def _run_vulkan_probe(timeout: float = VULKAN_PROBE_TIMEOUT_SEC) -> List[dict]:
+    """Ejecuta la consulta de Vulkan (`vulkan_probe_command`) en otro proceso y lee su JSON."""
     r = subprocess.run(
-        [python, "-I", os.path.abspath(__file__), "--vulkan"],
+        vulkan_probe_command(),
         capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
@@ -693,8 +709,17 @@ def describe_hardware(p: HardwareProfile) -> str:
     return " · ".join(partes)
 
 
-if __name__ == "__main__" and "--vulkan" in sys.argv:
+def sonda_vulkan() -> int:
+    """El proceso de la consulta (`--vulkan`): enumera Vulkan AQUI e imprime una linea
+    `VULKAN_JSON {...}` que lee `_run_vulkan_probe`. Devuelve el codigo de salida (siempre 0: un
+    fallo va en el JSON). Sin stdout (un ejecutable de ventana sin tuberias) print no hace nada."""
     try:
-        print(VULKAN_MARKER + json.dumps({"devices": _vulkan_raw_devices()}), flush=True)
+        linea = VULKAN_MARKER + json.dumps({"devices": _vulkan_raw_devices()})
     except Exception as e:
-        print(VULKAN_MARKER + json.dumps({"error": f"{e.__class__.__name__}: {e}"}), flush=True)
+        linea = VULKAN_MARKER + json.dumps({"error": f"{e.__class__.__name__}: {e}"})
+    print(linea, flush=True)
+    return 0
+
+
+if __name__ == "__main__" and "--vulkan" in sys.argv:
+    sys.exit(sonda_vulkan())
