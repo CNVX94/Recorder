@@ -1,8 +1,11 @@
 """Recorder: transcribe en vivo la salida de audio (Teams, etc.) y tu micrófono a un .md,
 con capturas de pantalla automáticas al oír palabras clave.
 
-Instalar:  pip install faster-whisper pyaudiowpatch pillow numpy
+Instalar:  pip install faster-whisper pyaudiowpatch pillow numpy rich
 Usar:      escribe `daily` en PowerShell (función en $PROFILE) o python recorder.py
+           Desde la terminal graba ahí mismo (teclas: p pausa, c captura, r reconectar, a abrir nota,
+           q salir); `daily menu` lista todo lo demás; `daily --gui` o `daily ventana` abre la ventana,
+           que es también lo que se abre sin consola (pythonw). `daily -h` para los subcomandos.
 Opciones:  botón ⚙ (Opciones) o 🎯 (Calibrar) -> rutas, palabras clave, dispositivos, anti-alucinaciones
 Tester:    los medidores 🔊/🎤 de la cabecera muestran el nivel en vivo de cada fuente
 Pausa:     botón ⏸ deja de tomar nota sin cambiar de archivo; ▶ continúa en el mismo .md
@@ -27,7 +30,7 @@ from recorder.audio import (
 )
 from recorder.config import AppConfig, ConfigManager
 from recorder.filters import clean_segments, find_keywords, fix, normalize, parse_fixes
-from recorder.ui import MainWindow
+# A propósito no se importa recorder.ui aquí: carga tkinter, y desde la terminal no hace falta.
 
 # Valores por defecto para compatibilidad
 DEFAULTS = AppConfig().to_dict()
@@ -98,35 +101,20 @@ def selftest():
 
 
 def recomendar(aplicar: bool) -> int:
-    """Imprime el equipo detectado y la configuración recomendada; con `aplicar`, la guarda."""
-    from recorder.config.hardware import describe_hardware, detect_hardware
-    from recorder.config.schema import apply_recommendation, describe_recommendation, recommend_config
-    from recorder.engine.whispercpp import vulkan_readiness
+    """Imprime el equipo detectado y la configuración recomendada; con `aplicar`, la guarda.
 
-    sys.stdout.reconfigure(errors="replace")  # una consola en cp1252 no tumba la salida por un símbolo
-    mgr = ConfigManager()
-    cfg = mgr.load()
-    perfil = detect_hardware()
-    rec = recommend_config(perfil, *vulkan_readiness(cfg.whispercpp_dir))
-    print(f"Equipo:      {describe_hardware(perfil)}")
-    for err in perfil.detection_errors:
-        print(f"             (sin detectar) {err}")
-    print(f"Recomendado: {describe_recommendation(rec)} [{rec.confidence}]")
-    print(f"Motivo:      {rec.reason}")
-    if not aplicar:
-        return 0
-    if mgr.last_error:
-        print(f"No se aplica: {mgr.last_error}")
-        return 1
-    apply_recommendation(cfg, rec)
-    mgr.save(cfg)
-    print(f"Aplicado en {mgr.path}")
-    return 0
+    Es el mismo `daily recomendar`; sigue aquí porque install.ps1 llama a `--recomendar --aplicar`.
+    """
+    from recorder.cli.recomendar import recomendar as recomendar_en_terminal
+
+    return recomendar_en_terminal(aplicar)
 
 
-def main():
-    app = MainWindow()
-    app.run()
+def main() -> int:
+    """`daily`: la terminal, o la ventana si no hay consola o se pide --gui (ver recorder/cli/app.py)."""
+    from recorder.cli.app import arrancar
+
+    return arrancar()
 
 
 if __name__ == "__main__":
@@ -135,4 +123,4 @@ if __name__ == "__main__":
     elif "--recomendar" in sys.argv:
         sys.exit(recomendar("--aplicar" in sys.argv))
     else:
-        main()
+        sys.exit(main())

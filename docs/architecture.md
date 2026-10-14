@@ -49,6 +49,13 @@ flowchart TD
         MainWindow --> TuningDialog["🎯 Calibración Anti-Alucinaciones & Sandbox"]
         TuningDialog -.->|Actualiza en caliente| FiltersLayer
     end
+
+    subgraph TerminalLayer ["7. Terminal (cli/)"]
+        Session -->|"poll() → eventos · status"| Live["daily: pantalla en vivo (rich)"]
+        Live -->|"teclas p c r a q · Ctrl+C"| Session
+        Menu["daily menu"] --> Live
+        Menu --> Comandos["config · calibrar · sintesis · recomendar"]
+    end
 ```
 
 ---
@@ -91,10 +98,17 @@ flowchart TD
 * **`dialogs/settings_dialog.py`**: Configuración de dispositivos, carpetas y objetivo de captura (pantallas, monitor o ventana de aplicación, con botón 🔄 para releer las ventanas abiertas).
 * **`dialogs/tuning_dialog.py`**: Ventana dedicada para calibración de alucinaciones, umbrales y probador en vivo (sandbox).
 
+### 2.7. Terminal (`recorder/cli/`)
+* **`app.py`**: la entrada de `daily` (`recorder.py` y `python -m recorder` llaman a `arrancar`). Sin consola (`sys.stdout is None`: pythonw, un ejecutable de ventana) o con `--gui`/`ventana` abre la ventana; si no, reparte los subcomandos con argparse (`--ascii` fuerza los símbolos ASCII). Los comandos `config`, `calibrar`, `sintesis` y `recomendar` son módulos con un contrato mínimo (`NOMBRE`, `AYUDA`, `agregar_argumentos(parser)`, `ejecutar(args, consola)`) que se cargan por nombre desde `COMANDOS`: el que falta se omite sin ruido, el que está roto avisa; `ejecutar_comando(nombre, argv, consola)` los lanza por nombre (así los usa el menú). Nada de este paquete importa tkinter; la ventana se importa dentro de `abrir_ventana` y una prueba lo comprueba en otro proceso.
+* **`live.py`**: `daily` sin más. El mismo modelo de tirón que la ventana, en el hilo principal cada 200 ms: `poll()` → las frases, avisos y fuentes que caen o vuelven se imprimen como líneas normales (`HH:MM:SS  texto`, 🎤 en las del micrófono, `📸 captura: …` debajo si hubo palabras clave) y se quedan en el historial de la terminal; debajo vive un pie de tres líneas (`rich.live.Live` con `auto_refresh=False`, transitorio) con `status_text`, `meter_text` y las teclas, que **solo se redibuja si cambió**: en silencio no se escribe nada y la CPU se queda en cero. Las líneas se construyen con `rich.text.Text`, no con marcado: una frase con corchetes («[música]») se tomaría por una etiqueta. Teclas con `msvcrt` (p, c, r, a, q; se descartan las especiales de dos bytes). Ctrl+C se encola como una tecla desde el manejador de SIGINT para que no corte el bucle: la primera vez equivale a `q` (con cola pendiente pregunta en el pie `[e] esperar · [s] salir perdiéndolos · [c] cancelar`, como la ventana), y mientras pregunta o termina sale perdiendo lo pendiente; `shutdown()` va siempre en un `finally`. Sin terminal (`daily > log.txt`) no hay pie: líneas planas sin partir y los cambios de cabecera como líneas. En `ascii_mode` todo pasa por `asciify`. Se prueba con la sesión de mentira inyectando sesión, teclado, espera y consola (`tests/test_cli_live.py`).
+* **`menu.py`**: `daily menu`, numerado y a golpe de `input()`: 1 Grabar, 2 Opciones, 3 Calibrar, 4 Síntesis, 5 Recomendación del equipo, 6 Abrir la ventana, 0 Salir. Los números no cambian; lo que no está cargado no se ofrece. Vuelve al menú tras cada comando salvo Grabar y la ventana.
+* **`consola.py`**: la consola de rich que comparten todos los comandos: el tema de la ventana, la detección de la consola clásica (conhost) y `asciify`.
+* **`recomendar.py`**: `daily recomendar [--aplicar]`; es también lo que ejecuta `recorder.py --recomendar` (lo usa install.ps1).
+
 ---
 
 ## 3. Modelo de Concurrencia y Flujo de Datos
 
 1. **Hilos de Captura (2)**: Leen audio de baja latencia mediante WASAPI, calculan RMS en cada frame y depositan `AudioChunk` en una cola `chunk_queue`. Cada hilo abre y reabre su propio flujo (las aperturas se serializan con un cerrojo: PortAudio no soporta abrirlas desde dos hilos a la vez) y solo termina cuando se le pide; una fuente caída nunca mata al hilo ni afecta a la otra. Al cerrar la aplicación **no** se llama a `pa.terminate()`: cerraría los streams desde el hilo principal mientras el del loopback sigue bloqueado en `read()`, lo que revienta el proceso (`0xC0000005`); el proceso termina justo después y Windows recoge los recursos.
 2. **Hilo de Inferencia (1)**: Espera en `chunk_queue.get()`, realiza la inferencia con Whisper, ejecuta el pipeline de filtros y guarda en el archivo Markdown.
-3. **Hilo Principal (interfaz)**: Ejecuta el bucle de eventos de Tkinter y cada 200 ms llama a `RecorderSession.poll()`, que vacía `ui_queue` y devuelve los eventos a pintar; la sesión no tiene hilos propios salvo el de detección del equipo (~1 s, una vez) y el de cada captura manual (capturar y guardar el PNG tarda); el resultado de ambos vuelve por `ui_queue`. Todo lo que la sesión hace con el estado (pausa, cierre, `keep_awake`, que es por hilo) ocurre en este hilo, así que la interfaz nunca se congela y no hace falta más sincronización que la de las colas.
+3. **Hilo Principal (interfaz)**: Ejecuta el bucle de eventos de Tkinter (o el bucle de la terminal, con `time.sleep`) y cada 200 ms llama a `RecorderSession.poll()`, que vacía `ui_queue` y devuelve los eventos a pintar; la sesión no tiene hilos propios salvo el de detección del equipo (~1 s, una vez) y el de cada captura manual (capturar y guardar el PNG tarda); el resultado de ambos vuelve por `ui_queue`. Todo lo que la sesión hace con el estado (pausa, cierre, `keep_awake`, que es por hilo) ocurre en este hilo, así que la interfaz nunca se congela y no hace falta más sincronización que la de las colas.

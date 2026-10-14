@@ -1,10 +1,12 @@
-from .ui.main_window import MainWindow
+"""`python -m recorder`: lo mismo que `daily` o `python recorder.py` (ver recorder/cli/app.py)."""
+import sys
+
+from .cli.app import arrancar
 
 
-def main():
-    app = MainWindow()
-    app.run()
+def main() -> int:
+    return arrancar()
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

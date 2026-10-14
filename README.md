@@ -91,18 +91,31 @@ En ⚙ Opciones, el selector **Qué capturar 📸** lista, además de las pantal
 
 ### 1. Iniciar la Aplicación
 
-* **Con el comando rápido:**
+* **Desde la terminal (`daily`):** graba ahí mismo, sin abrir la ventana. Las frases van saliendo con su hora (🎤 las del micrófono; debajo, `📸 captura: …` si dispararon una captura) y se quedan en el historial de la terminal; al pie, tres líneas con el estado, los medidores `🔊 🎤` y las teclas: `p` pausar/continuar, `c` captura, `r` reconectar audio, `a` abrir la nota, `q` salir (Ctrl+C también). Si al salir quedan fragmentos por transcribir, pregunta en el mismo pie: `e` esperar a que terminen, `s` salir perdiéndolos, `c` cancelar. En silencio no gasta CPU: solo se redibuja lo que cambia.
   ```powershell
-  daily
+  daily                 # grabar en la terminal
+  daily menu            # menú numerado: grabar, opciones, calibrar, síntesis, recomendación, ventana
+  daily config          # ⚙ Opciones por secciones; enseña los cambios y guarda al confirmar
+  daily config --ver    # la configuración actual (--editor abre config.json; --recomendado aplica la del equipo)
+  daily calibrar        # 🎯 Calibrar: vocabulario, frases a ignorar, correcciones, umbrales y sandbox
+  daily calibrar --probar "frase"   # ¿pasaría los filtros? (sale con 0 si se acepta, 1 si se descarta)
+  daily sintesis        # elige una nota y genera su síntesis; el original no se toca
+  daily sintesis nota.md --cada 15 --si   # lo mismo sin preguntas (--sin-unir, --con-horas, --sin-capturas, --sin-cortas)
+  daily recomendar      # equipo detectado y configuración recomendada (--aplicar la guarda)
+  daily ventana         # la ventana de siempre (igual que daily --gui)
+  daily --ascii         # símbolos ASCII (en la consola clásica, conhost, se detecta solo)
+  daily -h              # todos los subcomandos
   ```
+  Con la salida redirigida (`daily > log.txt`) no hay pie ni colores: una línea por frase, y los cambios de estado también como líneas.
+* **La ventana:** `daily --gui` o `daily ventana`. Es también lo que se abre cuando no hay consola (`pythonw`, un ejecutable de ventana).
 * **O directamente con Python:**
   ```powershell
-  python recorder.py
+  python recorder.py    # igual que daily
   # O bien como módulo:
   python -m recorder
   ```
 
-### 2. Controles de la Interfaz
+### 2. Controles de la Ventana
 
 * **📸 Captura:** Toma una captura manual instantánea del objetivo configurado (pantallas, monitor o ventana) y la anota en el Markdown.
 * **⚙ Opciones:** Permite elegir la carpeta de notas, la carpeta de capturas, los dispositivos de audio WASAPI (altavoces/micrófono), qué capturar (pantallas, un monitor o una ventana), la calidad de transcripción (con la **recomendada para este equipo** y su motivo), los hilos de CPU y, para una GPU AMD/Intel, la carpeta de whisper.cpp, la GPU y *flash attention*.
@@ -164,15 +177,17 @@ El proyecto está diseñado bajo una arquitectura limpia por capas y un pipeline
 Recorder/
 ├── config.example.json             # Plantilla recomendada (esta si se sube)
 ├── config.json                     # Tu configuracion personal (ignorada por git)
-├── recorder.py                     # Entrypoint principal y ejecutor de selftest
+├── recorder.py                     # Entrypoint principal (terminal o ventana) y ejecutor de selftest
 │
 ├── recorder/                       # Paquete principal
+│   ├── session.py                  # La sesión de grabación sin interfaz, la misma para ventana y terminal
 │   ├── config/                     # Esquemas tipados (AppConfig) y persistencia
 │   ├── audio/                      # Captura WASAPI loopback, RMS, decibeles y 16 kHz
 │   ├── engine/                     # Trabajador de inferencia faster-whisper
 │   ├── filters/                    # Pipeline anti-alucinaciones, zlib, normalizador y léxico
 │   ├── actions/                    # Capturas de pantalla DPI-aware y notas Markdown
 │   ├── digest/                     # Sintesis de notas: agrupa y limpia sin tocar el original
+│   ├── cli/                        # Modo terminal (daily): grabación en vivo, menú y subcomandos
 │   └── ui/                         # Interfaz gráfica Catppuccin y diálogos modales
 │
 ├── docs/                           # Documentación técnica

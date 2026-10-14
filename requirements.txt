@@ -6,3 +6,4 @@ faster-whisper>=1.0.0   # recorder/engine/whisper_worker.py, tools/medir_rendimi
 PyAudioWPatch>=0.2.12.5 # recorder.py, recorder/audio/*, recorder/ui/dialogs/settings_dialog.py: captura WASAPI loopback (import pyaudiowpatch)
 Pillow>=10.0.0          # recorder/actions/screenshot.py, tests/test_screenshot.py: capturas de pantalla (import PIL)
 numpy>=1.24.0           # recorder.py, recorder/audio/processing.py, recorder/engine/models.py: procesado de audio
+rich>=13.7.0            # recorder/cli/*: modo terminal (daily): pantalla en vivo, menús y prompts
