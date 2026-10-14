@@ -134,10 +134,13 @@ class TestTuningDialog(CasoTk):
             self.assertIn(frase, d.var_ignore.get())
         self.assertTrue(d.var_test_result.get().startswith("⛔ DESCARTADA"))
         # el eco del vocabulario escrito ahora en el diálogo se marca con su propio veredicto
-        d.var_vocab.set("Daily con QA e IIS.")
+        d.var_vocab.set("Daily. Términos: QA, IIS.")
         d.var_test_input.set("Términos.")
         d._run_test()
         self.assertEqual(d.var_test_result.get(), ECHO_VERDICT)
+        d.var_echo_filter.set(False)  # la casilla apaga el filtro, también en el sandbox
+        d._run_test()
+        self.assertEqual(d.var_test_result.get(), '✅ ACEPTADA: "Términos."')
         d.destroy()
         self.assertFalse(d.winfo_exists())
 
@@ -148,11 +151,13 @@ class TestTuningDialog(CasoTk):
         d.var_vocab.set("  Términos: QA, IIS  ")
         d.var_fixes.set("cuba=QA; ayayas=IIS")
         d.var_no_speech.set(0.45)
+        d.var_echo_filter.set(False)
         d._save_changes()
         self.assertEqual(guardadas, [cfg])
         self.assertEqual(cfg.vocab, "Términos: QA, IIS")
         self.assertEqual(cfg.fixes, {"cuba": "QA", "ayayas": "IIS"})
         self.assertEqual(cfg.no_speech_threshold, 0.45)
+        self.assertFalse(cfg.echo_filter)
         self.assertFalse(d.winfo_exists())
 
 
@@ -181,7 +186,8 @@ class TestDigestDialog(CasoTk):
         self.assertIn("No es un resumen", d.preview.get("1.0", "end"))
         # las casillas traen lo mismo que propone `daily sintesis` (digest_options)
         self.assertEqual(d._opciones(), digest_options(15, vocab=self.cfg.vocab))
-        self.assertTrue(d.var_sin_imagenes.get() and d.var_drop.get() and d.var_echo.get())
+        self.assertTrue(d.var_sin_imagenes.get() and d.var_echo.get())
+        self.assertFalse(d.var_drop.get(), "descartar cortas se lleva decisiones («Sí, va.»): desmarcada por defecto")
         d._generar()
         self.assertTrue(d.var_estado.get().startswith("✅ Creada daily_2026-09-08_10-20_reagrupada-15min.md"))
         self.assertEqual(src.read_text(encoding="utf-8"), NOTA)  # el original sigue intacto

@@ -35,12 +35,14 @@ AUTO_GPU = "Automática (dedicada)"
 MAX_THREADS = 256
 # Etiqueta de cada valor de `captures` (calidad del buffer de capturas por palabra clave,
 # docs/captura-diferida.md). El disco se ocupa solo mientras la transcripción va atrasada: cada
-# fotograma se borra en cuanto ya no puede hacer falta. Las cifras son el máximo medido por hora.
+# fotograma se borra en cuanto ya no puede hacer falta (y nunca dura más de 15 min). Las cifras
+# son lo medido a 2560×1440 con un escritorio cargado y 12 fotogramas por minuto; una ventana
+# sola ocupa mucho menos.
 CAPTURE_LABELS: Dict[str, str] = {
     "off": "Apagadas (solo la captura manual)",
-    "light": "Ligeras: JPEG a media resolución (≤54 MB/h)",
-    "normal": "Normales: JPEG (≤180 MB/h)",
-    "high": "Máximas: PNG sin pérdida (≤316 MB/h)",
+    "light": "Ligeras: JPEG a media resolución (~90 MB/h)",
+    "normal": "Normales: JPEG 85 a tamaño real, texto nítido (~470 MB/h)",
+    "high": "Máximas: PNG sin pérdida, como antes (~440 MB/h)",
 }
 assert tuple(CAPTURE_LABELS) == CAPTURE_QUALITIES
 

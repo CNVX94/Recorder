@@ -6,7 +6,7 @@ import shutil
 import threading
 from typing import Optional, Union
 
-RE_IMG = re.compile(r"!\[\]\(([^)]+)\)")
+RE_IMG = re.compile(r"!\[([^\]]*)\]\(([^)]+)\)")  # ![](ruta) y también ![texto alternativo](ruta)
 
 
 def md_ref(path: Union[str, pathlib.Path], notes_dir: Union[str, pathlib.Path]) -> str:
@@ -19,15 +19,16 @@ def md_ref(path: Union[str, pathlib.Path], notes_dir: Union[str, pathlib.Path]) 
 
 
 def rebase_links(text: str, old_dir: Union[str, pathlib.Path], new_dir: Union[str, pathlib.Path]) -> str:
-    """Política pura: reescribe los `![](ruta)` relativos para que sigan apuntando a la misma imagen
-    cuando la nota pasa de `old_dir` a `new_dir`. Las capturas no se mueven; la ruta sí."""
+    """Política pura: reescribe los `![](ruta)` (y `![alt](ruta)`) relativos para que sigan apuntando
+    a la misma imagen cuando la nota pasa de `old_dir` a `new_dir`. Las capturas no se mueven; la
+    ruta sí. El texto alternativo se conserva."""
 
     def rebase(m: "re.Match") -> str:
-        ref = m.group(1)
+        alt, ref = m.group(1), m.group(2)
         if pathlib.PureWindowsPath(ref).is_absolute() or "://" in ref:
             return m.group(0)
         target = os.path.normpath(os.path.join(old_dir, ref))
-        return f"![]({md_ref(target, new_dir)})"
+        return f"![{alt}]({md_ref(target, new_dir)})"
 
     return RE_IMG.sub(rebase, text)
 

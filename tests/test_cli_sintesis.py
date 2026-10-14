@@ -41,7 +41,8 @@ class CasoSintesis(unittest.TestCase):
         os.utime(self.src, (ANTIGUA, ANTIGUA))  # hace mucho: no está «en curso»
         self.huella = hashlib.sha256(self.src.read_bytes()).hexdigest()
         self.mgr = ConfigManager(self.raiz / "config.json")
-        self.mgr.save(AppConfig(notes_dir=str(self.notas), caps_dir=str(self.raiz / "caps")))
+        # el vocabulario lleva el rótulo «Términos:», así que el renglón «Términos.» de la nota es eco
+        self.mgr.save(AppConfig(notes_dir=str(self.notas), caps_dir=str(self.raiz / "caps"), vocab="Daily. Términos: QA, IIS."))
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -61,7 +62,7 @@ class CasoSintesis(unittest.TestCase):
 class TestInteractivo(CasoSintesis):
     def test_lista_opciones_previa_y_confirma(self):
         with respuestas("1", "", "", "", "", "", "", "s"):
-            # la nota 1; cada 15 min; unir; hora corta; texto puro; descartar cortas; quitar ecos; generar
+            # la nota 1; cada 15 min; unir; hora corta; texto puro; no descartar cortas; quitar ecos; generar
             codigo, salida = self.correr()
         self.assertEqual(codigo, 0)
         self.assertEqual(self.archivos(), [self.src.name, "daily_2026-09-08_10-20_reagrupada-15min.md"])
@@ -80,16 +81,16 @@ class TestInteractivo(CasoSintesis):
         self.assertIn("Se creará daily_2026-09-08_10-20_reagrupada-15min.md", salida)
         self.assertIn("✅ Creada", salida)
         self.assertIn("El original sigue intacto.", salida)
-        # los valores por defecto son los de la ventana: texto puro, sin cortas, sin eco, hora corta
+        # los valores por defecto son los de la ventana: texto puro, sin eco, hora corta; las cortas se quedan
         contenido = (self.notas / "daily_2026-09-08_10-20_reagrupada-15min.md").read_text(encoding="utf-8")
         self.assertNotIn("![](", contenido)
-        self.assertNotIn("A ver.", contenido)
+        self.assertIn("A ver.", contenido)
         self.assertNotIn("Términos.", contenido)
         self.assertIn("- [10:20] Primera frase larga", contenido)
 
     def test_opciones_elegidas_a_mano(self):
         with respuestas("1", "1", "n", "n", "n", "n", "s"):
-            # sin agrupar (no se pregunta por las horas); no unir; con imágenes; conservar cortas; conservar ecos; generar
+            # sin agrupar (no se pregunta por las horas); no unir; con imágenes; no descartar cortas; conservar ecos; generar
             codigo, _ = self.correr()
         self.assertEqual(codigo, 0)
         destino = self.notas / "daily_2026-09-08_10-20_reagrupada.md"
@@ -145,40 +146,42 @@ class TestNoInteractivo(CasoSintesis):
         self.assertTrue(destino.exists())
         self.assertIn(str(destino), salida)
         self.assertIn("2 bloques", salida)
-        self.assertIn("→ 16 palabras", salida)  # las cifras: «A ver.» y «Términos.» fuera
+        self.assertIn("→ 18 palabras", salida)  # las cifras: solo «Términos.» (eco) fuera
         self.assertOriginalIntacto()
 
     def test_nombre_sin_extension_y_todas_las_banderas(self):
         with respuestas():
             codigo, _ = self.correr(
                 "daily_2026-09-08_10-20", "--cada", "60", "--sin-unir", "--con-horas", "--con-imagenes",
-                "--con-cortas", "--con-ecos", "--si",
+                "--sin-cortas", "--con-ecos", "--si",
             )
         self.assertEqual(codigo, 0)
         contenido = (self.notas / "daily_2026-09-08_10-20_reagrupada-1h.md").read_text(encoding="utf-8")
         self.assertIn("## 10:00 - 11:00", contenido)
         self.assertIn("**10:20:08**", contenido)  # --con-horas
-        self.assertIn("A ver.", contenido)  # --con-cortas
-        self.assertIn("Términos.", contenido)  # --con-ecos
+        self.assertNotIn("A ver.", contenido)  # --sin-cortas
+        self.assertNotIn("Términos.", contenido)  # --con-ecos lo conserva, pero --sin-cortas se lo lleva (1 palabra)
         self.assertIn("![](", contenido)  # --con-imagenes
         self.assertNotIn("texto puro", contenido)
-        self.assertNotIn("quitado el eco", contenido)
+        self.assertNotIn("quitado el eco", contenido)  # --con-ecos: el filtro no se aplicó
 
     def test_banderas_dan_el_valor_inicial_de_las_preguntas(self):
         with respuestas("", "", "", "", "", "", "s"):  # Enter en todo: quedan las banderas
-            codigo, _ = self.correr(str(self.src), "--con-imagenes", "--con-cortas")
+            codigo, _ = self.correr(str(self.src), "--con-imagenes", "--sin-cortas")
         self.assertEqual(codigo, 0)
         contenido = (self.notas / "daily_2026-09-08_10-20_reagrupada-15min.md").read_text(encoding="utf-8")
         self.assertIn("![](", contenido)
-        self.assertIn("A ver.", contenido)
+        self.assertNotIn("A ver.", contenido)
         self.assertNotIn("Términos.", contenido)  # el eco sigue fuera: no se pidió conservarlo
 
     def test_el_eco_se_reconoce_con_el_vocabulario_de_config(self):
-        self.mgr.save(AppConfig(notes_dir=str(self.notas), caps_dir=str(self.raiz / "caps"), vocab="Daily con QA, IIS y Ana."))
-        self.src.write_text(NOTA + "- **10:56:00** QA, IIS, Ana.\n", encoding="utf-8")
+        self.mgr.save(AppConfig(notes_dir=str(self.notas), caps_dir=str(self.raiz / "caps"), vocab="Daily con backend. QA, IIS, Ana."))
+        self.src.write_text(NOTA + "- **10:56:00** QA, IIS, Ana.\n- **10:56:30** QA e IIS.\n", encoding="utf-8")
         self.assertEqual(self.correr(str(self.src), "--si")[0], 0)
         contenido = (self.notas / "daily_2026-09-08_10-20_reagrupada-15min.md").read_text(encoding="utf-8")
-        self.assertNotIn("QA, IIS, Ana.", contenido)
+        self.assertNotIn("QA, IIS, Ana.", contenido)  # el vocabulario recitado tal cual
+        self.assertIn("QA e IIS.", contenido)  # una respuesta real con términos del vocab se queda
+        self.assertIn("Términos.", contenido)  # con este vocabulario sin rótulo no es eco
         self.assertIn("quitado el eco del vocabulario", contenido)
 
     def test_con_nota_y_sin_si_solo_confirma(self):
@@ -262,9 +265,9 @@ class TestPiezas(unittest.TestCase):
         # sin banderas, exactamente lo que propone la ventana (digest_options)
         self.assertEqual(sintesis.opciones_desde_args(argumentos(sintesis), "QA"), digest_options(15, vocab="QA"))
         opts = sintesis.opciones_desde_args(argumentos(sintesis))
-        self.assertEqual((opts.interval_min, opts.merge, opts.keep_captures, opts.drop_short_words, opts.inline_stamps, opts.drop_echo), (15, True, False, 4, False, True))
-        opts = sintesis.opciones_desde_args(argumentos(sintesis, "--cada", "0", "--sin-unir", "--con-imagenes", "--con-cortas", "--con-ecos"))
-        self.assertEqual((opts.interval_min, opts.merge, opts.keep_captures, opts.drop_short_words, opts.inline_stamps, opts.drop_echo), (0, False, True, 0, True, False))
+        self.assertEqual((opts.interval_min, opts.merge, opts.keep_captures, opts.drop_short_words, opts.inline_stamps, opts.drop_echo), (15, True, False, 0, False, True))
+        opts = sintesis.opciones_desde_args(argumentos(sintesis, "--cada", "0", "--sin-unir", "--con-imagenes", "--sin-cortas", "--con-ecos"))
+        self.assertEqual((opts.interval_min, opts.merge, opts.keep_captures, opts.drop_short_words, opts.inline_stamps, opts.drop_echo), (0, False, True, 4, True, False))
         self.assertTrue(sintesis.opciones_desde_args(argumentos(sintesis, "--con-horas")).inline_stamps)
 
 

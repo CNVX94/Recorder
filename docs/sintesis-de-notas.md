@@ -86,8 +86,8 @@ selector no ofrezca derivar desde una copia.
 | **Ordenar** | Pone las entradas en orden de hora (siempre, antes que nada). | La nota se escribe en orden de *transcripción*: con cola, una frase de las 17:53:06 quedaba después de la pausa de las 17:53:25. La ordenación es estable y respeta la medianoche. |
 | **Agrupar** | Junta las entradas en tramos de reloj: 5, 15, 30 o 60 minutos. Cada tramo recibe una cabecera `## 10:00 - 10:30`. | Cada párrafo conserva su hora corta `[10:07]` (o `**10:07:31**` si se desmarca la casilla): sin ella, un tramo de una hora no dice cuándo se dijo nada. Un tramo con solo marcadores (pausas, avisos) no se crea: sus marcadores van al tramo anterior. |
 | **Unir** | Fusiona líneas seguidas del mismo hablante en un párrafo. | Solo une si el hueco entre ellas es menor de 45 segundos y el párrafo no pasa de 600 caracteres. |
-| **Descartar cortas** | Elimina las líneas de menos de cuatro palabras. Activada por defecto. | Nunca descarta una línea que lleve captura ni un marcador. |
-| **Quitar ecos** | Quita el eco del vocabulario (`Términos.`, listas de nombres del `vocab`) con el mismo filtro que el transcriptor. Activada por defecto. | Sirve para notas grabadas antes de que existiera el filtro. Nunca descarta una línea con captura. |
+| **Descartar cortas** | Elimina las líneas de menos de cuatro palabras. Desactivada por defecto: se lleva respuestas como «Sí, va.» o «No.». | Nunca descarta una línea que lleve captura ni un marcador. |
+| **Quitar ecos** | Quita el eco del vocabulario (`Términos.`, el vocabulario recitado) con el mismo filtro que el transcriptor y el `vocab` de la configuración. Activada por defecto. | Sirve para notas grabadas antes de que existiera el filtro. Sin `vocab` no toca nada. Nunca descarta una línea con captura. |
 | **Quitar referencias de imagen (texto puro)** | Elimina las imágenes y todo su rastro: la línea `📸 \`clave\` → ![](…)`, el `· tardía` y las entradas de captura manual. **Activada por defecto** desde el 25-SEP-2026. | El texto hablado queda igual. Se aplica antes de descartar: una línea corta o de eco que solo se salvaba por llevar captura ya no se salva. |
 
 Los marcadores que se conservan son los que escribe la app: `⏸`/`▶` (pausa), `⏳`/`✔` (atraso de la
@@ -166,9 +166,10 @@ Decisiones que conviene conocer:
   lee antes de pulsar Generar.
 * La casilla de la hora corta **se desactiva sola** cuando eliges «Sin agrupar»: ahí la marca
   completa es lo único que ordena las líneas.
-* Desde el 25-SEP-2026 «Descartar líneas de menos de 4 palabras», «Quitar el eco del vocabulario» y
-  «Quitar referencias de imagen (texto puro)» vienen **marcadas por defecto**: la copia por defecto
-  es texto limpio para leer o pegar en otro sitio; las imágenes siguen en la nota original. La
+* Desde el 25-SEP-2026 «Quitar el eco del vocabulario» y «Quitar referencias de imagen (texto
+  puro)» vienen **marcadas por defecto**: la copia por defecto es texto limpio para leer o pegar en
+  otro sitio; las imágenes siguen en la nota original. «Descartar líneas de menos de 4 palabras»
+  viene **desmarcada**: se lleva respuestas que son decisiones («Sí, va.», «No.», «Mañana.»). La
   casilla de marcas pasó a significar «hora corta `[HH:MM]` por párrafo» en lugar de quitarlas.
   Las cifras de la vista previa dicen cuántas palabras habladas quedan (`24 → 22 palabras`), las
   mismas que la cabecera de la copia.
@@ -183,9 +184,9 @@ enseña las cifras y el principio de la vista previa antes de confirmar. Para sc
 defecto; las banderas invierten una casilla cada una:
 
 ```
-daily sintesis nota.md --cada 60 --si               # tramos de una hora; texto puro, sin cortas, sin ecos
+daily sintesis nota.md --cada 60 --si               # tramos de una hora; texto puro y sin ecos
 daily sintesis nota.md --si --con-imagenes          # conserva las referencias de imagen
-daily sintesis nota.md --si --con-cortas --con-ecos # conserva las líneas cortas y el eco del vocabulario
+daily sintesis nota.md --si --sin-cortas --con-ecos # descarta las líneas cortas; conserva el eco del vocabulario
 daily sintesis nota.md --si --con-horas --sin-unir  # HH:MM:SS por línea y sin unir párrafos
 ```
 

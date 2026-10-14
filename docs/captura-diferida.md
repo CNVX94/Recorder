@@ -35,8 +35,35 @@
 > **Dónde vive.** El buffer lo arranca, rearranca (si ⚙ Opciones cambia la carpeta o la calidad) y
 > para `RecorderSession` (`recorder/session.py`), la sesión sin interfaz que comparten la ventana y
 > `daily` en la terminal; «hay reunión» se decide con el último fragmento encolado por el gestor de
-> audio (`AudioCaptureManager.last_chunk_at`, `started_at`). Así el comportamiento es el mismo en
-> los dos frontales y se prueba sin pantalla (`tests/test_session.py`, `TestBufferDeCapturas`).
+> audio (`AudioCaptureManager.last_chunk_at`). Así el comportamiento es el mismo en los dos
+> frontales y se prueba sin pantalla (`tests/test_session.py`, `TestBufferDeCapturas`).
+>
+> **Ajustes tras la evaluación de la rama (14-OCT-2026):**
+>
+> * **Calidad.** Hasta la auditoría, cada captura por palabra clave era un PNG sin pérdida. El
+>   primer buffer guardaba `normal` como JPEG 70 con submuestreo de color 4:2:0, peor que antes para
+>   el texto pequeño. Ahora `normal` es **JPEG 85 sin submuestreo (4:4:4)**, `light` reduce a media
+>   resolución con **LANCZOS** (sin filtro, Pillow usa el vecino más próximo y el texto se rompe) y
+>   `high` sigue siendo **PNG, idéntico a la captura de siempre**. Quien venga de una versión anterior
+>   y quiera exactamente lo de antes, elige `high`. Un valor de `captures` que no sea ninguno de los
+>   cuatro vale como `normal` (nunca apaga el buffer en silencio); un `config.json` sin el campo, igual.
+> * **Medido** (pantalla entera a 2560×1440 con un escritorio cargado, 12 fotogramas/min, sin
+>   Whisper; una ventana de Teams sola ocupa mucho menos): `light` 125 KB/img, ~88 MB/h, ~2,3 % de un
+>   núcleo (el LANCZOS cuesta); `normal` nuevo 673 KB/img, ~470 MB/h, ~1,7 % (82 ms por fotograma:
+>   52 de captura y 30 de guardado); `normal` viejo (JPEG 70) 372 KB/img, ~260 MB/h, ~1,3 %; `high`
+>   625 KB/img, ~440 MB/h, ~3,1 %. En otra pantalla (60 s, misma resolución, otro contenido) el
+>   evaluador midió el viejo `normal` en 0,83 % de CPU, 340 KB/img y 225 MB/h; `light` 1,25 %, 114 KB
+>   y 75 MB/h; `high` 2,19 %, 537 KB y 355 MB/h; ~11-12 fotogramas/min y +4,4 MB de RSS, estable. Las
+>   cifras cambian con lo que haya en pantalla; las de la tabla de abajo son las del plan original.
+> * **Retención y privacidad.** El buffer no guarda nada hasta el **primer fragmento de audio** (antes
+>   capturaba 15 min desde el arranque aunque no hubiera reunión, y continuar tras una pausa tampoco
+>   lo arranca), y su propio hilo borra en cada vuelta, haya reunión o no, lo más viejo que
+>   `RETENTION_SEC` (15 min): la pantalla no se queda en disco por el hecho de que el transcriptor no
+>   procese nada. El worker sigue purgando por delante de lo que transcribe. `stop()` vacía la carpeta.
+>   Si la transcripción fuera más de 15 min atrasada, la captura cae al plan B (inmediata, `tardía`).
+> * **Fallos.** El primer fallo del buffer (la unidad de la carpeta de capturas no está, la pantalla no
+>   se deja leer) se escribe en la nota y sale en el visor de la ventana y de la terminal
+>   (`⚠ el buffer de capturas falló (…)`); los siguientes solo cuentan en `errors`.
 
 **Veredicto: buffer circular de capturas JPEG/PNG, no vídeo.** Un códec de vídeo solo compensa a decenas de fotogramas por segundo; a un fotograma cada pocos segundos el coste real es la captura de pantalla, no la codificación, y el buffer ya tiene ese coste medido, respeta la captura de ventana tapada y no añade ningún binario externo.
 

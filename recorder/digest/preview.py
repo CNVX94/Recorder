@@ -30,14 +30,15 @@ def digest_options(
     merge: bool = True,
     strip_stamps: bool = True,
     keep_captures: bool = False,
-    drop_short: bool = True,
+    drop_short: bool = False,
     drop_echo: bool = True,
     vocab: str = "",
 ) -> DigestOptions:
     """Traduce las decisiones de la interfaz a `DigestOptions`. Los valores por defecto son los
     de las casillas de la ventana y de las preguntas de la terminal: desde el 25-SEP-2026 la copia
-    por defecto es texto puro (sin imagenes ni indicadores de captura), sin lineas cortas y sin
-    el eco del vocabulario (docs/sintesis-de-notas.md, seccion 7).
+    por defecto es texto puro (sin imagenes ni indicadores de captura) y sin el eco del
+    vocabulario; descartar las lineas cortas viene desmarcado, porque se lleva respuestas que son
+    decisiones ("Si, va.", "No.") (docs/sintesis-de-notas.md, seccion 7).
 
     `strip_stamps` solo cuenta al agrupar: sin agrupar, la marca de tiempo es lo unico que ordena
     y se conserva siempre; agrupando, quitarla deja la hora corta `[HH:MM]` por parrafo.

@@ -1,8 +1,8 @@
 """`daily sintesis`: la ventana «Reagrupar nota» en la terminal, sobre la misma lógica (digest/).
 
-Una copia reagrupada NO resume: ordena por hora, agrupa en tramos y limpia (líneas cortas, eco
-del vocabulario, referencias de imagen); el texto es el de la transcripción y la cabecera de la
-copia lo dice con cifras. Sin argumentos lista las notas originales (la más reciente primero, la
+Una copia reagrupada NO resume: ordena por hora, agrupa en tramos y limpia (eco del vocabulario,
+referencias de imagen y, si se pide, líneas cortas); el texto es el de la transcripción y la
+cabecera de la copia lo dice con cifras. Sin argumentos lista las notas originales (la más reciente primero, la
 que se está escribiendo marcada), pregunta el agrupamiento y la limpieza con los mismos valores
 por defecto que la ventana (`digest_options`), enseña las cifras y el principio de la vista previa
 y escribe al confirmar. Con la nota y `--si` no pregunta nada: para scripts. El original no se
@@ -57,7 +57,7 @@ def agregar_argumentos(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--sin-unir", action="store_true", help="no une las líneas seguidas del mismo hablante")
     parser.add_argument("--con-horas", action="store_true", help="HH:MM:SS en cada línea en vez de la hora corta [HH:MM] por párrafo")
     parser.add_argument("--con-imagenes", action="store_true", help="conserva las referencias de imagen (por defecto texto puro)")
-    parser.add_argument("--con-cortas", action="store_true", help=f"conserva las líneas de menos de {MIN_WORDS} palabras")
+    parser.add_argument("--sin-cortas", action="store_true", help=f"descarta las líneas de menos de {MIN_WORDS} palabras (ojo: «Sí, va.» también)")
     parser.add_argument("--con-ecos", action="store_true", help="conserva el eco del vocabulario («Términos.», listas del vocab)")
     parser.add_argument("--si", action="store_true", help="no pide confirmación (con la nota, no pregunta nada)")
 
@@ -175,7 +175,7 @@ def opciones_desde_args(args: argparse.Namespace, vocab: str = "") -> DigestOpti
         merge=not args.sin_unir,
         strip_stamps=not args.con_horas,
         keep_captures=args.con_imagenes,
-        drop_short=not args.con_cortas,
+        drop_short=args.sin_cortas,
         drop_echo=not args.con_ecos,
         vocab=vocab,
     )
@@ -194,7 +194,7 @@ def preguntar_opciones(consola: Console, args: argparse.Namespace, vocab: str = 
     # sin agrupar, la hora completa es lo único que ordena y se conserva siempre: no se pregunta
     strip_stamps = confirmar(consola, "¿Hora corta [HH:MM] por párrafo, en vez de HH:MM:SS por línea?", not args.con_horas) if cada else True
     sin_imagenes = confirmar(consola, "¿Quitar las referencias de imagen (texto puro)?", not args.con_imagenes)
-    drop_short = confirmar(consola, f"¿Descartar las líneas de menos de {MIN_WORDS} palabras?", not args.con_cortas)
+    drop_short = confirmar(consola, f"¿Descartar las líneas de menos de {MIN_WORDS} palabras? (se lleva respuestas como «Sí, va.»)", args.sin_cortas)
     drop_echo = confirmar(consola, "¿Quitar el eco del vocabulario («Términos.», listas del vocab)?", not args.con_ecos)
     return digest_options(
         cada, merge=merge, strip_stamps=strip_stamps, keep_captures=not sin_imagenes,

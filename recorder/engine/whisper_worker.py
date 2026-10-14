@@ -83,6 +83,7 @@ class TranscriberWorker:
             logprob_thresh=self.config.logprob_threshold,
             compression_ratio_thresh=self.config.compression_ratio_threshold,
             vocab=self.config.vocab,
+            echo_filter=self.config.echo_filter,
         )
 
     def run(self):

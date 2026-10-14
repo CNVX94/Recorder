@@ -16,7 +16,7 @@ from recorder.filters.tuning import COMMON_IGNORE, apply_tuning, tuning_form
 from tests.apoyo_cli import argumentos, consola_de_prueba, respuestas, solo_ascii
 
 # Posiciones (1-based) en el menú.
-VOCAB, IGNORAR, FIXES, UMBRALES, PROBAR, GUARDAR, SALIR = "1", "2", "3", "4", "5", "6", "7"
+VOCAB, IGNORAR, FIXES, UMBRALES, ECO, PROBAR, GUARDAR, SALIR = "1", "2", "3", "4", "5", "6", "7", "8"
 
 
 class CasoCalibrar(unittest.TestCase):
@@ -61,6 +61,23 @@ class TestMenu(CasoCalibrar):
         self.assertIn("10 frases", salida)
         self.assertIn("1 corrección", salida)
         self.assertIn("silencio 0.6 · confianza -1.0 · anti-bucles 2.4", salida)
+        self.assertIn("Filtro de eco del vocabulario", salida)
+        self.assertIn("activado", salida)
+
+    def test_apagar_el_filtro_de_eco_se_guarda_como_en_la_ventana(self):
+        with respuestas(ECO, "n", GUARDAR):
+            codigo, salida = self.correr()
+        self.assertEqual(codigo, 0)
+        self.assertFalse(self.guardado()["echo_filter"])
+        esperado = AppConfig(fixes={"cuba": "QA"})
+        form = tuning_form(esperado)
+        form.echo_filter = False
+        apply_tuning(esperado, form)
+        self.assertEqual(self.guardado(), esperado.to_dict())
+        # con el filtro apagado el sandbox deja pasar el eco
+        with respuestas(VOCAB, "Daily. Términos: QA.", PROBAR, "Términos.", "", SALIR):
+            _, salida = self.correr()
+        self.assertIn('✅ ACEPTADA: "Términos."', salida)
 
     def test_frases_a_ignorar_con_las_comunes(self):
         with respuestas(IGNORAR, "-", "s", GUARDAR):  # vaciar la lista, añadir las comunes, guardar
@@ -154,6 +171,8 @@ class TestProbar(CasoCalibrar):
         self.assertEqual((aceptada, descartada), (0, 1))
         self.assertIn('✅ ACEPTADA: "Hay un bloqueo en QA."', salida)
         self.assertIn("⛔ DESCARTADA", salida2)
+        self.assertEqual(self.correr("--probar", "Nombres del equipo.")[0], 0, "sin ese rótulo en el vocab no es eco")
+        self.mgr.save(AppConfig(fixes={"cuba": "QA"}, vocab="Daily. Nombres del equipo: Ana, Luis."))
         self.assertEqual(self.correr("--probar", "Nombres del equipo.")[0], 1, "el eco también sale con 1")
 
     def test_en_ascii_no_trae_emoji(self):

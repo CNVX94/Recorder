@@ -108,9 +108,10 @@ class BufferFalso:
 
     ext = "jpg"
 
-    def __init__(self, caps_dir, quality, grab, active, interval=5.0):
+    def __init__(self, caps_dir, quality, grab, active, interval=5.0, on_error=None, retention=None):
         self.caps_dir, self.quality, self.grab, self.active = str(caps_dir), quality, grab, active
-        self.llamadas = []  # "start", "stop", "clear"
+        self.on_error = on_error
+        self.llamadas = []  # "start", "stop" (que también vacía), "clear"
 
     def start(self):
         self.llamadas.append("start")
@@ -333,7 +334,17 @@ class TestPausa(BaseSesion):
         self.assertFalse(self.session.paused)
         self.assertEqual(linea.text, "▶ continúa, se vuelve a capturar audio")
         self.assertIn(f"> ▶ Continúa {linea.stamp}", self.nota)
-        self.assertGreater(self.audio.started_at, time.time() - 5, "lo callado durante la pausa no cuenta como mudo")
+        self.assertEqual(self.audio.started_at, 0.0, "continuar no reinicia el reloj de la reunión (buffer, ☕)")
+        self.assertGreater(self.session._resumed_at, time.time() - 5, "lo callado durante la pausa no cuenta como mudo")
+
+    def test_continuar_no_retiene_el_equipo_ni_arranca_el_buffer_sin_audio(self):
+        self.session.start()
+        self.audio.silencio_largo()
+        self.session.toggle_pause()
+        self.session.toggle_pause()
+        self.session.poll()
+        self.assertFalse(self.session.awake, "la ventana de 15 min cuenta desde audio real, no desde continuar")
+        self.assertFalse(self.buffers[0].active())
 
     def test_la_pausa_dice_cuanto_queda_por_transcribir(self):
         self.encolar(12)
@@ -568,7 +579,7 @@ class TestFuenteMuda(BaseSesion):
         aviso = next(e for e in eventos if isinstance(e, SourceMuted))
         self.assertEqual((aviso.kind, aviso.muted), ("mic", True))
         self.assertEqual(aviso.text, mute_text("mic", True))
-        self.assertIn("el micrófono 🎤 lleva 10 min sin dar fragmentos y la salida 🔊 sí", aviso.text)
+        self.assertIn("sin audio de micrófono 🎤 desde hace 10 min (¿silenciado?; la salida 🔊 sí suena)", aviso.text)
         self.assertIn("daily config", aviso.text)
         self.assertIn(f"> {aviso.text} {aviso.stamp}\n", self.nota)
         self.assertEqual(self.session.status.muted, "mic")
@@ -578,7 +589,7 @@ class TestFuenteMuda(BaseSesion):
         self.audio.last_chunk_at["mic"] = time.time()
         vuelta = next(e for e in self.session.poll() if isinstance(e, SourceMuted))
         self.assertEqual((vuelta.kind, vuelta.muted), ("mic", False))
-        self.assertEqual(vuelta.text, "✔ el micrófono 🎤 vuelve a dar fragmentos desde")
+        self.assertEqual(vuelta.text, "✔ vuelve a haber audio de micrófono 🎤 desde")
         self.assertIn(f"> {vuelta.text} {vuelta.stamp}\n", self.nota)
         self.assertIsNone(self.session.status.muted)
         self.assertNotIn("🔇", self.session.status.meter_text)
@@ -587,8 +598,28 @@ class TestFuenteMuda(BaseSesion):
         self.muda("out")
         aviso = next(e for e in self.session.poll() if isinstance(e, SourceMuted))
         self.assertEqual(aviso.kind, "out")
-        self.assertIn("la salida 🔊 lleva 10 min sin dar fragmentos y el micrófono 🎤 sí", aviso.text)
+        self.assertIn("sin audio de salida 🔊 desde hace 10 min (¿silenciado?; el micrófono 🎤 sí suena)", aviso.text)
         self.assertEqual(self.session.status.meter_text, "🔊 ░░░░░░░░ 🔇   🎤 ░░░░░░░░")
+
+    def test_tras_continuar_se_vuelve_a_contar_desde_cero(self):
+        self.muda("mic")
+        self.session.toggle_pause()
+        self.session.toggle_pause()  # la pausa duró un instante, pero el plazo cuenta desde aquí
+        self.assertEqual([e for e in self.session.poll() if isinstance(e, SourceMuted)], [])
+        self.session._resumed_at = time.time() - 2 * MUTE_WARN_SEC
+        self.assertTrue([e for e in self.session.poll() if isinstance(e, SourceMuted)])
+
+    def test_desactivar_el_microfono_retira_el_aviso_sin_anunciar_una_vuelta(self):
+        self.muda("mic")
+        self.session.poll()
+        self.assertEqual(self.session.status.muted, "mic")
+        cfg = self.session.config
+        cfg.mic = False
+        self.session.apply_settings(cfg, notes_changed=False, devices_changed=True)  # el gestor reabre sin micrófono
+        self.assertFalse(self.audio.mic_enabled)
+        self.assertEqual([e for e in self.session.poll() if isinstance(e, SourceMuted)], [])
+        self.assertIsNone(self.session.status.muted)
+        self.assertNotIn("vuelve a haber audio", self.nota)
 
     def test_en_pausa_caida_o_terminando_no_se_avisa(self):
         self.muda("mic")
@@ -602,10 +633,11 @@ class TestFuenteMuda(BaseSesion):
         self.assertEqual([e for e in self.session.poll() if isinstance(e, SourceMuted)], [])
         self.assertIsNone(self.session.status.muted)
 
-    def test_mute_text_es_pura(self):
-        self.assertTrue(mute_text("out", True).startswith("⚠ la salida 🔊 lleva 10 min"))
+    def test_mute_text_es_pura_y_neutra(self):
+        self.assertTrue(mute_text("out", True).startswith("⚠ sin audio de salida 🔊 desde hace 10 min (¿silenciado?;"))
         self.assertTrue(mute_text("out", True).endswith("Detectado a las"))
-        self.assertEqual(mute_text("out", False), "✔ la salida 🔊 vuelve a dar fragmentos desde")
+        self.assertNotIn("muda", mute_text("mic", True))
+        self.assertEqual(mute_text("out", False), "✔ vuelve a haber audio de salida 🔊 desde")
 
 
 class TestBufferDeCapturas(BaseSesion):
@@ -621,7 +653,9 @@ class TestBufferDeCapturas(BaseSesion):
         self.assertIs(self.worker.buffer, b, "el transcriptor toma las capturas del buffer")
         self.assertEqual((b.caps_dir, b.quality), (str(self.raiz / "caps"), "normal"))
         self.assertEqual(b.llamadas, ["start"])
-        self.assertTrue(b.active(), "recién arrancado hay reunión")
+        self.assertFalse(b.active(), "hasta el primer fragmento de audio no hay reunión: la pantalla no se guarda")
+        self.audio.last_chunk_at["out"] = time.time()
+        self.assertTrue(b.active(), "con audio reciente sí")
         self.audio.paused = True
         self.assertFalse(b.active(), "en pausa no se captura")
         self.audio.paused = False
@@ -634,6 +668,19 @@ class TestBufferDeCapturas(BaseSesion):
         self.assertEqual(self.buffers, [])
         self.assertIsNone(self.worker.buffer)
 
+    def test_una_calidad_desconocida_vale_como_normal(self):
+        self.session.config.captures = "ultra"  # a config.json ya lo normaliza AppConfig; esto cubre un cambio en caliente
+        self.session.start()
+        self.assertEqual(self.buffers[0].quality, "normal")
+
+    def test_el_primer_fallo_del_buffer_se_ve_en_el_visor_y_en_la_nota(self):
+        self.session.start()
+        self.buffers[0].on_error(OSError("no está la unidad D:"))  # como lo llamaría el hilo del buffer
+        aviso = next(e for e in self.session.poll() if isinstance(e, Notice) and e.level == "err")
+        self.assertIn("el buffer de capturas falló (OSError('no está la unidad D:'))", aviso.text)
+        self.assertIn("tardías si hay cola", aviso.text)
+        self.assertIn(f"> {aviso.text} {aviso.stamp}\n", self.nota)
+
     def test_opciones_lo_rearranca_solo_si_cambia_carpeta_o_calidad(self):
         self.session.start()
         primero = self.buffers[0]
@@ -643,14 +690,14 @@ class TestBufferDeCapturas(BaseSesion):
 
         cfg.captures = "light"
         self.session.apply_settings(cfg, notes_changed=False, devices_changed=False)
-        self.assertEqual(primero.llamadas, ["start", "stop", "clear"], "el anterior se para y se vacía")
+        self.assertEqual(primero.llamadas, ["start", "stop"], "el anterior se para (y stop() lo vacía)")
         self.assertEqual(len(self.buffers), 2)
         self.assertEqual(self.buffers[1].quality, "light")
         self.assertIs(self.worker.buffer, self.buffers[1])
 
         cfg.captures = "off"
         self.session.apply_settings(cfg, notes_changed=False, devices_changed=False)
-        self.assertEqual(self.buffers[1].llamadas, ["start", "stop", "clear"])
+        self.assertEqual(self.buffers[1].llamadas, ["start", "stop"])
         self.assertIsNone(self.session.buffer)
         self.assertIsNone(self.worker.buffer)
 
@@ -658,7 +705,7 @@ class TestBufferDeCapturas(BaseSesion):
         self.session.start()
         b = self.buffers[0]
         self.session.shutdown()
-        self.assertEqual(b.llamadas, ["start", "stop", "clear"], "nada de la pantalla queda en disco")
+        self.assertEqual(b.llamadas, ["start", "stop"], "stop() para el hilo y vacía: nada de la pantalla queda en disco")
         self.assertIsNone(self.session.buffer)
 
 

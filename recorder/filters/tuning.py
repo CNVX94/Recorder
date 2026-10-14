@@ -31,6 +31,7 @@ ECHO_VERDICT = (
     "términos). Escribe el vocabulario sin rótulos."
 )
 VOCAB_HINT = "Como frase o lista, sin rótulos («Términos:», «Nombres del equipo:»): Whisper los repite en los silencios."
+ECHO_FILTER_LABEL = "Quitar el eco del vocabulario (sus rótulos pegados a una frase y los renglones que solo lo recitan)"
 
 # (mínimo, máximo, paso) de cada umbral: lo que recorren los deslizadores de la ventana y lo que
 # una terminal debe admitir. Las claves son los campos de AppConfig.
@@ -70,6 +71,7 @@ class TuningForm:
     no_speech_threshold: float
     logprob_threshold: float
     compression_ratio_threshold: float
+    echo_filter: bool = True  # quitar el eco del vocabulario (filters/echo.py)
 
     @property
     def ignore_list(self) -> List[str]:
@@ -89,6 +91,7 @@ def tuning_form(config: AppConfig) -> TuningForm:
         no_speech_threshold=config.no_speech_threshold,
         logprob_threshold=config.logprob_threshold,
         compression_ratio_threshold=config.compression_ratio_threshold,
+        echo_filter=config.echo_filter,
     )
 
 
@@ -117,6 +120,7 @@ def test_phrase(form: TuningForm, sample: str, keywords: Sequence[str]) -> Sandb
         logprob_thresh=form.logprob_threshold,
         compression_ratio_thresh=form.compression_ratio_threshold,
         vocab=form.vocab,
+        echo_filter=form.echo_filter,
     )
     res = pipeline.test_sample(sample)
     if res["is_ignored"]:
@@ -139,3 +143,4 @@ def apply_tuning(config: AppConfig, form: TuningForm) -> None:
     config.no_speech_threshold = float(form.no_speech_threshold)
     config.logprob_threshold = float(form.logprob_threshold)
     config.compression_ratio_threshold = float(form.compression_ratio_threshold)
+    config.echo_filter = bool(form.echo_filter)

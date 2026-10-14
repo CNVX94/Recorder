@@ -43,10 +43,11 @@ class TestOpcionesDesdeLaInterfaz(unittest.TestCase):
         self.assertEqual(INTERVAL_LABELS[60], "Cada hora")
 
     def test_valores_por_defecto_de_la_ventana(self):
-        # desde el 25-SEP-2026: texto puro, sin lineas cortas y sin eco del vocabulario, por defecto
+        # desde el 25-SEP-2026: texto puro y sin eco del vocabulario, por defecto; descartar cortas
+        # no (se lleva respuestas como «Sí, va.» o «No.»)
         opts = digest_options(DEFAULT_INTERVAL)
         self.assertEqual((opts.interval_min, opts.merge, opts.keep_captures), (15, True, False))
-        self.assertEqual(opts.drop_short_words, MIN_WORDS)
+        self.assertEqual(opts.drop_short_words, 0)
         self.assertTrue(opts.drop_echo)
         self.assertEqual(opts.vocab, "")
         self.assertFalse(opts.inline_stamps)  # agrupando, la hora corta por parrafo esta marcada por defecto
@@ -96,14 +97,15 @@ class TestVistaPrevia(unittest.TestCase):
         self.assertEqual(vista.blocks, 2)  # 10:00 - 10:30 y 10:30 - 11:00
         self.assertEqual(vista.lines, len(vista.markdown.splitlines()))
         self.assertEqual(vista.kb, len(vista.markdown) // 1024)
-        # 24 palabras habladas; «A ver.» (2) se descarta por corta con los valores por defecto
-        self.assertEqual((vista.source_words, vista.words), (24, 22))
+        # 24 palabras habladas; por defecto se conservan todas («A ver.» se queda)
+        self.assertEqual((vista.source_words, vista.words), (24, 24))
         self.assertEqual(
-            vista.stats(), f"{vista.source_lines} líneas → 2 bloques · {vista.lines} líneas · ~0 KB · 24 → 22 palabras"
+            vista.stats(), f"{vista.source_lines} líneas → 2 bloques · {vista.lines} líneas · ~0 KB · 24 → 24 palabras"
         )
-        self.assertIn("24 palabras en el original, 22 aqui", vista.markdown)  # las mismas cifras que la cabecera
-        conservando = preview_digest(self.src, digest_options(30, drop_short=False))
-        self.assertEqual(conservando.words, 24)
+        self.assertIn("24 palabras en el original, 24 aqui", vista.markdown)  # las mismas cifras que la cabecera
+        descartando = preview_digest(self.src, digest_options(30, drop_short=True))
+        self.assertEqual(descartando.words, 22)  # «A ver.» (2) fuera
+        self.assertIn("24 palabras en el original, 22 aqui", descartando.markdown)
 
     def test_sin_agrupar_no_hay_bloques(self):
         self.assertEqual(preview_digest(self.src, digest_options(0)).blocks, 0)

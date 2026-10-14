@@ -5,6 +5,7 @@ from typing import Callable
 from ...config.schema import AppConfig
 from ...filters.samples import random_sample
 from ...filters.tuning import (
+    ECHO_FILTER_LABEL,
     THRESHOLD_RANGES,
     VOCAB_HINT,
     TuningForm,
@@ -38,7 +39,7 @@ class TuningDialog(tk.Toplevel):
 
         self._init_variables()
         self._build_ui()
-        fit_window(self, 720, 700)
+        fit_window(self, 720, 730)
 
     def _init_variables(self):
         f = tuning_form(self.config)
@@ -48,6 +49,7 @@ class TuningDialog(tk.Toplevel):
         self.var_no_speech = tk.DoubleVar(value=f.no_speech_threshold)
         self.var_logprob = tk.DoubleVar(value=f.logprob_threshold)
         self.var_compression = tk.DoubleVar(value=f.compression_ratio_threshold)
+        self.var_echo_filter = tk.BooleanVar(value=f.echo_filter)
 
         # Sandbox
         self.var_test_input = tk.StringVar(value="Desplegamos en cuba y en el ayayas. ¡Suscríbete!")
@@ -62,6 +64,7 @@ class TuningDialog(tk.Toplevel):
             no_speech_threshold=self.var_no_speech.get(),
             logprob_threshold=self.var_logprob.get(),
             compression_ratio_threshold=self.var_compression.get(),
+            echo_filter=self.var_echo_filter.get(),
         )
 
     def _build_ui(self):
@@ -104,6 +107,11 @@ class TuningDialog(tk.Toplevel):
         ent_vocab.pack(fill="x", ipady=4)
         tk.Label(
             container, text=VOCAB_HINT, bg=BG, fg=DIM, font=("Segoe UI", 8), wraplength=680, justify="left",
+        ).pack(anchor="w", pady=(2, 0))
+        tk.Checkbutton(
+            container, text=ECHO_FILTER_LABEL, variable=self.var_echo_filter, command=self._run_test,
+            bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=FG,
+            font=("Segoe UI", 9), anchor="w",
         ).pack(anchor="w", pady=(2, 0))
 
         # 2. Frases prohibidas / Lista negra (Blacklist)

@@ -18,6 +18,7 @@ from ..config.manager import ConfigManager
 from ..config.schema import AppConfig
 from ..filters.samples import random_sample
 from ..filters.tuning import (
+    ECHO_FILTER_LABEL,
     THRESHOLD_RANGES,
     VOCAB_HINT,
     SandboxVerdict,
@@ -46,12 +47,13 @@ AYUDA = "calibra los filtros anti-alucinaciones y el vocabulario, con sandbox pa
 AVISO_REINICIO = "Una grabación ya abierta sigue con los filtros anteriores; los nuevos valen desde el próximo arranque."
 EJEMPLO = "?"  # en el sandbox, pide una frase de ejemplo armada con el glosario (🎲 de la ventana)
 
-VOCABULARIO, IGNORAR, CORRECCIONES, UMBRALES, PROBAR, GUARDAR, SALIR = range(7)
+VOCABULARIO, IGNORAR, CORRECCIONES, UMBRALES, ECO, PROBAR, GUARDAR, SALIR = range(8)
 OPCIONES = [
     "Vocabulario de contexto (guía a Whisper antes de oír)",
     "Frases a ignorar (lista negra de alucinaciones)",
     "Correcciones de léxico («oído_mal=escrito_bien; …»)",
     "Umbrales del decodificador",
+    "Filtro de eco del vocabulario (quitar lo que solo repite el vocab)",
     "Probar frases (sandbox, con lo escrito ahora)",
     "Guardar y salir",
     "Salir sin guardar",
@@ -118,6 +120,8 @@ def menu(mgr: ConfigManager, config: AppConfig, consola: Console) -> int:
             imprimir(consola, f"  [tenue]{contar(len(form.fixes_dict), 'corrección', 'correcciones')}.[/]")
         elif i == UMBRALES:
             editar_umbrales(consola, form)
+        elif i == ECO:
+            form.echo_filter = confirmar(consola, f"¿{ECHO_FILTER_LABEL}?", form.echo_filter)
         elif i == PROBAR:
             sandbox(consola, form, config.keywords)
         elif i == GUARDAR:
@@ -143,6 +147,7 @@ def detalles(form: TuningForm) -> List[str]:
         contar(len(form.ignore_list), "frase", "frases"),
         contar(len(form.fixes_dict), "corrección", "correcciones"),
         f"silencio {form.no_speech_threshold} · confianza {form.logprob_threshold} · anti-bucles {form.compression_ratio_threshold}",
+        "activado" if form.echo_filter else "desactivado",
         "", "", "",
     ]
 

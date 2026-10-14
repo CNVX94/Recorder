@@ -2,9 +2,11 @@
 import datetime as dt
 import pathlib
 import tempfile
+import time
 import unittest
+from unittest import mock
 
-from PIL import Image
+from PIL import Image, JpegImagePlugin
 
 from recorder.actions.capture_buffer import BUFFER_DIR, CaptureBuffer, nearest_frame, should_buffer
 from recorder.actions.notes import NotesSession, rebase_links
@@ -71,21 +73,76 @@ class TestCaptureBuffer(unittest.TestCase):
         self.assertEqual(list((self.caps / BUFFER_DIR).iterdir()), [])
 
     def test_calidades(self):
-        ligera = CaptureBuffer(self.caps / "l", "light", grab=self.grab, active=lambda: True).snap(1.0)
+        reescalados = []
+        original = Image.Image.resize
+
+        def resize(img, size, resample=None, *a, **k):
+            reescalados.append(resample)
+            return original(img, size, resample, *a, **k)
+
+        with mock.patch.object(Image.Image, "resize", resize):
+            ligera = CaptureBuffer(self.caps / "l", "light", grab=self.grab, active=lambda: True).snap(1.0)
         with Image.open(ligera) as img:
             self.assertEqual((img.format, img.size), ("JPEG", (40, 30)))
+        self.assertEqual(reescalados, [Image.LANCZOS], "a media resolución se reduce con LANCZOS, no con NEAREST")
+
+        normal = CaptureBuffer(self.caps / "n", "normal", grab=self.grab, active=lambda: True).snap(1.0)
+        with Image.open(normal) as img:
+            self.assertEqual((img.format, img.size), ("JPEG", (80, 60)))
+            self.assertEqual(JpegImagePlugin.get_sampling(img), 0, "4:4:4: sin submuestreo de color, el texto pequeño no se emborrona")
+            self.assertLessEqual(img.quantization[0][0], 5, "calidad 85 o más (la tabla de luminancia de q70 empieza en 10)")
+
         alta = CaptureBuffer(self.caps / "h", "high", grab=self.grab, active=lambda: True).snap(1.0)
         with Image.open(alta) as img:
-            self.assertEqual((img.format, img.size), ("PNG", (80, 60)))
+            self.assertEqual((img.format, img.size), ("PNG", (80, 60)))  # sin pérdida, como la captura de siempre
         self.assertFalse(list(self.caps.rglob("*.tmp")), "no quedan archivos a medio escribir")
+
+    def test_stop_vacia_el_buffer(self):
+        b = self.buffer()
+        b.start()
+        b.snap(100.0)
+        b.stop()
+        self.assertEqual(list((self.caps / BUFFER_DIR).iterdir()), [], "al parar no queda nada de la pantalla")
+
+    def test_sin_reunion_tambien_se_purga_lo_viejo(self):
+        # El worker purga al transcribir; si no transcribe nada (silencio, pausa), el propio hilo
+        # borra lo más viejo que la retención en cada vuelta.
+        b = CaptureBuffer(self.caps, "normal", grab=self.grab, active=lambda: False, interval=0.02, retention=1.0)
+        b.start()  # start() vacía lo que hubiera: los fotogramas van después
+        try:
+            b.snap(time.time() - 3.0)  # viejo
+            reciente = b.snap(time.time())
+            fin = time.time() + 2
+            while len(list((self.caps / BUFFER_DIR).iterdir())) > 1 and time.time() < fin:
+                time.sleep(0.02)
+            self.assertEqual([p.name for p in (self.caps / BUFFER_DIR).iterdir()], [reciente.name])
+            self.assertEqual(self.grabs, 2, "sin reunión no se captura")
+        finally:
+            b.stop()
+
+    def test_el_primer_fallo_se_avisa_una_vez(self):
+        fallos = []
+
+        def grab_rota():
+            raise OSError("no está la unidad")
+
+        b = CaptureBuffer(self.caps, "normal", grab=grab_rota, active=lambda: True, interval=0.02, on_error=fallos.append)
+        b.start()
+        try:
+            fin = time.time() + 2
+            while b.errors < 3 and time.time() < fin:
+                time.sleep(0.02)
+            self.assertGreaterEqual(b.errors, 3, "un fallo no para el hilo")
+            self.assertEqual(len(fallos), 1)
+            self.assertIsInstance(fallos[0], OSError)
+        finally:
+            b.stop()
 
     def test_el_hilo_solo_captura_si_hay_reunion(self):
         activo = [False]
         b = CaptureBuffer(self.caps, "normal", grab=self.grab, active=lambda: activo[0], interval=0.02)
         b.start()
         try:
-            import time
-
             time.sleep(0.15)
             self.assertEqual(self.grabs, 0)
             activo[0] = True
@@ -106,6 +163,8 @@ class TestEnlacesAlMoverLaNota(unittest.TestCase):
         nuevo = rebase_links(texto, r"C:\n\Dailies", r"C:\n\Vault\Input")
         self.assertIn("![](../../Dailies/capturas/a.png)", nuevo)
         self.assertIn("![](D:/fuera/b.png)", nuevo, "una ruta absoluta no se toca")
+        con_alt = rebase_links("ver ![la pantalla](capturas/c.png) y ![](http://x/y.png)", r"C:\n\Dailies", r"C:\n\Vault")
+        self.assertEqual(con_alt, "ver ![la pantalla](../Dailies/capturas/c.png) y ![](http://x/y.png)")
 
     def test_move_notes_mantiene_las_imagenes_enlazadas(self):
         with tempfile.TemporaryDirectory() as tmp:

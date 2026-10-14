@@ -319,7 +319,7 @@ class TestReagrupadaHonesta(unittest.TestCase):
 
     def test_drop_echo_conserva_lineas_con_captura(self):
         e = [Entry("00:00:01", "out", "Términos.", captures=["a.png"]), Entry("00:00:02", "out", "Términos.")]
-        d = drop_echo(e, "")
+        d = drop_echo(e, "Daily. Términos: QA.")  # el rótulo está en el vocabulario: es eco
         self.assertEqual(len(d), 1)
         self.assertEqual(d[0].captures, ["a.png"])
 

@@ -69,6 +69,10 @@ class AppConfig:
     # Vocabulario de contexto (Initial prompt) para guiar terminos tecnicos y nombres.
     # Vacio a proposito: cada usuario pone el suyo. Ver config.example.json.
     vocab: str = ""
+    # Filtro del eco del vocabulario (filters/echo.py): quita los rotulos del vocab pegados a una
+    # frase y descarta los renglones que solo recitan el vocabulario. Se apaga en 🎯 Calibrar o
+    # `daily calibrar` si se sospecha que se lleva frases reales.
+    echo_filter: bool = True
 
     # Frases fantasma que Whisper inventa en silencios/ruido (lista negra)
     ignore: List[str] = dataclasses.field(

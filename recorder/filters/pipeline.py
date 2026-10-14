@@ -14,9 +14,10 @@ def keep_segments(
     logprob_thresh: float = -1.0,
     compression_ratio_thresh: float = 2.4,
     vocab: str = "",
+    echo_filter: bool = True,
 ) -> List[Tuple[Any, str]]:
     """(segmento, texto) de los que sobreviven: sin los dudosos (sin voz, baja confianza o bucles),
-    sin las frases prohibidas y sin el eco del vocabulario."""
+    sin las frases prohibidas y, con `echo_filter`, sin el eco del vocabulario."""
     keep: List[Tuple[Any, str]] = []
     for s in segs:
         if not is_segment_valid(s, no_speech_thresh, logprob_thresh, compression_ratio_thresh):
@@ -24,7 +25,8 @@ def keep_segments(
         text = getattr(s, "text", "").strip()
         if not text or contains_blacklisted_phrase(text, ignore):
             continue
-        text = strip_prompt_echo(text, vocab)
+        if echo_filter:
+            text = strip_prompt_echo(text, vocab)
         if text:
             keep.append((s, text))
     return keep
@@ -37,9 +39,10 @@ def clean_segments(
     logprob_thresh: float = -1.0,
     compression_ratio_thresh: float = 2.4,
     vocab: str = "",
+    echo_filter: bool = True,
 ) -> str:
     """Une segmentos descartando los dudosos (sin voz, baja confianza o bucles) y las frases prohibidas."""
-    kept = keep_segments(segs, ignore, no_speech_thresh, logprob_thresh, compression_ratio_thresh, vocab)
+    kept = keep_segments(segs, ignore, no_speech_thresh, logprob_thresh, compression_ratio_thresh, vocab, echo_filter)
     return " ".join(t for _, t in kept).strip()
 
 
@@ -72,6 +75,7 @@ class TextPipeline:
         logprob_thresh: float = -1.0,
         compression_ratio_thresh: float = 2.4,
         vocab: str = "",
+        echo_filter: bool = True,
     ):
         self.keywords = list(keywords)
         self.ignore = list(ignore)
@@ -80,6 +84,7 @@ class TextPipeline:
         self.logprob_thresh = logprob_thresh
         self.compression_ratio_thresh = compression_ratio_thresh
         self.vocab = vocab or ""
+        self.echo_filter = echo_filter  # False: el eco del vocabulario no se toca (AppConfig.echo_filter)
 
     def process(self, segs: Iterable[Any]) -> Tuple[str, List[str], Optional[float]]:
         """(texto limpio, palabras clave, segundos desde el inicio del audio hasta la primera clave)."""
@@ -90,6 +95,7 @@ class TextPipeline:
             logprob_thresh=self.logprob_thresh,
             compression_ratio_thresh=self.compression_ratio_thresh,
             vocab=self.vocab,
+            echo_filter=self.echo_filter,
         )
         raw_text = " ".join(t for _, t in kept).strip()
         if not raw_text:
@@ -107,7 +113,7 @@ class TextPipeline:
     def test_sample(self, sample_text: str) -> Dict[str, Any]:
         """Prueba una muestra de texto en el sandbox para ver el resultado de filtros y reemplazos."""
         is_ignored = contains_blacklisted_phrase(sample_text, self.ignore)
-        echo_free = strip_prompt_echo(sample_text, self.vocab)
+        echo_free = strip_prompt_echo(sample_text, self.vocab) if self.echo_filter else sample_text.strip()
         fixed_text = fix(echo_free, self.fixes)
         hits = find_keywords(fixed_text, self.keywords)
         return {

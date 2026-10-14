@@ -44,6 +44,8 @@ class TestCampos(unittest.TestCase):
         self.assertEqual((f.vocab, f.ignore, f.fixes), ("Términos: QA", "a, b", "cuba=QA"))
         self.assertEqual(f.no_speech_threshold, 0.5)
         self.assertEqual((f.logprob_threshold, f.compression_ratio_threshold), (-1.0, 2.4))
+        self.assertTrue(f.echo_filter)
+        self.assertFalse(tuning_form(AppConfig(echo_filter=False)).echo_filter)
 
     def test_lista_negra_ida_y_vuelta(self):
         self.assertEqual(parse_ignore(" a ,, b,c "), ["a", "b", "c"])
@@ -116,6 +118,12 @@ class TestSandbox(unittest.TestCase):
         self.assertFalse(legit.echo)
         self.assertFalse(test_phrase(formulario(), "¡Suscríbete!", KEYWORDS).echo, "la lista negra manda antes")
 
+    def test_con_el_filtro_apagado_el_eco_pasa(self):
+        v = test_phrase(formulario(echo_filter=False), "Términos.", KEYWORDS)
+        self.assertTrue(v.accepted)
+        self.assertFalse(v.echo)
+        self.assertEqual(v.processed, "Términos.")
+
     def test_las_comunes_traen_mas_informacion_www(self):
         self.assertIn("más información www", COMMON_IGNORE)
 
@@ -123,12 +131,13 @@ class TestSandbox(unittest.TestCase):
 class TestGuardar(unittest.TestCase):
     def test_vuelca_los_campos_interpretados(self):
         cfg = AppConfig()
-        apply_tuning(cfg, formulario(vocab="  Términos: QA  ", no_speech_threshold=0.45, logprob_threshold=-1.3))
+        apply_tuning(cfg, formulario(vocab="  Términos: QA  ", no_speech_threshold=0.45, logprob_threshold=-1.3, echo_filter=False))
         self.assertEqual(cfg.vocab, "Términos: QA")  # recortado
         self.assertEqual(cfg.ignore, ["suscríbete", "gracias por ver"])
         self.assertEqual(cfg.fixes, {"cuba": "QA", "ayayas": "IIS"})
         self.assertEqual((cfg.no_speech_threshold, cfg.logprob_threshold), (0.45, -1.3))
         self.assertIsInstance(cfg.compression_ratio_threshold, float)
+        self.assertFalse(cfg.echo_filter)
 
     def test_no_toca_lo_que_no_es_suyo(self):
         cfg = AppConfig(notes_dir="C:/Dailies", keywords=["x"], model="medium")

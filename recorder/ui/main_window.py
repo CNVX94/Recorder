@@ -86,7 +86,7 @@ class MainWindow:
         self.lbl_status = tk.Label(
             top, text="Iniciando…", bg=BG, fg=DIM, anchor="w", font=("Segoe UI Semibold", 11)
         )
-        # Medidores: barras por fuente, ⛔ si está caída y 🔇 si lleva 10 min muda (ver session.StatusSnapshot)
+        # Medidores: barras por fuente, ⛔ si está caída y 🔇 si lleva 10 min sin audio (ver session.StatusSnapshot)
         self.lbl_meter = tk.Label(top, text="", bg=BG, fg=DIM, font=("Consolas", 10), cursor="hand2")
         self.lbl_meter.bind("<Button-1>", lambda _e: self.reconnect_audio())
 

@@ -32,11 +32,14 @@ from .actions.capture_buffer import QUALITIES, CaptureBuffer, should_buffer
 from .actions.notes import NotesSession, md_ref
 from .actions.power import keep_awake, should_stay_awake
 from .actions.screenshot import grab_image, take_screenshot
-from .audio.capture import MUTE_WARN_SEC, AudioCaptureManager, meter_label, pending_audio_sec, pending_summary
+from .audio.capture import (
+    MUTE_WARN_SEC, AudioCaptureManager, meter_label, mute_source, pending_audio_sec, pending_summary,
+)
 from .audio.devices import resolve_wasapi_device
 from .config.hardware import HardwareProfile, cached_hardware, describe_hardware
 from .config.manager import ConfigManager
 from .config.schema import (
+    DEFAULT_CAPTURES,
     AppConfig,
     Recommendation,
     apply_recommendation,
@@ -97,8 +100,9 @@ class SourceChanged:
 
 @dataclasses.dataclass(frozen=True)
 class SourceMuted:
-    """Una fuente lleva MUTE_WARN_SEC sin dar fragmentos mientras la otra sí (`muted`), o vuelve a
-    darlos; `text` es la frase ya compuesta (también va a la nota). Ver `audio.capture.mute_source`."""
+    """Una fuente lleva MUTE_WARN_SEC sin audio mientras la otra sí (`muted`: silenciada, o es otro
+    el dispositivo), o vuelve a tenerlo; `text` es la frase ya compuesta (también va a la nota).
+    Una vez por episodio. Ver `audio.capture.mute_source` y `mute_text`."""
 
     stamp: str
     kind: str  # "out" o "mic"
@@ -123,7 +127,8 @@ Event = Union[Status, Line, Notice, SourceChanged, SourceMuted, HardwareReady]
 # ---------------------------------------------------------------------------
 
 LIVE_STATUS = "●⏸⏳"  # cabeceras que se recomponen en cada sondeo; el resto se deja tal cual
-SOURCE_NAMES = {"out": "la salida 🔊", "mic": "el micrófono 🎤"}
+SOURCE_NAMES = {"out": "salida 🔊", "mic": "micrófono 🎤"}
+SOURCE_ARTICLES = {"out": "la", "mic": "el"}
 
 
 def compose_status(
@@ -159,16 +164,17 @@ def compose_status(
 
 
 def mute_text(kind: str, muted: bool) -> str:
-    """La frase del aviso de fuente muda (sin la hora, que va detrás): política pura, la misma
-    para la nota, la ventana y la terminal."""
+    """La frase del aviso de fuente sin audio (sin la hora, que va detrás): política pura, la misma
+    para la nota, la ventana y la terminal. Neutra: estar callado o silenciado es normal; lo que
+    se señala es que, si se habló, puede ser otro el dispositivo."""
     if muted:
-        other = SOURCE_NAMES["mic" if kind == "out" else "out"]
+        other = "mic" if kind == "out" else "out"
         return (
-            f"⚠ {SOURCE_NAMES[kind]} lleva {MUTE_WARN_SEC // 60} min sin dar fragmentos y {other} sí; "
-            f"si hablaste en ese rato, elige el dispositivo que usa Teams en ⚙ Opciones o `daily config`. "
-            f"Detectado a las"
+            f"⚠ sin audio de {SOURCE_NAMES[kind]} desde hace {MUTE_WARN_SEC // 60} min (¿silenciado?; "
+            f"{SOURCE_ARTICLES[other]} {SOURCE_NAMES[other]} sí suena). Si hablaste, elige el dispositivo que usa "
+            f"Teams en ⚙ Opciones o `daily config`. Detectado a las"
         )
-    return f"✔ {SOURCE_NAMES[kind]} vuelve a dar fragmentos desde"
+    return f"✔ vuelve a haber audio de {SOURCE_NAMES[kind]} desde"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -270,9 +276,11 @@ class RecorderSession:
         self.draining = False  # True cuando se pidió cerrar pero se espera a vaciar la cola
         self.finished = False  # True cuando, esperando, la cola ya se vació: toca cerrar
         self.muted: Optional[str] = None  # fuente que lleva MUTE_WARN_SEC sin fragmentos (ya avisada)
+        self._resumed_at = 0.0  # última vuelta de una pausa: lo callado durante la pausa no cuenta como mudo
         # Buffer circular de capturas (actions/capture_buffer.py): un hilo propio que guarda un
-        # fotograma cada 5 s mientras hay reunión; el transcriptor toma de él la imagen de la hora
-        # en que se dijo la palabra clave. None con `captures: off`.
+        # fotograma cada 5 s mientras hay reunión (desde el primer fragmento de audio); el
+        # transcriptor toma de él la imagen de la hora en que se dijo la palabra clave. None con
+        # `captures: off`.
         self.buffer: Optional[CaptureBuffer] = None
         self._buffer_key = None  # (caps_dir, captures) con que se arrancó: si Opciones lo cambia, se rearranca
         # El hardware se detecta en otro hilo (~1 s) para no congelar la interfaz; el resultado
@@ -378,31 +386,55 @@ class RecorderSession:
             pass
 
     # ------------------------------------------------------------------ buffer de capturas
-    def _last_meeting_audio(self) -> float:
-        """Último indicio de reunión: el arranque o el último fragmento encolado de cualquier fuente.
+    def _last_audio_chunk(self) -> float:
+        """El último fragmento encolado por cualquier fuente (0 si aún ninguno).
 
         Fragmentos y no nivel: el ruido de un jack sin micrófono pasa el umbral en frames sueltos
-        y, con el nivel, el equipo nunca se soltaba ni el buffer dejaba de capturar.
+        y, con el nivel, el equipo nunca se soltaba ni el buffer dejaba de capturar. Continuar
+        tras una pausa tampoco cuenta: la ventana de 15 min se mide desde audio real.
         """
-        am = self.audio_manager
-        return max(am.started_at, *am.last_chunk_at.values())
+        return max(self.audio_manager.last_chunk_at.values(), default=0.0)
+
+    def _last_meeting_audio(self) -> float:
+        """Para retener el equipo despierto: el arranque o el último fragmento, lo más reciente.
+        Recién abierto, Recorder se queda despierto 15 min aunque la reunión aún no empiece."""
+        return max(self.audio_manager.started_at, self._last_audio_chunk())
 
     def _buffer_active(self) -> bool:
-        """Lo que el hilo del buffer pregunta antes de cada fotograma: si hay reunión."""
-        return should_buffer(time.time(), self._last_meeting_audio(), self.audio_manager.paused)
+        """Lo que el hilo del buffer pregunta antes de cada fotograma: si hay reunión. Hasta el
+        primer fragmento de audio no la hay, y la pantalla no se guarda."""
+        return should_buffer(time.time(), self._last_audio_chunk(), self.audio_manager.paused)
+
+    def _buffer_failed(self, e: Exception) -> None:
+        """El primer fallo del buffer (la unidad de la carpeta de capturas no está, la pantalla no se
+        deja leer…), desde su hilo: a la nota y, por `ui_queue`, al visor. Los siguientes solo cuentan."""
+        stamp = _now()
+        texto = (
+            f"⚠ el buffer de capturas falló ({e!r}): las capturas por palabra clave se tomarán al "
+            f"transcribir, tardías si hay cola"
+        )
+        try:
+            self.notes_session.write_line(f"\n> {texto} {stamp}\n")
+        except Exception:  # ponytail: si la nota tampoco se puede escribir, el visor avisa igual
+            pass
+        self.ui_queue.put(("notice", stamp, texto, "err"))
 
     def _start_buffer(self):
-        """(Re)arranca el buffer de capturas con la calidad y carpeta de la configuración actual."""
+        """(Re)arranca el buffer de capturas con la calidad y carpeta de la configuración actual.
+        Una calidad desconocida vale como la de fábrica, no como apagado."""
         if self.buffer is not None:
-            self.buffer.stop()
-            self.buffer.clear()
+            self.buffer.stop()  # para y vacía
         self.buffer = None
-        if self.config.captures in QUALITIES:
+        quality = self.config.captures
+        if quality != "off" and quality not in QUALITIES:
+            quality = DEFAULT_CAPTURES
+        if quality != "off":
             self.buffer = self._buffer_factory(
                 self.config.caps_dir,
-                self.config.captures,
+                quality,
                 grab=lambda: grab_image(self.config.screen, self.config.window),
                 active=self._buffer_active,
+                on_error=self._buffer_failed,
             )
             self.buffer.start()
         self._buffer_key = (self.config.caps_dir, self.config.captures)
@@ -479,12 +511,18 @@ class RecorderSession:
         return events
 
     def _check_mute(self):
-        """Una fuente que lleva MUTE_WARN_SEC sin dar fragmentos mientras la otra sí (un micrófono
-        que no es el que usa Teams, un jack sin micrófono) no da error: se detecta aquí y se avisa
-        una vez, en la nota y en el visor; al volver a dar fragmentos, otra vez. En pausa, terminando
-        o con la fuente caída (eso ya lo avisa `_note_source`) no cuenta."""
+        """Una fuente que lleva MUTE_WARN_SEC sin audio mientras la otra sí (un micrófono que no es
+        el que usa Teams, un jack sin micrófono, o simplemente silenciado) no da error: se detecta
+        aquí y se avisa una vez por episodio, en la nota y en el visor; al volver a haber audio,
+        otra vez. En pausa, terminando o con la fuente caída (eso ya lo avisa
+        `_note_source`) no cuenta, y el plazo se mide desde el arranque de la captura o desde la
+        última vuelta de una pausa. Si el micrófono se desactiva en Opciones con el aviso puesto,
+        el aviso se retira sin anunciar una vuelta que no hubo."""
         am = self.audio_manager
-        muted = None if (am.paused or self.draining) else am.muted(time.time())
+        if self.muted == "mic" and not am.mic_enabled:
+            self.muted = None
+        since = max(am.started_at, self._resumed_at)
+        muted = None if (am.paused or self.draining) else mute_source(time.time(), am.last_chunk_at, since, am.mic_enabled)
         if muted and am.attempts.get(muted):
             muted = None  # caída, no muda
         if muted == self.muted:
@@ -543,7 +581,9 @@ class RecorderSession:
         self.audio_manager.paused = not self.audio_manager.paused
         is_paused = self.audio_manager.paused
         if not is_paused:
-            self.audio_manager.started_at = time.time()  # lo callado durante la pausa no cuenta como mudo
+            # Lo callado durante la pausa no cuenta como mudo; el reloj de la reunión (buffer, ☕) no
+            # se toca: ese cuenta desde el último audio real.
+            self._resumed_at = time.time()
         stamp = _now()
         state_msg = "⏸ Pausa" if is_paused else "▶ Continúa"
         self.notes_session.write_line(f"\n> {state_msg} {stamp}\n")
@@ -620,8 +660,7 @@ class RecorderSession:
         self.stop_event.set()
         keep_awake(False)
         if self.buffer is not None:  # la cola ya se vació o se abandonó: nada de la pantalla queda en disco
-            self.buffer.stop()
-            self.buffer.clear()
+            self.buffer.stop()  # para y vacía
             self.buffer = None
         # ponytail: a propósito no se llama a pa.terminate(). Cierra cada stream desde este hilo
         # mientras el del loopback sigue bloqueado en read() (bloquea hasta que suena algo) y eso

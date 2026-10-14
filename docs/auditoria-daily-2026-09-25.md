@@ -35,10 +35,23 @@ Lo importante primero:
 >   valores por defecto en `digest/preview.py` (`digest_options`).
 > * La terminal tiene paridad: `daily config` pregunta la calidad de las capturas, `daily calibrar`
 >   marca el eco y avisa de los rótulos, y `daily sintesis` propone lo mismo que la ventana (texto
->   puro, sin cortas, sin ecos) con banderas `--con-imagenes`, `--con-cortas`, `--con-ecos`.
+>   puro, sin ecos) con banderas `--con-imagenes`, `--sin-cortas`, `--con-ecos`.
 > * Las pruebas de la ventana pasaron a la sesión (`tests/test_session.py`: `TestFuentes`,
 >   `TestFuenteMuda`, `TestBufferDeCapturas`) y hay pruebas de paridad en `tests/test_cli_live.py`,
 >   `tests/test_cli_configurar.py`, `tests/test_cli_calibrar.py` y `tests/test_cli_sintesis.py`.
+>
+> **Lo que la evaluación de la rama corrigió después** (14-OCT-2026): el filtro de eco se llevaba
+> frases reales («Términos del contrato firmados ayer», «Ana y Luis», «QA e IIS») y quitaba rótulos
+> que no estaban en el vocabulario; ahora solo actúa a partir del `vocab` configurado, con reglas
+> mucho más estrictas para descartar un renglón entero, y se puede apagar (`echo_filter`, sección D de
+> `docs/anti-hallucination-tuning.md`). La calidad `normal` del buffer pasa a JPEG 85 sin submuestreo
+> de color (el primer buffer era JPEG 70 4:2:0, peor que el PNG de siempre; `high` sigue siendo PNG) y
+> `light` reduce con LANCZOS. El buffer no guarda nada hasta el primer audio, borra lo más viejo que
+> 15 min también sin reunión y avisa en la nota y el visor de su primer fallo. «Descartar líneas
+> cortas» ya no viene marcado (se llevaba decisiones como «Sí, va.»). El aviso de fuente sin audio es
+> neutro («sin audio de micrófono desde hace 10 min (¿silenciado?)»), continuar tras una pausa no
+> reinicia el reloj de la reunión y desactivar el micrófono con el aviso puesto no anuncia una vuelta.
+> Cifras de disco y CPU medidas de nuevo en `docs/captura-diferida.md`.
 
 ---
 

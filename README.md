@@ -18,7 +18,7 @@
   * **Anti-Bucles:** Detector de repeticiones continuas mediante análisis de compresión zlib (`compression_ratio`).
   * **Diccionario Fonético:** Sustituciones automáticas para jerga técnica o siglas de tu equipo (`cuba` ➔ `QA`, `ayayas` ➔ `IIS`).
   * **🧪 Sandbox en Vivo:** Prueba tus reglas interactivamente en la interfaz antes de guardarlas.
-* 🧹 **Reagrupar notas (📑):** Genera copias ordenadas por hora y agrupadas por tramos de reloj (5, 15, 30 o 60 min), con las líneas del mismo turno unidas en párrafos que conservan su `[HH:MM]`, sin relleno corto ni ecos del vocabulario y, por defecto, en texto puro (sin imágenes ni indicadores de captura; se pueden conservar desmarcando la casilla). **No resume**: el texto es el de la transcripción, y la cabecera de cada copia lo dice. **Nunca modifica la nota original**: cada copia es un archivo nuevo (`…_reagrupada-1h.md`) que registra de qué original salió.
+* 🧹 **Reagrupar notas (📑):** Genera copias ordenadas por hora y agrupadas por tramos de reloj (5, 15, 30 o 60 min), con las líneas del mismo turno unidas en párrafos que conservan su `[HH:MM]`, sin ecos del vocabulario y, por defecto, en texto puro (sin imágenes ni indicadores de captura; se pueden conservar desmarcando la casilla; descartar las líneas cortas es opcional, porque se lleva respuestas como «Sí, va.»). **No resume**: el texto es el de la transcripción, y la cabecera de cada copia lo dice. **Nunca modifica la nota original**: cada copia es un archivo nuevo (`…_reagrupada-1h.md`) que registra de qué original salió.
 * 📝 **Salida Markdown Atómica:** Genera un archivo diario (ej: `daily_2026-09-08_14-30.md`) con soporte para pausar (`⏸`), reanudar (`▶`) y trasladar la carpeta de notas en caliente.
 * 🎧 **Resistente a auriculares y suspensión:** Si una fuente de audio se cae (auriculares desconectados, equipo que despierta), se reabre sola con reintentos mientras la otra sigue; el medidor lo muestra (`🔊 ⛔ reintento 3`). Mantiene el equipo despierto solo mientras hay trabajo (`☕`) y, al cerrar con fragmentos pendientes, avisa de cuántos minutos faltan y deja terminar. Ver [Auriculares, suspensión y cierre](#-auriculares-suspensión-y-cierre).
 
@@ -68,7 +68,8 @@ Recorder detecta el equipo en medio segundo (CPU y sus núcleos P/E, AVX2, RAM, 
 | :--- | :--- |
 | `vocab` | Contexto que se le pasa a Whisper antes de oir. Aqui van los terminos y nombres de tu equipo. Es lo que mas mejora la transcripcion. Escribelo como frase o lista **sin rotulos** (`Terminos:`, `Nombres del equipo:`): Whisper los repite en los silencios ([docs/anti-hallucination-tuning.md](docs/anti-hallucination-tuning.md), seccion D). |
 | `keywords` | Palabras que disparan una captura de pantalla. Evita muletillas: *este* se ignora siempre (disparo 60 de 212 capturas en una daily); *aqui* y *ahi* disparan mucho. |
-| `captures` | Capturas automaticas por palabra clave: `off`, `light`, `normal` (por defecto) o `high`. Salen de un buffer con una imagen cada 5 s, asi que la captura es la del momento en que se dijo la palabra aunque la transcripcion vaya atrasada ([docs/captura-diferida.md](docs/captura-diferida.md)). Se elige en ⚙ Opciones o en `daily config`; un valor que no sea uno de esos cuatro cae a `normal`. |
+| `captures` | Capturas automaticas por palabra clave: `off`, `light` (JPEG a media resolucion), `normal` (por defecto: JPEG 85 sin submuestreo de color, texto nitido) o `high` (PNG sin perdida, la captura de siempre). Salen de un buffer con una imagen cada 5 s desde el primer audio de la reunion, asi que la captura es la del momento en que se dijo la palabra aunque la transcripcion vaya atrasada; nada queda en el buffer mas de 15 min ni al cerrar ([docs/captura-diferida.md](docs/captura-diferida.md)). Se elige en ⚙ Opciones o en `daily config`; un valor que no sea uno de esos cuatro cae a `normal`. **Ojo si vienes de una version anterior:** las capturas automaticas pasan de PNG a JPEG salvo con `high`. |
+| `echo_filter` | Filtro del eco del vocabulario (`true` por defecto): quita los rotulos del `vocab` pegados a una frase y descarta los renglones que solo recitan el vocabulario; nunca toca nada si `vocab` esta vacio. Se apaga en 🎯 Calibrar o `daily calibrar` si se sospecha que se lleva frases reales. |
 | `fixes` | Sustituciones palabra por palabra tras transcribir, para lo que Whisper confunda siempre igual. |
 | `ignore` | Frases fantasma que Whisper inventa en los silencios. La lista de fabrica cubre las mas comunes en espanol. |
 | `model` | Modelo de Whisper. `small` va en tiempo real en un portatil sin GPU; `medium` es mas preciso pero se retrasa. |
@@ -103,8 +104,8 @@ En ⚙ Opciones, el selector **Qué capturar 📸** lista, además de las pantal
   daily calibrar        # 🎯 Calibrar: vocabulario, frases a ignorar, correcciones, umbrales y sandbox
   daily calibrar --probar "frase"   # ¿pasaría los filtros? (sale con 0 si se acepta, 1 si se descarta o es eco del vocab)
   daily sintesis        # elige una nota y genera su copia reagrupada (no resume); el original no se toca
-  daily sintesis nota.md --cada 15 --si   # lo mismo sin preguntas; por defecto texto puro, sin cortas y sin ecos, como la ventana
-                        # (--sin-unir, --con-horas, --con-imagenes, --con-cortas, --con-ecos invierten las casillas)
+  daily sintesis nota.md --cada 15 --si   # lo mismo sin preguntas; por defecto texto puro y sin ecos, como la ventana
+                        # (--sin-unir, --con-horas, --con-imagenes, --sin-cortas, --con-ecos invierten las casillas)
   daily recomendar      # equipo detectado y configuración recomendada (--aplicar la guarda)
   daily ventana         # la ventana de siempre (igual que daily --gui)
   daily --ascii         # símbolos ASCII (en la consola clásica, conhost, se detecta solo)
@@ -141,7 +142,7 @@ Cada fuente (🔊 salida y 🎤 micrófono) vive en su propio hilo y **se recupe
 
 En la cabecera se ve de un vistazo: el medidor pasa de `🔊 ████░░░░` a `🔊 ⛔ reintento 3` mientras está caída, y vuelve a las barras en cuanto lee audio otra vez. Además queda una línea con hora en la ventana y en la nota (`> ⚠ audio de salida caído…` / `> ✔ audio de salida recuperado`), para saber por qué hay un hueco.
 
-Una fuente también puede estar **muda sin estar caída**: el flujo lee, pero nada llega a formar un fragmento (el micrófono elegido no es el que usa Teams, o es un jack sin micrófono conectado). Si una fuente lleva 10 minutos sin dar fragmentos mientras la otra sí, el medidor muestra `🎤 ░░░░░░░░ 🔇` (en la ventana y en el pie de la terminal) y la nota y el visor lo dicen (`> ⚠ el micrófono 🎤 lleva 10 min sin dar fragmentos…`), una vez, y otra al volver a dar fragmentos. Al arrancar, la nota y el visor apuntan además qué dispositivo resolvió cada fuente (`> Fuentes: 🔊 … · 🎤 …`).
+Una fuente también puede estar **sin audio sin estar caída**: el flujo lee, pero nada llega a formar un fragmento (está silenciada, el micrófono elegido no es el que usa Teams, o es un jack sin micrófono conectado). Si una fuente lleva 10 minutos sin audio mientras la otra sí suena, el medidor muestra `🎤 ░░░░░░░░ 🔇` (en la ventana y en el pie de la terminal) y la nota y el visor lo dicen de forma neutra (`> ⚠ sin audio de micrófono 🎤 desde hace 10 min (¿silenciado?; la salida 🔊 sí suena)…`), una vez por episodio, y otra al volver a haber audio. El plazo cuenta desde el arranque o desde la última vuelta de una pausa; desactivar el micrófono en Opciones retira el aviso sin más. Al arrancar, la nota y el visor apuntan además qué dispositivo resolvió cada fuente (`> Fuentes: 🔊 … · 🎤 …`).
 
 Límites que conviene conocer:
 
@@ -150,7 +151,7 @@ Límites que conviene conocer:
 
 ### Suspensión por inactividad y cierre de la tapa
 
-Mientras hay trabajo (se está oyendo algo, o quedan fragmentos por transcribir), Recorder pide a Windows que **no suspenda el equipo por inactividad** (`SetThreadExecutionState`) y lo indica con `☕` en la cabecera. No es permanente: se suelta cuando la cola está vacía y llevan 15 minutos sin ningún fragmento de audio, o en pausa (⏸) sin cola. (Cuenta fragmentos y no nivel: el ruido de un jack sin micrófono pasa el umbral en instantes sueltos y antes retenía el equipo sin fin.) Así un Recorder olvidado abierto no deja el portátil encendido toda la noche. La pantalla sí puede apagarse; solo se retiene el sistema.
+Mientras hay trabajo (se está oyendo algo, o quedan fragmentos por transcribir), Recorder pide a Windows que **no suspenda el equipo por inactividad** (`SetThreadExecutionState`) y lo indica con `☕` en la cabecera. No es permanente: se suelta cuando la cola está vacía y llevan 15 minutos sin ningún fragmento de audio (contados desde el arranque o desde audio real; continuar tras una pausa no reinicia el plazo), o en pausa (⏸) sin cola. (Cuenta fragmentos y no nivel: el ruido de un jack sin micrófono pasa el umbral en instantes sueltos y antes retenía el equipo sin fin.) Así un Recorder olvidado abierto no deja el portátil encendido toda la noche. La pantalla sí puede apagarse; solo se retiene el sistema.
 
 **Cerrar la tapa no lo puede impedir ninguna aplicación**: es una directiva de energía de Windows. Si quieres cerrar la tapa y que Recorder siga transcribiendo, configura que al cerrarla no pase nada:
 

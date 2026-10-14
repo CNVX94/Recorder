@@ -167,7 +167,7 @@ class TestFuenteMuda(BasePantalla):
         self.assertIn(mute_text("mic", True), texto)
         self.assertIn("🔊 ░░░░░░░░   🎤 ░░░░░░░░ 🔇", texto, "el medidor del pie marca la fuente muda")
         self.assertIn(mute_text("mic", False), texto)
-        self.assertLess(texto.index("lleva 10 min"), texto.index("vuelve a dar fragmentos"))
+        self.assertLess(texto.index("sin audio de"), texto.index("vuelve a haber audio"))
         self.assertIn("> " + mute_text("mic", True), self.nota)
         self.assertIsNone(self.session.status.muted)
 
@@ -179,7 +179,7 @@ class TestFuenteMuda(BasePantalla):
         self.audio.last_chunk_at = {"out": time.time() - 5, "mic": 0.0}
         texto = limpio(self.correr(None, "q"))
         self.assertIn("OUT ........   MIC ........ (mudo)", texto)
-        self.assertIn("! el micrófono MIC lleva 10 min sin dar fragmentos", texto)
+        self.assertIn("! sin audio de micrófono MIC desde hace 10 min", texto)
 
 
 class TestTeclas(BasePantalla):
