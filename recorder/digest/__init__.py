@@ -1,6 +1,15 @@
 """Sintesis de notas: agrupa y limpia una nota diaria sin tocar nunca el original."""
 
 from .parser import Entry, Note, parse_file, parse_text
+from .preview import (
+    INTERVAL_LABELS,
+    MIN_WORDS,
+    NOTE_HEADER,
+    DigestPreview,
+    digest_options,
+    note_row,
+    preview_digest,
+)
 from .transforms import (
     INTERVALS,
     DigestOptions,
@@ -29,6 +38,13 @@ __all__ = [
     "Note",
     "parse_file",
     "parse_text",
+    "INTERVAL_LABELS",
+    "MIN_WORDS",
+    "NOTE_HEADER",
+    "DigestPreview",
+    "digest_options",
+    "note_row",
+    "preview_digest",
     "INTERVALS",
     "DigestOptions",
     "apply_all",

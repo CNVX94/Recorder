@@ -76,8 +76,8 @@ el driver de vídeo y las capas de terceros (superposiciones de Steam, OBS...), 
 debe tumbar la ventana. Es la misma razón por la que whisper.cpp corre como `whisper-server`
 aparte.
 
-**Caché e hilos.** `cached_hardware()` detecta una vez por proceso. La ventana principal lo
-lanza en un hilo al arrancar; Opciones y el transcriptor reutilizan el resultado (si lo piden
+**Caché e hilos.** `cached_hardware()` detecta una vez por proceso. La sesión
+(`recorder/session.py`) lo lanza en un hilo al arrancar; Opciones y el transcriptor reutilizan el resultado (si lo piden
 antes de que termine, esperan a esa misma detección en vez de repetirla). El estado de la
 batería es el del arranque.
 
@@ -211,7 +211,7 @@ python tools\medir_rendimiento.py --motor whispercpp --modelo large-v3-turbo --h
 
 | Momento | Qué pasa |
 | :--- | :--- |
-| **Primer arranque** (no hay `config.json`) | `ConfigManager.first_run` lo indica. La ventana espera a la detección (~0,5-2 s) antes de cargar el modelo, aplica la recomendación (modelo, haz, dispositivo, precisión, hilos y, con whisper.cpp, flash attention), guarda `config.json` y escribe en el visor una línea con el equipo, lo aplicado y el motivo. Rutas, vocabulario y filtros no se tocan. |
+| **Primer arranque** (no hay `config.json`) | `ConfigManager.first_run` lo indica. La sesión espera a la detección (~0,5-2 s) antes de cargar el modelo, aplica la recomendación (modelo, haz, dispositivo, precisión, hilos y, con whisper.cpp, flash attention), guarda `config.json` y escribe en el visor una línea con el equipo, lo aplicado y el motivo. Rutas, vocabulario y filtros no se tocan. |
 | **Instalador** (`install.ps1`) | Tras copiar `config.example.json`, ejecuta `recorder.py --recomendar --aplicar`. Si `config.json` ya existía, solo muestra la recomendación (`--recomendar`) y no lo toca. |
 | **⚙ Opciones** | «Recomendado para este equipo: … — motivo [confianza]» y el botón **Usar recomendado** (pone el preset, o Personalizado con sus valores, los hilos y flash attention; se guarda al pulsar Guardar). Además: **Hilos de CPU** (con el recomendado al lado), **whisper.cpp** (carpeta con 📁 y si hay servidor y modelos), **GPU de whisper.cpp** (Automática o una de la lista) y **Flash attention**. |
 | **Cada arranque** | Avisos en el visor (`startup_notices`): ⚠ GPU dedicada que solo sirve con whisper.cpp y `whispercpp_dir` vacío; ⚠ configuración más pesada que la recomendada (`config_heavier_than`: mismo dispositivo y modelo o haz mayor, o large-v3 en CPU); 💡 la configuración está en CPU y la recomendada usa la GPU. |
@@ -249,7 +249,8 @@ python tools\medir_rendimiento.py --motor whispercpp --modelo large-v3-turbo --h
   `vulkan_readiness`, `installed_models`; el modelo guarda la GPU que dice el registro.
 * `recorder/engine/whisper_worker.py`: elige la GPU antes de arrancar el servidor y rechaza una
   integrada tomada en automático.
-* `recorder/ui/main_window.py` y `recorder/ui/dialogs/settings_dialog.py`: lo de la sección 4.
+* `recorder/session.py` (primer arranque y avisos de cada arranque) y
+  `recorder/ui/dialogs/settings_dialog.py`: lo de la sección 4.
 * `recorder.py --recomendar [--aplicar]`, `install.ps1`, `tools/instalar_whispercpp.ps1`,
   `tools/medir_rendimiento.py --dev N`, `config.example.json` (`whispercpp_device`).
 * Pruebas: `tests/test_hardware.py` (topología 2P+8E sintética, DXGI con duplicados, orden de

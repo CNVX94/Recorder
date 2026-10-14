@@ -30,6 +30,8 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
+from ..config.hardware import HardwareProfile, describe_gpu
+
 SERVER_EXE = "whisper-server.exe"
 VAD_MODEL = "ggml-silero-v6.2.0.bin"
 LOAD_TIMEOUT_SEC = 180.0  # large-v3 son 3 GB que leer de disco y subir a la VRAM
@@ -93,6 +95,42 @@ def vulkan_readiness(whispercpp_dir: str, compute_type: str = "float16") -> Tupl
         whispercpp_ready(whispercpp_dir, "large-v3-turbo", compute_type),
         whispercpp_ready(whispercpp_dir, "large-v3", compute_type),
     )
+
+
+@dataclasses.dataclass(frozen=True)
+class WhisperCppStatus:
+    """Estado de la carpeta de whisper.cpp para mostrarlo. `level`: "ok", "warning" o "info"."""
+
+    text: str
+    level: str
+
+
+def whispercpp_status(whispercpp_dir: str, hardware: Optional[HardwareProfile] = None) -> WhisperCppStatus:
+    """Qué hay en la carpeta de whisper.cpp: vacía, sin servidor, sin modelos o lista, y si importa.
+
+    Con el perfil del equipo, una carpeta vacía habiendo una GPU dedicada sin CUDA es un aviso
+    (esa GPU se queda sin usar); sin perfil, o sin tal GPU, es solo informativa. Solo mira el
+    disco, como `whispercpp_ready`.
+    """
+    carpeta = whispercpp_dir.strip()
+    dgpu = None
+    if hardware is not None and hardware.cuda_devices <= 0:
+        dgpu = hardware.best_vulkan_discrete
+    if not carpeta:
+        if dgpu is not None:
+            return WhisperCppStatus(
+                f"⚠ Vacía: la GPU {describe_gpu(dgpu)} no se usa. Ejecuta tools\\instalar_whispercpp.ps1 "
+                f"(docs/gpu-amd-vulkan.md) o indica aquí su carpeta.", "warning",
+            )
+        return WhisperCppStatus(
+            "Vacía: sin motor Vulkan. Solo hace falta para una GPU AMD o Intel (docs/gpu-amd-vulkan.md).", "info"
+        )
+    if not server_exe_path(pathlib.Path(carpeta)).is_file():
+        return WhisperCppStatus(f"⚠ No hay bin\\whisper-server.exe en «{carpeta}».", "warning")
+    modelos = installed_models(carpeta)
+    if not modelos:
+        return WhisperCppStatus("⚠ whisper-server encontrado, pero no hay modelos ggml en models\\.", "warning")
+    return WhisperCppStatus(f"✔ whisper-server y modelos: {', '.join(modelos)}.", "ok")
 
 
 # ------------------------------------------------------------------ registro del servidor

@@ -3,9 +3,17 @@ from tkinter import ttk, messagebox
 from typing import Callable
 
 from ...config.schema import AppConfig
-from ...filters.lexicon import format_fixes, parse_fixes
-from ...filters.pipeline import TextPipeline
 from ...filters.samples import random_sample
+from ...filters.tuning import (
+    THRESHOLD_RANGES,
+    TuningForm,
+    apply_tuning,
+    format_ignore,
+    parse_ignore,
+    test_phrase,
+    tuning_form,
+    with_common_ignore,
+)
 from ..theme import ACC, BG, BTN_STYLE, DIM, ENTRY_STYLE, ERR, FG, LABEL_STYLE, PANEL, SUCCESS, fit_window
 
 
@@ -32,16 +40,28 @@ class TuningDialog(tk.Toplevel):
         fit_window(self, 720, 680)
 
     def _init_variables(self):
-        self.var_vocab = tk.StringVar(value=self.config.vocab)
-        self.var_ignore = tk.StringVar(value=", ".join(self.config.ignore))
-        self.var_fixes = tk.StringVar(value=format_fixes(self.config.fixes))
-        self.var_no_speech = tk.DoubleVar(value=self.config.no_speech_threshold)
-        self.var_logprob = tk.DoubleVar(value=self.config.logprob_threshold)
-        self.var_compression = tk.DoubleVar(value=self.config.compression_ratio_threshold)
+        f = tuning_form(self.config)
+        self.var_vocab = tk.StringVar(value=f.vocab)
+        self.var_ignore = tk.StringVar(value=f.ignore)
+        self.var_fixes = tk.StringVar(value=f.fixes)
+        self.var_no_speech = tk.DoubleVar(value=f.no_speech_threshold)
+        self.var_logprob = tk.DoubleVar(value=f.logprob_threshold)
+        self.var_compression = tk.DoubleVar(value=f.compression_ratio_threshold)
 
         # Sandbox
         self.var_test_input = tk.StringVar(value="Desplegamos en cuba y en el ayayas. ¡Suscríbete!")
         self.var_test_result = tk.StringVar(value="")
+
+    def _form(self) -> TuningForm:
+        """Lo que hay escrito ahora en la ventana, como valores planos."""
+        return TuningForm(
+            vocab=self.var_vocab.get(),
+            ignore=self.var_ignore.get(),
+            fixes=self.var_fixes.get(),
+            no_speech_threshold=self.var_no_speech.get(),
+            logprob_threshold=self.var_logprob.get(),
+            compression_ratio_threshold=self.var_compression.get(),
+        )
 
     def _build_ui(self):
         pad = {"padx": 16, "pady": 6}
@@ -139,12 +159,13 @@ class TuningDialog(tk.Toplevel):
             fg=DIM,
             font=("Segoe UI", 9),
         ).grid(row=1, column=0, sticky="w")
+        lo, hi, paso = THRESHOLD_RANGES["no_speech_threshold"]
         sc_no_speech = tk.Scale(
             sliders_frame,
             variable=self.var_no_speech,
-            from_=0.1,
-            to=0.95,
-            resolution=0.05,
+            from_=lo,
+            to=hi,
+            resolution=paso,
             orient="horizontal",
             bg=PANEL,
             fg=FG,
@@ -162,12 +183,13 @@ class TuningDialog(tk.Toplevel):
             fg=DIM,
             font=("Segoe UI", 9),
         ).grid(row=2, column=0, sticky="w")
+        lo, hi, paso = THRESHOLD_RANGES["logprob_threshold"]
         sc_logprob = tk.Scale(
             sliders_frame,
             variable=self.var_logprob,
-            from_=-2.5,
-            to=-0.2,
-            resolution=0.1,
+            from_=lo,
+            to=hi,
+            resolution=paso,
             orient="horizontal",
             bg=PANEL,
             fg=FG,
@@ -185,12 +207,13 @@ class TuningDialog(tk.Toplevel):
             fg=DIM,
             font=("Segoe UI", 9),
         ).grid(row=3, column=0, sticky="w")
+        lo, hi, paso = THRESHOLD_RANGES["compression_ratio_threshold"]
         sc_comp = tk.Scale(
             sliders_frame,
             variable=self.var_compression,
-            from_=1.5,
-            to=3.5,
-            resolution=0.1,
+            from_=lo,
+            to=hi,
+            resolution=paso,
             orient="horizontal",
             bg=PANEL,
             fg=FG,
@@ -277,70 +300,21 @@ class TuningDialog(tk.Toplevel):
         self._run_test()
 
     def _append_common_ignore(self):
-        common = [
-            "suscríbete",
-            "gracias por ver",
-            "amara.org",
-            "hasta el próximo vídeo",
-            "subtítulos por",
-            "dale a la campanita",
-        ]
-        current = [x.strip() for x in self.var_ignore.get().split(",") if x.strip()]
-        for c in common:
-            if c not in current:
-                current.append(c)
-        self.var_ignore.set(", ".join(current))
+        self.var_ignore.set(format_ignore(with_common_ignore(parse_ignore(self.var_ignore.get()))))
         self._run_test()
 
     def _random_sample(self):
         """Genera una frase de ejemplo con el glosario escrito ahora mismo en el dialogo."""
-        ignore_list = [x.strip() for x in self.var_ignore.get().split(",") if x.strip()]
-        fixes_dict = parse_fixes(self.var_fixes.get())
-        self.var_test_input.set(
-            random_sample(
-                self.var_vocab.get(),
-                fixes_dict,
-                ignore_list,
-                self.config.keywords,
-            )
-        )
+        f = self._form()
+        self.var_test_input.set(random_sample(f.vocab, f.fixes_dict, f.ignore_list, self.config.keywords))
         self._run_test()
 
     def _run_test(self):
-        ignore_list = [x.strip() for x in self.var_ignore.get().split(",") if x.strip()]
-        fixes_dict = parse_fixes(self.var_fixes.get())
-        pipeline = TextPipeline(
-            keywords=self.config.keywords,
-            ignore=ignore_list,
-            fixes=fixes_dict,
-            no_speech_thresh=self.var_no_speech.get(),
-            logprob_thresh=self.var_logprob.get(),
-            compression_ratio_thresh=self.var_compression.get(),
-        )
-
-        sample = self.var_test_input.get()
-        res = pipeline.test_sample(sample)
-
-        if res["is_ignored"]:
-            self.lbl_test_status.config(fg=ERR)
-            self.var_test_result.set("⛔ DESCARTADA: Contiene una frase de la lista negra de alucinaciones.")
-        else:
-            self.lbl_test_status.config(fg=SUCCESS)
-            out = f"✅ ACEPTADA: \"{res['processed']}\""
-            if res["hits"]:
-                out += f"  (📸 Palabras clave detectadas: {', '.join(res['hits'])})"
-            self.var_test_result.set(out)
+        veredicto = test_phrase(self._form(), self.var_test_input.get(), self.config.keywords)
+        self.lbl_test_status.config(fg=SUCCESS if veredicto.accepted else ERR)
+        self.var_test_result.set(veredicto.message)
 
     def _save_changes(self):
-        ignore_list = [x.strip() for x in self.var_ignore.get().split(",") if x.strip()]
-        fixes_dict = parse_fixes(self.var_fixes.get())
-
-        self.config.vocab = self.var_vocab.get().strip()
-        self.config.ignore = ignore_list
-        self.config.fixes = fixes_dict
-        self.config.no_speech_threshold = float(self.var_no_speech.get())
-        self.config.logprob_threshold = float(self.var_logprob.get())
-        self.config.compression_ratio_threshold = float(self.var_compression.get())
-
+        apply_tuning(self.config, self._form())
         self.on_save(self.config)
         self.destroy()

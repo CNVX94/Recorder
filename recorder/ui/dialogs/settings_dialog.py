@@ -1,36 +1,48 @@
-import pathlib
 import threading
 import tkinter as tk
 from tkinter import filedialog
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 import pyaudiowpatch as pa
 
 from ...actions.screenshot import screen_labels, window_titles
 from ...audio.devices import wasapi_devices
-from ...config.hardware import HardwareProfile, cached_hardware, describe_gpu, peek_hardware
+from ...config.hardware import HardwareProfile, cached_hardware, peek_hardware
+from ...config.options import (
+    AUTO_GPU,
+    DEFAULT_DEV,
+    MAX_THREADS,
+    WINDOW_PREFIX,
+    SettingsForm,
+    apply_settings,
+    custom_runtime,
+    device_choices,
+    gpu_choice,
+    gpu_choices,
+    quality_description,
+    quality_display,
+    recommendation_text,
+    settings_form,
+    target_choices,
+    threads_hint,
+    use_recommendation,
+)
 from ...config.schema import (
     AppConfig,
     CUSTOM_PRESET,
     PRESET_ORDER,
     QUALITY_PRESETS,
     Recommendation,
-    apply_preset,
-    describe_recommendation,
-    describe_runtime,
     detect_cuda_device_count,
     preset_availability,
     preset_key_for_config,
     recommend_config,
-    recommended_cpu_threads,
 )
-from ...engine.whispercpp import installed_models, server_exe_path, vulkan_readiness, whispercpp_ready
+from ...engine.whispercpp import vulkan_readiness, whispercpp_ready, whispercpp_status
 from ..theme import ACC, BG, BTN_STYLE, DIM, ENTRY_STYLE, ERR, FG, LABEL_STYLE, PANEL, SUCCESS, fit_window
 from .tuning_dialog import TuningDialog
 
-DEFAULT_DEV = "(predeterminado de Windows)"
-WINDOW_PREFIX = "Ventana: "  # distingue en el selector una ventana de aplicación de una pantalla
-AUTO_GPU = "Automática (dedicada)"
-MAX_THREADS = 256
+# Color del estado de la carpeta de whisper.cpp según su nivel (ver `whispercpp_status`).
+STATUS_COLOR = {"ok": SUCCESS, "warning": ERR, "info": DIM}
 
 
 class SettingsDialog(tk.Toplevel):
@@ -54,7 +66,7 @@ class SettingsDialog(tk.Toplevel):
         self.grab_set()
 
         self.screens = screen_labels()
-        # El perfil lo detecta MainWindow al arrancar en otro hilo (~1 s); si aún no está, el
+        # El perfil lo detecta la sesión al arrancar en otro hilo (~1 s); si aún no está, el
         # diálogo se abre igual y la recomendación aparece cuando llegue.
         self.hardware: Optional[HardwareProfile] = peek_hardware()
         # 0 si no hay GPU CUDA o falla la consulta
@@ -73,20 +85,36 @@ class SettingsDialog(tk.Toplevel):
             self.after(200, self._poll_hardware)
 
     def _init_variables(self):
-        screen_idx = self.config.screen if self.config.screen < len(self.screens) else 0
-        self.v_notes = tk.StringVar(value=self.config.notes_dir)
-        self.v_caps = tk.StringVar(value=self.config.caps_dir)
-        self.v_keywords = tk.StringVar(value=", ".join(self.config.keywords))
-        self.v_mic = tk.BooleanVar(value=self.config.mic)
-        self.v_out_dev = tk.StringVar(value=self.config.out_dev or DEFAULT_DEV)
-        self.v_mic_dev = tk.StringVar(value=self.config.mic_dev or DEFAULT_DEV)
-        self.v_screen = tk.StringVar(
-            value=WINDOW_PREFIX + self.config.window if self.config.window else self.screens[screen_idx]
-        )
-        self.v_threads = tk.StringVar(value=str(self.config.cpu_threads))
-        self.v_wcpp_dir = tk.StringVar(value=self.config.whispercpp_dir)
-        self.v_flash = tk.BooleanVar(value=self.config.whispercpp_flash_attn)
+        f = settings_form(self.config, self.screens)
+        self.v_notes = tk.StringVar(value=f.notes_dir)
+        self.v_caps = tk.StringVar(value=f.caps_dir)
+        self.v_keywords = tk.StringVar(value=f.keywords)
+        self.v_mic = tk.BooleanVar(value=f.mic)
+        self.v_out_dev = tk.StringVar(value=f.out_dev)
+        self.v_mic_dev = tk.StringVar(value=f.mic_dev)
+        self.v_screen = tk.StringVar(value=f.target)
+        self.v_threads = tk.StringVar(value=f.cpu_threads)
+        self.v_wcpp_dir = tk.StringVar(value=f.whispercpp_dir)
+        self.v_flash = tk.BooleanVar(value=f.whispercpp_flash_attn)
         self.v_gpu = tk.StringVar()
+
+    def _form(self) -> SettingsForm:
+        """Lo que hay escrito y elegido ahora en la ventana, como valores planos."""
+        return SettingsForm(
+            notes_dir=self.v_notes.get(),
+            caps_dir=self.v_caps.get(),
+            keywords=self.v_keywords.get(),
+            out_dev=self.v_out_dev.get(),
+            mic_dev=self.v_mic_dev.get(),
+            mic=self.v_mic.get(),
+            target=self.v_screen.get(),
+            quality=self._current_quality_key(),
+            custom_values=self._custom_values,
+            cpu_threads=self.v_threads.get(),
+            whispercpp_dir=self.v_wcpp_dir.get(),
+            whispercpp_flash_attn=self.v_flash.get(),
+            whispercpp_device=self._gpu_choices_map.get(self.v_gpu.get(), -1),
+        )
 
     def _build_ui(self):
         # Filas de configuración
@@ -94,12 +122,11 @@ class SettingsDialog(tk.Toplevel):
         self._row_entry(1, "Carpeta de capturas:", self.v_caps, browse=True)
         self._row_entry(2, "Palabras clave (coma):", self.v_keywords)
 
-        out_devs = wasapi_devices(self.pa, "out")
-        mic_devs = wasapi_devices(self.pa, "mic")
+        out_devs = device_choices(wasapi_devices(self.pa, "out"))
+        mic_devs = device_choices(wasapi_devices(self.pa, "mic"))
         self._row_choice(3, "Salida a capturar 🔊:", self.v_out_dev, out_devs)
         self._row_choice(4, "Micrófono 🎤:", self.v_mic_dev, mic_devs)
-        targets = self._targets()
-        self.om_target = self._row_choice(5, "Qué capturar 📸:", self.v_screen, targets[1:], first=targets[0])
+        self.om_target = self._row_choice(5, "Qué capturar 📸:", self.v_screen, self._targets())
         tk.Button(self, text="🔄", command=self._refresh_targets, **BTN_STYLE).grid(row=5, column=2, padx=(6, 16))
         self._build_quality_row(6)  # fila 6 = selector, fila 7 = descripción (se aplica al reiniciar)
         self._build_recommendation_row(8)
@@ -167,9 +194,9 @@ class SettingsDialog(tk.Toplevel):
                 **BTN_STYLE,
             ).grid(row=r, column=2, padx=(6, 16))
 
-    def _row_choice(self, r: int, text: str, var: tk.StringVar, names: List[str], first: str = DEFAULT_DEV):
+    def _row_choice(self, r: int, text: str, var: tk.StringVar, choices: List[str]):
         tk.Label(self, text=text, **LABEL_STYLE).grid(row=r, column=0, sticky="w", padx=16, pady=6)
-        om = tk.OptionMenu(self, var, first, *names)
+        om = tk.OptionMenu(self, var, *choices)
         om.config(
             bg=PANEL,
             fg=FG,
@@ -230,7 +257,7 @@ class SettingsDialog(tk.Toplevel):
     def _rebuild_quality_menu(self, current_key: str):
         """Rehace las etiquetas del desplegable: la disponibilidad de Extra cambia con la carpeta de whisper.cpp."""
         keys = PRESET_ORDER + [CUSTOM_PRESET]
-        self._quality_label_by_key = {k: self._quality_display(k) for k in keys}
+        self._quality_label_by_key = {k: quality_display(k, self.cuda_devices, self.vulkan_ready) for k in keys}
         self._quality_key_by_label = {v: k for k, v in self._quality_label_by_key.items()}
         menu = self.om_quality["menu"]
         menu.delete(0, "end")
@@ -238,38 +265,6 @@ class SettingsDialog(tk.Toplevel):
             label = self._quality_label_by_key[k]
             menu.add_command(label=label, command=lambda v=label: self.v_quality.set(v))
         self.v_quality.set(self._quality_label_by_key[current_key])
-
-    def _quality_display(self, key: str) -> str:
-        """Texto del desplegable para un preset: el nombre, o por qué no está disponible aquí."""
-        if key == CUSTOM_PRESET:
-            return "Personalizado"
-        preset = QUALITY_PRESETS[key]
-        if preset_availability(key, self.cuda_devices, self.vulkan_ready).available:
-            return preset.label
-        return f"{preset.label} (no disponible en este equipo)"
-
-    def _custom_runtime(self) -> Tuple[str, int, str, str]:
-        """Lo que se guarda con «Personalizado»: lo de «Usar recomendado» o lo que ya había."""
-        c = self.config
-        return self._custom_values or (c.model, c.beam_size, c.device, c.compute_type)
-
-    def _quality_description(self, key: str) -> str:
-        if key == CUSTOM_PRESET:
-            valores = self._custom_runtime()
-            es_rec = self.rec is not None and valores == (
-                self.rec.model, self.rec.beam_size, self.rec.device, self.rec.compute_type
-            )
-            return (
-                f"Personalizado: {describe_runtime(*valores)}"
-                f"{' (la recomendada para este equipo)' if es_rec else ''}. "
-                "No coincide con ningún preset; se guarda tal cual si no eliges otro."
-            )
-        preset = QUALITY_PRESETS[key]
-        avail = preset_availability(key, self.cuda_devices, self.vulkan_ready)
-        text = preset.summary
-        if not avail.available:
-            text += f" ⚠ {avail.reason} Si se guarda igual, Recorder cae a CPU solo, sin romperse."
-        return text
 
     def _current_quality_key(self) -> str:
         return self._quality_key_by_label.get(self.v_quality.get(), CUSTOM_PRESET)
@@ -280,7 +275,11 @@ class SettingsDialog(tk.Toplevel):
         key = self._current_quality_key()
         unavailable = key != CUSTOM_PRESET and not preset_availability(key, self.cuda_devices, self.vulkan_ready).available
         self.lbl_quality_desc.config(fg=ERR if unavailable else DIM)
-        self.v_quality_desc.set(self._quality_description(key))
+        self.v_quality_desc.set(
+            quality_description(
+                key, custom_runtime(self.config, self._custom_values), self.rec, self.cuda_devices, self.vulkan_ready
+            )
+        )
 
     # ------------------------------------------------------------------ recomendación
     def _build_recommendation_row(self, r: int):
@@ -298,29 +297,21 @@ class SettingsDialog(tk.Toplevel):
     def _refresh_recommendation(self):
         if self.hardware is None:
             self.rec = None
-            self.v_rec.set("Recomendado para este equipo: detectando el equipo…")
-            self.btn_rec.config(state="disabled")
-            return
-        self.rec = recommend_config(self.hardware, *vulkan_readiness(self.v_wcpp_dir.get().strip()))
-        self.v_rec.set(
-            f"Recomendado para este equipo: {describe_recommendation(self.rec)} — {self.rec.reason} "
-            f"[{self.rec.confidence}]"
-        )
-        self.btn_rec.config(state="normal")
+        else:
+            self.rec = recommend_config(self.hardware, *vulkan_readiness(self.v_wcpp_dir.get().strip()))
+        self.v_rec.set(recommendation_text(self.rec))
+        self.btn_rec.config(state="disabled" if self.rec is None else "normal")
 
     def _use_recommended(self):
         rec = self.rec
         if rec is None:
             return
-        if rec.preset:
-            self._custom_values = None
-            self.v_quality.set(self._quality_label_by_key[rec.preset])
-        else:
-            self._custom_values = (rec.model, rec.beam_size, rec.device, rec.compute_type)
-            self.v_quality.set(self._quality_label_by_key[CUSTOM_PRESET])
-        self.v_threads.set(str(rec.cpu_threads))
-        if rec.engine == "whisper.cpp":
-            self.v_flash.set(rec.flash_attn)
+        form = self._form()
+        use_recommendation(form, rec)
+        self._custom_values = form.custom_values
+        self.v_quality.set(self._quality_label_by_key[form.quality])
+        self.v_threads.set(form.cpu_threads)
+        self.v_flash.set(form.whispercpp_flash_attn)
 
     # ------------------------------------------------------------------ motor
     def _build_engine_rows(self, r: int):
@@ -372,63 +363,29 @@ class SettingsDialog(tk.Toplevel):
         self._rebuild_gpu_menu()
         self.v_wcpp_dir.trace_add("write", lambda *_: self._refresh_engine())
 
-    def _gpu_choices(self) -> Dict[str, int]:
-        """Etiqueta del desplegable -> whispercpp_device."""
-        opciones = {AUTO_GPU: -1}
-        for g in (self.hardware.vulkan_devices if self.hardware else []):
-            opciones[f"{g.vulkan_index}: {describe_gpu(g)}"] = g.vulkan_index
-        actual = self.config.whispercpp_device
-        if actual >= 0 and actual not in opciones.values():
-            opciones[f"{actual}: (no detectada ahora)"] = actual
-        return opciones
-
     def _rebuild_gpu_menu(self):
         previo = self._gpu_choices_map.get(self.v_gpu.get()) if hasattr(self, "_gpu_choices_map") else None
         elegido = self.config.whispercpp_device if previo is None else previo
-        self._gpu_choices_map = self._gpu_choices()
+        vulkan = self.hardware.vulkan_devices if self.hardware else []
+        self._gpu_choices_map = gpu_choices(vulkan, self.config.whispercpp_device)
         menu = self.om_gpu["menu"]
         menu.delete(0, "end")
         for label in self._gpu_choices_map:
             menu.add_command(label=label, command=lambda v=label: self.v_gpu.set(v))
-        self.v_gpu.set(next((k for k, v in self._gpu_choices_map.items() if v == elegido), AUTO_GPU))
-
-    def _wcpp_status(self) -> Tuple[str, str]:
-        """(texto, color) del estado de la carpeta de whisper.cpp."""
-        carpeta = self.v_wcpp_dir.get().strip()
-        dgpu = None
-        if self.hardware is not None and self.cuda_devices <= 0:
-            dgpu = self.hardware.best_vulkan_discrete
-        if not carpeta:
-            if dgpu is not None:
-                return (
-                    f"⚠ Vacía: la GPU {describe_gpu(dgpu)} no se usa. Ejecuta tools\\instalar_whispercpp.ps1 "
-                    f"(docs/gpu-amd-vulkan.md) o indica aquí su carpeta.", ERR,
-                )
-            return "Vacía: sin motor Vulkan. Solo hace falta para una GPU AMD o Intel (docs/gpu-amd-vulkan.md).", DIM
-        if not server_exe_path(pathlib.Path(carpeta)).is_file():
-            return f"⚠ No hay bin\\whisper-server.exe en «{carpeta}».", ERR
-        modelos = installed_models(carpeta)
-        if not modelos:
-            return "⚠ whisper-server encontrado, pero no hay modelos ggml en models\\.", ERR
-        return f"✔ whisper-server y modelos: {', '.join(modelos)}.", SUCCESS
+        self.v_gpu.set(gpu_choice(self._gpu_choices_map, elegido))
 
     def _refresh_engine(self):
         """Lo que depende de la carpeta de whisper.cpp o del perfil: estado, Extra y recomendación."""
-        texto, color = self._wcpp_status()
-        self.v_wcpp_status.set(texto)
-        self.lbl_wcpp_status.config(fg=color)
+        estado = whispercpp_status(self.v_wcpp_dir.get(), self.hardware)
+        self.v_wcpp_status.set(estado.text)
+        self.lbl_wcpp_status.config(fg=STATUS_COLOR[estado.level])
         ready = self._extra_vulkan_ready()
         if ready != self.vulkan_ready:
             self.vulkan_ready = ready
             self._rebuild_quality_menu(self._current_quality_key())
         self._refresh_recommendation()
         self._on_quality_change()
-        if self.hardware is not None:
-            p = self.hardware
-            nucleos = f"{p.physical_cores} núcleos" if p.physical_cores else f"{p.logical_cores} hilos"
-            self.v_threads_hint.set(f"0 = 4 de la biblioteca · recomendado: {recommended_cpu_threads(p)} ({nucleos})")
-        else:
-            self.v_threads_hint.set("0 = 4 de la biblioteca")
+        self.v_threads_hint.set(threads_hint(self.hardware))
         self._grow_to_fit()
 
     def _grow_to_fit(self):
@@ -460,10 +417,7 @@ class SettingsDialog(tk.Toplevel):
     # ------------------------------------------------------------------ captura
     def _targets(self) -> List[str]:
         """Opciones de captura: las pantallas y las ventanas abiertas ahora (más la guardada, aunque esté cerrada)."""
-        titles = window_titles()
-        if self.config.window and self.config.window not in titles:
-            titles.insert(0, self.config.window)
-        return self.screens + [WINDOW_PREFIX + t for t in titles]
+        return target_choices(self.screens, window_titles(), self.config.window)
 
     def _refresh_targets(self):
         """Las ventanas abiertas cambian: vuelve a leerlas y reconstruye el desplegable."""
@@ -476,45 +430,6 @@ class SettingsDialog(tk.Toplevel):
         TuningDialog(self, self.config, on_save=lambda cfg: None)
 
     def _save(self):
-        new_notes = self.v_notes.get().strip()
-        notes_changed = new_notes != self.config.notes_dir
-
-        new_out = "" if self.v_out_dev.get() == DEFAULT_DEV else self.v_out_dev.get()
-        new_mic = "" if self.v_mic_dev.get() == DEFAULT_DEV else self.v_mic_dev.get()
-        devices_changed = (
-            new_out != self.config.out_dev
-            or new_mic != self.config.mic_dev
-            or self.v_mic.get() != self.config.mic
-        )
-
-        self.config.notes_dir = new_notes
-        self.config.caps_dir = self.v_caps.get().strip()
-        self.config.keywords = [k.strip() for k in self.v_keywords.get().split(",") if k.strip()]
-        self.config.out_dev = new_out
-        self.config.mic_dev = new_mic
-        self.config.mic = self.v_mic.get()
-        choice = self.v_screen.get()
-        if choice.startswith(WINDOW_PREFIX):
-            self.config.window = choice[len(WINDOW_PREFIX):]  # `screen` se conserva como plan B
-        else:
-            self.config.window = ""
-            self.config.screen = self.screens.index(choice) if choice in self.screens else 0
-
-        quality_key = self._current_quality_key()
-        if quality_key != CUSTOM_PRESET:
-            apply_preset(self.config, quality_key)
-        elif self._custom_values:
-            c = self.config
-            c.model, c.beam_size, c.device, c.compute_type = self._custom_values
-        # Personalizado sin «Usar recomendado»: no se toca ningun campo de modelo/haz/dispositivo/precision.
-
-        try:
-            self.config.cpu_threads = min(max(int(self.v_threads.get().strip()), 0), MAX_THREADS)
-        except ValueError:
-            pass  # texto no numerico: se conserva el valor anterior
-        self.config.whispercpp_dir = self.v_wcpp_dir.get().strip()
-        self.config.whispercpp_flash_attn = self.v_flash.get()
-        self.config.whispercpp_device = self._gpu_choices_map.get(self.v_gpu.get(), -1)
-
-        self.on_save(self.config, notes_changed, devices_changed)
+        cambios = apply_settings(self.config, self._form(), self.screens)
+        self.on_save(self.config, cambios.notes_changed, cambios.devices_changed)
         self.destroy()

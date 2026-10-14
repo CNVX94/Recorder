@@ -5,7 +5,6 @@ agrupamiento temporal como decision principal, limpieza en rejilla, vista previa
 vivo ampliable, aviso de perdida justo antes del nombre de salida, y botonera.
 """
 
-import datetime as dt
 import pathlib
 import tkinter as tk
 from tkinter import ttk
@@ -13,21 +12,24 @@ from typing import List, Optional
 
 from ...config.schema import AppConfig
 from ...digest import (
+    INTERVAL_LABELS,
     INTERVALS,
+    MIN_WORDS,
+    NOTE_HEADER,
     DerivedSourceError,
     DigestOptions,
-    build_digest,
+    digest_options,
     list_originals,
+    note_row,
+    preview_digest,
     unique_digest_path,
     write_digest,
 )
 from ..theme import ACC, BG, BORDER, BTN_STYLE, DIM, ERR, FG, LABEL_STYLE, MIC, PANEL, SUCCESS, fit_window
 
 SEMIBOLD = {**LABEL_STYLE, "font": ("Segoe UI Semibold", 9)}
-ETIQUETAS = {0: "Sin agrupar", 5: "Cada 5 min", 15: "Cada 15 min", 30: "Cada 30 min", 60: "Cada hora"}
 ALTO_NORMAL, ALTO_AMPLIADO = 780, 940  # a 100 %; fit_window escala y limita a la pantalla
 LINEAS_NORMAL, LINEAS_AMPLIADO = 6, 16
-PALABRAS_MINIMAS = 4
 
 
 class DigestDialog(tk.Toplevel):
@@ -63,14 +65,12 @@ class DigestDialog(tk.Toplevel):
         self.var_estado = tk.StringVar(value="")
 
     def _opciones(self) -> DigestOptions:
-        agrupa = self.var_interval.get()
-        return DigestOptions(
-            interval_min=agrupa,
+        return digest_options(
+            self.var_interval.get(),
             merge=self.var_merge.get(),
-            drop_short_words=PALABRAS_MINIMAS if self.var_drop.get() else 0,
+            strip_stamps=self.var_strip_stamps.get(),
             keep_captures=self.var_captures.get(),
-            # sin agrupar, la marca de tiempo es lo unico que ordena: se conserva siempre
-            inline_stamps=not self.var_strip_stamps.get() or not agrupa,
+            drop_short=self.var_drop.get(),
         )
 
     def _origen(self) -> Optional[pathlib.Path]:
@@ -119,8 +119,7 @@ class DigestDialog(tk.Toplevel):
         tk.Label(fila, text="🔒 SOLO LECTURA", bg=PANEL, fg=SUCCESS,
                  font=("Segoe UI Semibold", 8), padx=6, pady=1).pack(side="right")
 
-        tk.Label(cont, text=f"{'archivo':<32}{'fecha':<12}{'hora':<8}{'tamaño':>9}",
-                 bg=BG, fg=DIM, font=("Consolas", 9), anchor="w").pack(fill="x")
+        tk.Label(cont, text=NOTE_HEADER, bg=BG, fg=DIM, font=("Consolas", 9), anchor="w").pack(fill="x")
 
         caja = tk.Frame(cont, bg=BG)
         caja.pack(fill="x")
@@ -140,10 +139,7 @@ class DigestDialog(tk.Toplevel):
         self.lista.bind("<<ListboxSelect>>", lambda _e: self._refresh())
 
         for p in self.notas:
-            m = dt.datetime.fromtimestamp(p.stat().st_mtime)
-            marca = " ● en curso" if p.name == self.active_note else ""
-            kb = f"{p.stat().st_size / 1024:.0f} KB"
-            self.lista.insert("end", f"{p.name:<32}{m:%d/%m/%Y}  {m:%H:%M}  {kb:>9}{marca}")
+            self.lista.insert("end", note_row(p, self.active_note))
 
         pie = tk.Frame(cont, bg=BG)
         pie.pack(fill="x", pady=(2, 0))
@@ -160,7 +156,7 @@ class DigestDialog(tk.Toplevel):
         fila.pack(fill="x", padx=12, pady=(8, 2))
         for minutos in INTERVALS:
             tk.Radiobutton(
-                fila, text=ETIQUETAS[minutos], variable=self.var_interval, value=minutos,
+                fila, text=INTERVAL_LABELS[minutos], variable=self.var_interval, value=minutos,
                 command=self._refresh, bg=PANEL, fg=FG, selectcolor=BG, activebackground=PANEL,
                 activeforeground=ACC, font=("Segoe UI", 10),
             ).pack(side="left", padx=(0, 18))
@@ -181,7 +177,7 @@ class DigestDialog(tk.Toplevel):
             ("Unir líneas seguidas del mismo hablante", self.var_merge, 0, 0),
             ("Quitar marcas de tiempo dentro de cada bloque", self.var_strip_stamps, 0, 1),
             ("Conservar capturas incrustadas 📸", self.var_captures, 1, 0),
-            (f"Descartar líneas de menos de {PALABRAS_MINIMAS} palabras", self.var_drop, 1, 1),
+            (f"Descartar líneas de menos de {MIN_WORDS} palabras", self.var_drop, 1, 1),
         ]
         self.chk_stamps = None
         for texto, var, f, c in casillas:
@@ -287,18 +283,13 @@ class DigestDialog(tk.Toplevel):
             self.lbl_sufijo.config(text=base[corte:])
 
         try:
-            md = build_digest(origen, opts)
+            vista = preview_digest(origen, opts)
         except (DerivedSourceError, OSError) as e:
             self._set_preview(str(e))
             self.var_stats.set("")
             return
-        lineas = md.splitlines()
-        bloques = sum(1 for l in lineas if l.startswith("## "))
-        origen_lineas = len(origen.read_text(encoding="utf-8").splitlines())
-        self.var_stats.set(
-            f"{origen_lineas} líneas → {bloques} bloques · {len(lineas)} líneas · ~{len(md) // 1024} KB"
-        )
-        self._set_preview(md)
+        self.var_stats.set(vista.stats())
+        self._set_preview(vista.markdown)
 
     def _set_preview(self, texto: str):
         self.preview.config(state="normal")

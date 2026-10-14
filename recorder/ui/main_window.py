@@ -1,129 +1,71 @@
-import datetime as dt
-import queue
-import threading
-import time
 import tkinter as tk
 from tkinter import messagebox, scrolledtext
 from typing import Optional
-import pyaudiowpatch as pa
 
-from ..actions.notes import NotesSession, md_ref
-from ..actions.power import keep_awake, should_stay_awake
-from ..actions.screenshot import take_screenshot
-from ..audio.capture import AudioCaptureManager, meter_label, pending_audio_sec, pending_summary
-from ..config.hardware import HardwareProfile, cached_hardware, describe_hardware
 from ..config.manager import ConfigManager
-from ..config.schema import (
-    AppConfig,
-    apply_recommendation,
-    describe_recommendation,
-    recommend_config,
-    startup_notices,
-)
-from ..engine.whisper_worker import TranscriberWorker
-from ..engine.whispercpp import vulkan_readiness
+from ..config.schema import AppConfig
+from ..session import Event, Line, Notice, RecorderSession, SourceChanged, StatusSnapshot
 from .dialogs.settings_dialog import SettingsDialog
 from .dialogs.digest_dialog import DigestDialog
 from .dialogs.tuning_dialog import TuningDialog
 from .theme import ACC, BG, BTN_STYLE, DIM, ERR, FG, HEADER_STYLE, MIC, PANEL, fit_window
 
+POLL_MS = 200  # sondeo con la ventana a la vista
+POLL_HIDDEN_MS = 1000  # minimizada: no hay nada que pintar; basta vaciar la cola y decidir el ☕
+MAX_LINES = 5000  # líneas que conserva el visor; la nota en disco guarda la reunión entera
+TRIM_LINES = 500  # cuántas se borran de golpe al pasarse, para no recortar en cada inserción
+
 
 class MainWindow:
-    """Ventana principal de la aplicación Recorder."""
+    """Ventana principal de la aplicación Recorder: pinta la sesión y le pasa lo que pide el usuario.
 
-    def __init__(self, config_manager: Optional[ConfigManager] = None):
-        self.config_manager = config_manager or ConfigManager()
-        self.config: AppConfig = self.config_manager.load()
+    Toda la lógica (núcleo, pausa, cierre, cabecera, equipo despierto) vive en `RecorderSession`;
+    aquí solo hay widgets, diálogos y el sondeo cada 200 ms.
+    """
 
-        self.notes_session = NotesSession(self.config.notes_dir)
-        self.pa = pa.PyAudio()
+    def __init__(
+        self,
+        config_manager: Optional[ConfigManager] = None,
+        session: Optional[RecorderSession] = None,
+    ):
+        # `session` se inyecta en las pruebas (núcleo de mentira, config temporal); si no, se construye.
+        self.session = session or RecorderSession(config_manager)
 
-        self.chunk_queue: queue.Queue = queue.Queue()
-        self.ui_queue: queue.Queue = queue.Queue()
-        self.stop_event = threading.Event()
-
-        # Componentes del núcleo
-        self.audio_manager = AudioCaptureManager(
-            pa_instance=self.pa,
-            chunk_queue=self.chunk_queue,
-            source_callback=lambda kind, up, detail: self.ui_queue.put(("source", kind, up, detail)),
-            out_dev=self.config.out_dev,
-            mic_dev=self.config.mic_dev,
-            mic_enabled=self.config.mic,
-        )
-
-        self.transcriber = TranscriberWorker(
-            config=self.config,
-            chunk_queue=self.chunk_queue,
-            ui_queue=self.ui_queue,
-            notes_session=self.notes_session,
-            stop_event=self.stop_event,
-        )
-
-        self.awake = False     # True mientras se le pide a Windows que no suspenda por inactividad
-        self.draining = False  # True cuando se cerró la ventana pero se espera a vaciar la cola
+        self._poll_id = None  # el `after` del próximo sondeo, para adelantarlo al volver a la vista
+        self._painted: dict = {}  # lo último escrito en cada etiqueta, para no reescribir lo mismo
 
         self._build_gui()
-        self._avisar_config_ilegible()
 
-        # Iniciar hilos en segundo plano
-        self.audio_manager.start()
-        # El hardware se detecta en otro hilo (~1 s) para no congelar la ventana; el resultado
-        # llega por ui_queue ("hardware") y queda en caché para Opciones y el transcriptor.
-        self.hardware: Optional[HardwareProfile] = None
-        self.transcribe_thread: Optional[threading.Thread] = None
-        # Primer arranque: falta aplicar la recomendación (salvo que antes se guarde Opciones).
-        self.recommend_pending = getattr(self.config_manager, "first_run", False)
-        threading.Thread(target=self._detect_hardware, daemon=True).start()
-        if self.recommend_pending:
-            # Sin config.json, los valores de fábrica (Media, 4 hilos) no dependen del equipo:
-            # se espera a la detección para cargar ya el modelo recomendado (ver _on_hardware).
-            self.lbl_status.config(text="Detectando el equipo…")
-        else:
-            self._start_transcriber()
+        # Iniciar hilos en segundo plano (captura, detección del equipo, transcriptor)
+        self.session.start()
 
         # Iniciar sondeo de eventos de interfaz
         self.poll()
 
-    def _start_transcriber(self):
-        self.transcribe_thread = threading.Thread(target=self.transcriber.run, daemon=True)
-        self.transcribe_thread.start()
+    def _render(self, ev: Event):
+        """Pinta un evento de la sesión. Status y HardwareReady no se pintan: la cabecera sale de `status`."""
+        if isinstance(ev, Line):
+            self.add_line(ev.stamp, ev.kind, ev.text, ev.hits)
+        elif isinstance(ev, Notice):
+            self._visor(ev.stamp, ev.text, ev.level)
+        elif isinstance(ev, SourceChanged):
+            self.add_line(ev.stamp, "out", ev.text, [])
 
-    def _detect_hardware(self):
-        try:
-            profile = cached_hardware()
-        except Exception as e:  # detect_hardware no lanza; esto evita un primer arranque colgado si algo cambia
-            profile = HardwareProfile(detection_errors=[repr(e)])
-        self.ui_queue.put(("hardware", profile))
-
-    def _on_hardware(self, profile: HardwareProfile):
-        """Primer arranque: aplica la recomendación y arranca el transcriptor. Si no, avisos."""
-        self.hardware = profile
-        rec = recommend_config(profile, *vulkan_readiness(self.config.whispercpp_dir))
-        if self.transcribe_thread is None:
-            if self.recommend_pending:
-                self.recommend_pending = False
-                apply_recommendation(self.config, rec)  # el mismo objeto que usa el transcriptor
-                guardado = ""
-                try:
-                    self.config_manager.save(self.config)
-                except OSError as e:
-                    guardado = f" (no se pudo guardar {self.config_manager.path.name}: {e})"
-                self._visor(
-                    f"🖥 Primer arranque en este equipo: {describe_hardware(profile)}. Se aplicó la "
-                    f"configuración recomendada, {describe_recommendation(rec)}: {rec.reason}{guardado} "
-                    f"Se puede cambiar en ⚙ Opciones.",
-                    "info",
-                )
-            self._start_transcriber()  # también si se está cerrando: es quien vacía la cola
-            return
-        for aviso in startup_notices(self.config, profile, rec):
-            self._visor(aviso, "err" if aviso.startswith("⚠") else "info")
-
-    def _visor(self, texto: str, tag: str):
+    def _visor(self, stamp: str, texto: str, tag: str):
         """Una línea con hora en la ventana, sin tocar la nota (no es parte de la reunión)."""
-        self.txt.insert("end", f"{dt.datetime.now().strftime('%H:%M:%S')}  ", "t")
+        self.txt.insert("end", f"{stamp}  ", "t")
         self.txt.insert("end", texto + "\n", tag)
+        self._show_end()
+
+    def _show_end(self):
+        """Desplaza el visor al final y lo recorta por arriba si pasó de MAX_LINES.
+
+        Se borra de TRIM_LINES en TRIM_LINES para no hacerlo en cada inserción. Solo afecta a lo
+        que se ve: la nota en disco es la que guarda la reunión entera.
+        """
+        lines = int(self.txt.index("end-1c").split(".")[0])
+        if lines > MAX_LINES:
+            self.txt.delete("1.0", f"{lines - MAX_LINES + TRIM_LINES}.0")
         self.txt.see("end")
 
     def _build_gui(self):
@@ -177,7 +119,7 @@ class MainWindow:
         # Etiqueta de ruta de archivo
         self.lbl_path = tk.Label(
             self.root,
-            text=str(self.notes_session.file_path),
+            text=str(self.session.file_path),
             bg=BG,
             fg=DIM,
             anchor="w",
@@ -207,24 +149,8 @@ class MainWindow:
         self.txt.tag_config("info", foreground=DIM)
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
-
-    def _avisar_config_ilegible(self):
-        """Si la configuración no se pudo leer, decirlo en vez de arrancar como si nada.
-
-        Va al visor y a la nota, no a la cabecera: la cabecera la reescribe el hilo de
-        transcripción en cuanto carga el modelo y el aviso se perdería de vista.
-        """
-        motivo = getattr(self.config_manager, "last_error", "")
-        if not motivo:
-            return
-        stamp = dt.datetime.now().strftime("%H:%M:%S")
-        self.txt.insert("end", f"{stamp}  ", "t")
-        self.txt.insert("end", f"⚠ {motivo}\n", "err")
-        self.txt.see("end")
-        try:
-            self.notes_session.write_line(f"> ⚠ {stamp} {motivo}")
-        except Exception:  # ponytail: si ni la nota se puede escribir, el visor ya avisó
-            pass
+        # Al volver de la barra de tareas se repinta ya, sin esperar al sondeo lento (ver _tick)
+        self.root.bind("<Map>", self._on_map)
 
     def add_line(self, stamp: str, kind: str, text: str, hits: list):
         self.txt.insert("end", f"{stamp}  ", "t")
@@ -233,148 +159,90 @@ class MainWindow:
         self.txt.insert("end", text + "\n", "kw" if hits else "")
         if hits:
             self.txt.insert("end", f"          📸 captura: {', '.join(hits)}\n", "t")
-        self.txt.see("end")
+        self._show_end()
 
     def manual_screenshot(self):
-        stamp = dt.datetime.now().strftime("%H:%M:%S")
-        f = take_screenshot("manual", self.config.caps_dir, self.config.screen, self.config.window)
-        ref = md_ref(f, self.notes_session.file_path.parent)
-        self.notes_session.write_line(f"- **{stamp}** 📸 captura manual → ![]({ref})")
-        self.add_line(stamp, "out", "(captura manual)", ["manual"])
-
-    def _mensaje_pausa(self) -> str:
-        """Texto de la pausa, explicando que lo pendiente se sigue transcribiendo."""
-        pendiente = self._pending_summary() if self.chunk_queue.qsize() else ""
-        cola = f"; siguen {pendiente} por transcribir" if pendiente else ""
-        return f"⏸ pausa: no se captura audio nuevo{cola}"
+        """La sesión captura en un hilo y la línea llega por el sondeo; un clic con otra en curso se ignora."""
+        self.session.manual_screenshot()
 
     def toggle_pause(self):
-        self.audio_manager.paused = not self.audio_manager.paused
-        is_paused = self.audio_manager.paused
-        stamp = dt.datetime.now().strftime("%H:%M:%S")
-        state_msg = "⏸ Pausa" if is_paused else "▶ Continúa"
-        self.notes_session.write_line(f"\n> {state_msg} {stamp}\n")
-        self.btn_pause.config(text="▶ Continuar" if is_paused else "⏸ Pausar")
-        self.add_line(
-            stamp,
-            "out",
-            self._mensaje_pausa() if is_paused else "▶ continúa, se vuelve a capturar audio",
-            [],
-        )
+        line = self.session.toggle_pause()
+        self.btn_pause.config(text="▶ Continuar" if self.session.paused else "⏸ Pausar")
+        self._render(line)
 
     def open_digest(self):
         """Abre el generador de sintesis. Solo lee notas; nunca modifica el original."""
-        DigestDialog(self.root, self.config, active_note=self.notes_session.file_path)
+        DigestDialog(self.root, self.session.config, active_note=self.session.file_path)
 
     def open_options(self):
         def handle_save(new_config: AppConfig, notes_changed: bool, devices_changed: bool):
+            self.session.apply_settings(new_config, notes_changed, devices_changed)
             if notes_changed:
-                self.notes_session.move_notes(new_config.notes_dir)
-                self.lbl_path.config(text=str(self.notes_session.file_path))
+                self.lbl_path.config(text=str(self.session.file_path))
 
-            self.config = new_config
-            self.config_manager.save(self.config)
-            self.transcriber.update_pipeline(self.config)
-            self.recommend_pending = False  # lo elegido en Opciones manda sobre la recomendación
-
-            if devices_changed:
-                self.lbl_status.config(text="● Escuchando")
-                self.audio_manager.restart(
-                    out_dev=self.config.out_dev,
-                    mic_dev=self.config.mic_dev,
-                    mic_enabled=self.config.mic,
-                )
-
-        SettingsDialog(self.root, self.config, self.pa, on_save=handle_save)
+        SettingsDialog(self.root, self.session.config, self.session.pa, on_save=handle_save)
 
     def open_tuning(self):
-        def handle_save(new_config: AppConfig):
-            self.config = new_config
-            self.config_manager.save(self.config)
-            self.transcriber.update_pipeline(self.config)
-
-        TuningDialog(self.root, self.config, on_save=handle_save)
-
-    def note_source(self, kind: str, up: bool, detail: str):
-        """Deja constancia en pantalla y en la nota de que una fuente cayó o volvió, como con la pausa."""
-        stamp = dt.datetime.now().strftime("%H:%M:%S")
-        name = "salida" if kind == "out" else "micrófono"
-        msg = f"✔ audio de {name} recuperado" if up else f"⚠ audio de {name} caído, reintentando: {detail}"
-        self.notes_session.write_line(f"\n> {msg} {stamp}\n")
-        self.add_line(stamp, "out", msg, [])
+        TuningDialog(self.root, self.session.config, on_save=self.session.apply_tuning)
 
     def reconnect_audio(self):
-        """Clic en los medidores: reabre las dos fuentes con los dispositivos configurados.
+        """Clic en los medidores: reabre las dos fuentes con los dispositivos configurados."""
+        self.session.reconnect_audio()
 
-        Es el plan B para un flujo que tras despertar se queda mudo sin dar error (ahí el
-        reintento automático no salta porque no hay excepción que lo dispare).
+    def _set_label(self, lbl: tk.Label, **opts):
+        """Escribe en la etiqueta solo si algo cambió: cada config() cuesta aunque el texto sea el
+        mismo (dos por tic suman ~1 % de CPU) y en silencio los medidores no cambian."""
+        if self._painted.get(lbl) != opts:
+            lbl.config(**opts)
+            self._painted[lbl] = opts
+
+    def _paint_header(self, st: StatusSnapshot):
+        self._set_label(self.lbl_status, text=st.status_text, fg=FG if st.status_highlight else DIM)
+        self._set_label(self.lbl_meter, text=st.meter_text)
+
+    def _visible(self) -> bool:
+        """False con la ventana minimizada o retirada: pintar ahí es trabajo que nadie ve."""
+        return self.root.state() not in ("iconic", "withdrawn")
+
+    def _tick(self) -> Optional[int]:
+        """Un sondeo. Devuelve en cuántos ms toca el siguiente, o None si hay que cerrar.
+
+        La sesión se sondea siempre (vacía la cola de los hilos, decide el ☕ y detecta el final
+        del vaciado) y las líneas se insertan siempre, para que no se pierda nada; minimizada,
+        solo se deja de pintar la cabecera y se sondea más despacio.
         """
-        if self.draining:
-            return
-        self.audio_manager.restart(self.config.out_dev, self.config.mic_dev, self.config.mic)
+        for ev in self.session.poll():
+            self._render(ev)
 
-    def _pending_summary(self) -> str:
-        with self.chunk_queue.mutex:  # queue.Queue documenta mutex y queue para esto
-            chunks = list(self.chunk_queue.queue)
-        return pending_summary(len(chunks), pending_audio_sec(chunks))
+        st = self.session.status
+        visible = self._visible()
+        if visible:
+            self._paint_header(st)
+
+        if st.finished:
+            return None
+        return POLL_MS if visible else POLL_HIDDEN_MS
 
     def poll(self):
-        while not self.ui_queue.empty():
-            m = self.ui_queue.get()
-            if m[0] == "status":
-                self.lbl_status.config(text=m[1], fg=FG if m[1].startswith("●") else DIM)
-            elif m[0] == "line":
-                self.add_line(*m[1:])
-            elif m[0] == "source":
-                self.note_source(*m[1:])
-            elif m[0] == "hardware":
-                self._on_hardware(m[1])
-
-        pending = self.chunk_queue.qsize()
-        busy = self.transcriber.busy
-        cur_text = self.lbl_status.cget("text")
-        if cur_text and cur_text[0] in "●⏸⏳":
-            if self.draining:
-                self.lbl_status.config(text=f"⏳ Terminando {self._pending_summary()}…", fg=FG)
-            elif self.audio_manager.paused:
-                # La pausa solo deja de capturar audio nuevo; la cola pendiente se sigue
-                # transcribiendo. Se muestra el avance para que eso se vea y no parezca parado.
-                fallos = getattr(self.transcriber, "errors", 0)
-                aviso = f" · ⚠ {fallos} con fallo" if fallos else ""
-                awake = " · ☕" if self.awake else ""
-                resto = (
-                    f" · transcribiendo {self._pending_summary()}"
-                    if (pending or busy)
-                    else " · sin pendientes"
-                )
-                self.lbl_status.config(text=f"⏸ En pausa{resto}{aviso}{awake}")
-            else:
-                mic_tag = " + 🎤" if self.config.mic else ""
-                fallos = getattr(self.transcriber, "errors", 0)
-                aviso = f" · ⚠ {fallos} con fallo" if fallos else ""
-                awake = " · ☕" if self.awake else ""
-                self.lbl_status.config(
-                    text=f"● Escuchando{mic_tag} · pendientes: {pending}{aviso}{awake}"
-                )
-
-        self.lbl_meter.config(text=meter_label(self.audio_manager.levels, self.audio_manager.attempts))
-
-        awake = should_stay_awake(
-            time.time(), self.audio_manager.last_audio_at, pending, busy, self.audio_manager.paused
-        )
-        if awake != self.awake:
-            keep_awake(awake)
-            self.awake = awake
-
-        if self.draining and pending == 0 and not busy:
+        siguiente = self._tick()
+        if siguiente is None:
             self._shutdown()
             return
-        self.root.after(200, self.poll)
+        self._poll_id = self.root.after(siguiente, self.poll)
+
+    def _on_map(self, event):
+        """La ventana vuelve a la vista: se sondea y repinta ya en vez de esperar al tic lento.
+
+        Los hijos también mandan su <Map> a la ventana (está en sus bindtags); solo cuenta el suyo.
+        """
+        if event.widget is self.root and self._poll_id is not None:
+            self.root.after_cancel(self._poll_id)
+            self.poll()
 
     def on_close(self):
         """Cerrar con fragmentos pendientes pregunta: esperar a que se transcriban o perderlos."""
-        if self.chunk_queue.qsize():
-            resumen = self._pending_summary()
+        resumen = self.session.request_close()
+        if resumen is not None:
             esperar = messagebox.askyesno(
                 "Recorder",
                 f"Quedan {resumen} sin transcribir.\n\n"
@@ -383,23 +251,16 @@ class MainWindow:
                 parent=self.root,
             )
             if esperar:
-                self.draining = True
-                self.audio_manager.stop()  # no entran fragmentos nuevos; la cola solo baja
+                self.session.begin_drain()  # no entran fragmentos nuevos; la cola solo baja
                 self.btn_pause.config(state="disabled")
-                self.lbl_status.config(text=f"⏳ Terminando {resumen}…", fg=FG)
+                self._paint_header(self.session.status)
                 return
         self._shutdown()
 
     def _shutdown(self):
-        self.audio_manager.stop()
-        self.stop_event.set()
-        keep_awake(False)
-        # ponytail: a propósito no se llama a pa.terminate(). Cierra cada stream desde este hilo
-        # mientras el del loopback sigue bloqueado en read() (bloquea hasta que suena algo) y eso
-        # revienta el proceso con 0xC0000005 (pasaba en cada cierre, invisible porque la ventana
-        # desaparece igual). El proceso termina justo después y Windows recoge los recursos.
+        # La sesión para los hilos sin tocar PortAudio (ver RecorderSession.shutdown); la ventana se va después.
+        self.session.shutdown()
         self.root.destroy()
 
     def run(self):
         self.root.mainloop()
-
