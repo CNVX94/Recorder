@@ -29,6 +29,7 @@ from ...digest import (
     write_digest,
 )
 from ..theme import BTN_STYLE, LABEL_STYLE, P, fit_window
+from ..tooltip import con_ayuda
 
 
 def semibold() -> dict:
@@ -113,7 +114,7 @@ class DigestDialog(tk.Toplevel):
             tk.Label(cont, text=f"No hay notas originales en {self.config.notes_dir}",
                      bg=P.fondo, fg=P.error, font=("Segoe UI", 10), wraplength=720,
                      justify="left").pack(anchor="w", pady=20)
-            tk.Button(self, text="Cerrar", command=self.destroy, **BTN_STYLE).pack(pady=16)
+            con_ayuda(tk.Button(self, text="Cerrar", command=self.destroy, **BTN_STYLE), "cancelar").pack(pady=16)
             return
 
         self._seccion_origen(cont)
@@ -128,11 +129,12 @@ class DigestDialog(tk.Toplevel):
     def _seccion_origen(self, cont):
         fila = tk.Frame(cont, bg=P.fondo)
         fila.pack(fill="x", pady=(0, 2))
-        tk.Label(fila, text="1. Nota origen (se abre solo para leer):", **semibold()).pack(side="left")
-        tk.Label(fila, text="🔒 SOLO LECTURA", bg=P.superficie, fg=P.ok,
-                 font=("Segoe UI Semibold", 8), padx=6, pady=1).pack(side="right")
+        con_ayuda(tk.Label(fila, text="1. Nota origen (se abre solo para leer):", **semibold()), "nota_origen").pack(side="left")
+        con_ayuda(tk.Label(fila, text="🔒 SOLO LECTURA", bg=P.superficie, fg=P.ok,
+                           font=("Segoe UI Semibold", 8), padx=6, pady=1), "nota_origen").pack(side="right")
 
-        tk.Label(cont, text=NOTE_HEADER, bg=P.fondo, fg=P.texto_tenue, font=("Consolas", 9), anchor="w").pack(fill="x")
+        con_ayuda(tk.Label(cont, text=NOTE_HEADER, bg=P.fondo, fg=P.texto_tenue, font=("Consolas", 9), anchor="w"),
+                  "nota_origen").pack(fill="x")
 
         caja = tk.Frame(cont, bg=P.fondo)
         caja.pack(fill="x")
@@ -148,6 +150,7 @@ class DigestDialog(tk.Toplevel):
             highlightthickness=0, yscrollcommand=scroll.set,
         )
         self.lista.pack(side="left", fill="both", expand=True)
+        con_ayuda(self.lista, "nota_origen")
         scroll.config(command=self.lista.yview)
         self.lista.bind("<<ListboxSelect>>", lambda _e: self._refresh())
 
@@ -162,17 +165,17 @@ class DigestDialog(tk.Toplevel):
                  bg=P.fondo, fg=P.texto_tenue, font=("Segoe UI", 9)).pack(side="right")
 
     def _seccion_agrupamiento(self, cont):
-        tk.Label(cont, text="2. Agrupamiento temporal:", **semibold()).pack(anchor="w", pady=(10, 2))
+        con_ayuda(tk.Label(cont, text="2. Agrupamiento temporal:", **semibold()), "agrupamiento").pack(anchor="w", pady=(10, 2))
         caja = tk.Frame(cont, bg=P.superficie)
         caja.pack(fill="x")
         fila = tk.Frame(caja, bg=P.superficie)
         fila.pack(fill="x", padx=12, pady=(8, 2))
         for minutos in INTERVALS:
-            tk.Radiobutton(
+            con_ayuda(tk.Radiobutton(
                 fila, text=INTERVAL_LABELS[minutos], variable=self.var_interval, value=minutos,
                 command=self._refresh, bg=P.superficie, fg=P.texto, selectcolor=P.fondo, activebackground=P.superficie,
                 activeforeground=P.acento, font=("Segoe UI", 10),
-            ).pack(side="left", padx=(0, 18))
+            ), "agrupamiento").pack(side="left", padx=(0, 18))
         tk.Label(
             caja,
             text="Cada bloque pasa a ser un encabezado como ## 09:30 - 09:45 con sus líneas debajo. "
@@ -187,19 +190,19 @@ class DigestDialog(tk.Toplevel):
         rejilla.columnconfigure(0, minsize=356)
         rejilla.columnconfigure(1, minsize=356)
         casillas = [
-            ("Unir líneas seguidas del mismo hablante", self.var_merge, 0, 0),
-            ("Hora corta [HH:MM] por párrafo, no HH:MM:SS", self.var_strip_stamps, 0, 1),
-            ("Quitar referencias de imagen (texto puro)", self.var_sin_imagenes, 1, 0),
-            (f"Descartar líneas de menos de {MIN_WORDS} palabras", self.var_drop, 1, 1),
-            ("Quitar el eco del vocabulario («Términos.»)", self.var_echo, 2, 0),
+            ("Unir líneas seguidas del mismo hablante", self.var_merge, 0, 0, "unir_lineas"),
+            ("Hora corta [HH:MM] por párrafo, no HH:MM:SS", self.var_strip_stamps, 0, 1, "hora_corta"),
+            ("Quitar referencias de imagen (texto puro)", self.var_sin_imagenes, 1, 0, "sin_imagenes"),
+            (f"Descartar líneas de menos de {MIN_WORDS} palabras", self.var_drop, 1, 1, "descartar_cortas"),
+            ("Quitar el eco del vocabulario («Términos.»)", self.var_echo, 2, 0, "quitar_eco"),
         ]
         self.chk_stamps = None
-        for texto, var, f, c in casillas:
-            chk = tk.Checkbutton(
+        for texto, var, f, c, clave in casillas:
+            chk = con_ayuda(tk.Checkbutton(
                 rejilla, text=texto, variable=var, command=self._refresh, bg=P.fondo, fg=P.texto,
                 selectcolor=P.superficie, activebackground=P.fondo, activeforeground=P.texto, font=("Segoe UI", 10),
                 anchor="w",
-            )
+            ), clave)
             chk.grid(row=f, column=c, sticky="w")
             if var is self.var_strip_stamps:
                 self.chk_stamps = chk
@@ -207,20 +210,22 @@ class DigestDialog(tk.Toplevel):
     def _seccion_preview(self, cont):
         fila = tk.Frame(cont, bg=P.fondo)
         fila.pack(fill="x", pady=(10, 2))
-        tk.Label(fila, text="4. Vista previa (cambia al tocar cualquier opción):", **semibold()).pack(side="left")
-        self.btn_ampliar = tk.Button(
+        con_ayuda(tk.Label(fila, text="4. Vista previa (cambia al tocar cualquier opción):", **semibold()),
+                  "vista_previa").pack(side="left")
+        self.btn_ampliar = con_ayuda(tk.Button(
             fila, text="⤢ Ampliar", command=self._toggle_ampliar, bg=P.superficie, fg=P.acento,
             relief="flat", font=("Segoe UI", 8), padx=6, pady=1,
-        )
+        ), "ampliar")
         self.btn_ampliar.pack(side="right")
-        tk.Label(fila, textvariable=self.var_stats, bg=P.fondo, fg=P.texto_tenue,
-                 font=("Segoe UI", 9)).pack(side="right", padx=(0, 10))
+        con_ayuda(tk.Label(fila, textvariable=self.var_stats, bg=P.fondo, fg=P.texto_tenue,
+                           font=("Segoe UI", 9)), "vista_previa").pack(side="right", padx=(0, 10))
 
         self.preview = tk.Text(
             cont, height=LINEAS_NORMAL, bg=P.superficie, fg=P.texto, relief="flat", wrap="word",
             font=("Consolas", 9), padx=8, pady=4, highlightthickness=0,
         )
         self.preview.pack(fill="both", expand=True)
+        con_ayuda(self.preview, "vista_previa")
         self.preview.tag_config("cab", foreground=P.acento)
         self.preview.tag_config("meta", foreground=P.texto_tenue)
         self.preview.tag_config("img", foreground=P.mic)
@@ -242,8 +247,8 @@ class DigestDialog(tk.Toplevel):
     def _salida(self, cont):
         bloque = tk.Frame(cont, bg=P.fondo)
         bloque.pack(side="bottom", fill="x")
-        tk.Label(bloque, text="Archivo que se creará (misma carpeta; si ya existe se numera, nunca se sobrescribe):",
-                 **semibold()).pack(anchor="w", pady=(10, 2))
+        con_ayuda(tk.Label(bloque, text="Archivo que se creará (misma carpeta; si ya existe se numera, nunca se sobrescribe):",
+                           **semibold()), "archivo_salida").pack(anchor="w", pady=(10, 2))
         fila = tk.Frame(bloque, bg=P.fondo)
         fila.pack(fill="x")
         chip = tk.Frame(fila, bg=P.superficie)
@@ -254,18 +259,20 @@ class DigestDialog(tk.Toplevel):
         self.lbl_sufijo.pack(side="left")
         self.lbl_ext = tk.Label(chip, text=".md", bg=P.superficie, fg=P.texto, font=("Consolas", 10))
         self.lbl_ext.pack(side="left", padx=(0, 8))
+        for etiqueta in (self.lbl_base, self.lbl_sufijo, self.lbl_ext):
+            con_ayuda(etiqueta, "archivo_salida")
         tk.Label(fila, text=str(self.config.notes_dir), bg=P.fondo, fg=P.texto_tenue,
                  font=("Segoe UI", 8)).pack(side="left")
 
     def _botonera(self):
         acciones = tk.Frame(self, bg=P.fondo)
         acciones.pack(side="bottom", fill="x", padx=16, pady=(8, 16))
-        tk.Button(acciones, text="Cancelar", command=self.destroy, bg=P.superficie, fg=P.texto_tenue,
-                  relief="flat", padx=12, font=("Segoe UI", 9)).pack(side="right", padx=(8, 0))
-        self.btn_generar = tk.Button(
+        con_ayuda(tk.Button(acciones, text="Cancelar", command=self.destroy, bg=P.superficie, fg=P.texto_tenue,
+                            relief="flat", padx=12, font=("Segoe UI", 9)), "cancelar").pack(side="right", padx=(8, 0))
+        self.btn_generar = con_ayuda(tk.Button(
             acciones, text="📑 Generar copia", command=self._generar,
             **{**BTN_STYLE, "fg": P.acento, "font": ("Segoe UI Semibold", 10)},
-        )
+        ), "generar")
         self.btn_generar.pack(side="right")
         tk.Label(acciones, textvariable=self.var_estado, bg=P.fondo, fg=P.texto_tenue, font=("Segoe UI", 9),
                  anchor="w", wraplength=430, justify="left").pack(side="left", fill="x", expand=True)

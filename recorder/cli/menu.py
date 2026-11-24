@@ -3,7 +3,8 @@
 Pensado para quien no recuerda los subcomandos: un título, una línea con dónde van las notas y
 con qué calidad se transcribe, y las opciones numeradas con una descripción corta cada una,
 alineadas. Se elige con un número y, salvo Grabar y la ventana (que son la sesión entera), se
-vuelve al menú al terminar. Los comandos que aún no existen no se ofrecen y los números no
+vuelve al menú al terminar; al elegir, una línea tenue dice qué se abre y para qué (su ayuda
+«menu_<acción>» de recorder/ayuda.py). Los comandos que aún no existen no se ofrecen y los números no
 cambian. Ctrl+C o el fin de la entrada salen sin ruido. Mismo estilo que la pantalla en vivo
 (consola de `consola.make_console`, símbolos por `presentar`).
 """
@@ -13,6 +14,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 from rich.console import Console
 from rich.text import Text
 
+from .. import ayuda
 from ..config.manager import ConfigManager
 from ..config.schema import AppConfig, describe_quality
 from . import app
@@ -84,6 +86,7 @@ def menu(
                 continue
             if accion == "salir":
                 return 0
+            consola.print(texto((ayuda.linea("menu_" + accion), "tenue")), soft_wrap=True)  # qué se abre y para qué
             if accion == "grabar":
                 from .live import grabar
 

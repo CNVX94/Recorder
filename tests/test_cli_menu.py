@@ -8,6 +8,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from recorder.ayuda import linea
 from recorder.cli import app
 from recorder.cli.consola import make_console
 from recorder.cli.menu import menu, opciones_disponibles
@@ -81,6 +82,10 @@ class TestMenu(unittest.TestCase):
         self.assertTrue(all(c is self.consola for _n, c in self.ejecutados), "los comandos pintan en la misma consola")
         self.assertIn("No hay opción «3»", self.salida.getvalue())
         self.assertEqual(self.salida.getvalue().count("¿qué quieres hacer?"), 4, "se vuelve a pintar tras cada cosa")
+        # al elegir, su línea de ayuda (recorder/ayuda.py) antes de abrirla; al salir, ninguna
+        self.assertIn("Opción: " + linea("menu_config") + "\n", self.salida.getvalue())
+        self.assertIn(linea("menu_recomendar"), self.salida.getvalue())
+        self.assertNotIn(linea("menu_salir"), self.salida.getvalue())
 
     def test_grabar_y_ventana_terminan_el_menu(self):
         with patch("recorder.cli.live.grabar", return_value=4) as grabar:

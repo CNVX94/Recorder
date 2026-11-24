@@ -13,7 +13,9 @@ from ..session import (
 from .dialogs.settings_dialog import SettingsDialog
 from .dialogs.digest_dialog import DigestDialog
 from .dialogs.tuning_dialog import TuningDialog
+from . import tooltip
 from .theme import BTN_STYLE, P, aplicar_tema, app_icon, fit_window, scroll_nativo
+from .tooltip import con_ayuda
 
 POLL_MS = 200  # sondeo con la ventana a la vista
 POLL_HIDDEN_MS = 1000  # minimizada: no hay nada que pintar; basta vaciar la cola y decidir el ☕
@@ -91,6 +93,7 @@ class MainWindow:
         self.root = tk.Tk()
         self.root.title("Recorder · Daily")
         aplicar_tema(self.root, self.session.config.theme)  # antes de crear widgets: ya nacen con su paleta
+        tooltip.animaciones = self.session.config.animations
         self.root.configure(bg=P.fondo)
         app_icon(self.root)  # el icono de la ventana y de sus diálogos, si viene con el programa
         # Una excepción en un botón o en el sondeo la atrapa Tk: queda en el registro de fallos
@@ -107,6 +110,8 @@ class MainWindow:
         # Medidores: barras por fuente, ⛔ si está caída y 🔇 si lleva 10 min sin audio (ver session.StatusSnapshot)
         self.lbl_meter = tk.Label(top, text="", bg=P.fondo, fg=P.texto_tenue, font=("Consolas", 10), cursor="hand2")
         self.lbl_meter.bind("<Button-1>", lambda _e: self.reconnect_audio())
+        con_ayuda(self.lbl_status, "estado", "cola", "cafe", "fallos")
+        con_ayuda(self.lbl_meter, "medidores", "reintento", "mudo")
 
         # Botones cabecera. Se empacan ANTES que el estado y los medidores: con pack, lo primero
         # reserva su sitio, así que un estado largo (por ejemplo "transcribiendo 200 fragmentos")
@@ -137,6 +142,12 @@ class MainWindow:
         )
         self.btn_shot.pack(side="right", padx=(0, 6))
 
+        for boton, clave in (
+            (self.btn_pause, "pausar"), (self.btn_tuning, "calibrar"), (self.btn_options, "opciones"),
+            (self.btn_digest, "reagrupar"), (self.btn_shot, "captura"),
+        ):
+            con_ayuda(boton, clave)
+
         self.lbl_meter.pack(side="right", padx=16)
         self.lbl_status.pack(side="left", fill="x", expand=True)
 
@@ -150,6 +161,7 @@ class MainWindow:
             font=("Segoe UI", 8),
         )
         self.lbl_path.pack(fill="x", padx=14, pady=(2, 0))
+        con_ayuda(self.lbl_path, "nota_hoy")
 
         # Área de texto desplazable
         self.txt = scrolledtext.ScrolledText(
@@ -166,6 +178,7 @@ class MainWindow:
             height=10,
         )
         self.txt.pack(fill="both", expand=True, padx=14, pady=(10, 14))
+        con_ayuda(self.txt, "visor", "atraso")
         scroll_nativo(self.txt.vbar)
         self.txt.tag_config("t", foreground=P.texto_tenue, font=("Consolas", 10))
         self.txt.tag_config("kw", foreground=P.acento)

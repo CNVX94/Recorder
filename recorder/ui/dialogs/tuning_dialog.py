@@ -17,6 +17,7 @@ from ...filters.tuning import (
     with_common_ignore,
 )
 from ..theme import BTN_STYLE, ENTRY_STYLE, LABEL_STYLE, P, fit_window
+from ..tooltip import con_ayuda
 
 
 class TuningDialog(tk.Toplevel):
@@ -108,11 +109,11 @@ class TuningDialog(tk.Toplevel):
         tk.Label(
             container, text=VOCAB_HINT, bg=P.fondo, fg=P.texto_tenue, font=("Segoe UI", 8), wraplength=680, justify="left",
         ).pack(anchor="w", pady=(2, 0))
-        tk.Checkbutton(
+        con_ayuda(tk.Checkbutton(
             container, text=ECHO_FILTER_LABEL, variable=self.var_echo_filter, command=self._run_test,
             bg=P.fondo, fg=P.texto, selectcolor=P.superficie, activebackground=P.fondo, activeforeground=P.texto,
             font=("Segoe UI", 9), anchor="w",
-        ).pack(anchor="w", pady=(2, 0))
+        ), "eco_vocab").pack(anchor="w", pady=(2, 0))
 
         # 2. Frases prohibidas / Lista negra (Blacklist)
         f_ignore = tk.Frame(container, bg=P.fondo)
@@ -149,6 +150,11 @@ class TuningDialog(tk.Toplevel):
         lbl_fixes.pack(anchor="w", pady=(10, 2))
         ent_fixes = tk.Entry(container, textvariable=self.var_fixes, **ENTRY_STYLE)
         ent_fixes.pack(fill="x", ipady=4)
+        for widget, clave in (
+            (lbl_vocab, "vocabulario"), (ent_vocab, "vocabulario"), (lbl_ignore, "ignorar"), (ent_ignore, "ignorar"),
+            (btn_preset, "comunes"), (lbl_fixes, "correcciones"), (ent_fixes, "correcciones"),
+        ):
+            con_ayuda(widget, clave)
 
         # 4. Umbrales heurísticos (Sliders de calidad)
         sliders_frame = tk.Frame(container, bg=P.superficie, padx=12, pady=8)
@@ -162,15 +168,16 @@ class TuningDialog(tk.Toplevel):
             font=("Segoe UI Semibold", 9),
         )
         lbl_sliders_title.grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 6))
+        con_ayuda(lbl_sliders_title, "umbrales")
 
         # Slider no_speech
-        tk.Label(
+        con_ayuda(tk.Label(
             sliders_frame,
             text="Filtro silencio (no_speech_prob > X descarta):",
             bg=P.superficie,
             fg=P.texto_tenue,
             font=("Segoe UI", 9),
-        ).grid(row=1, column=0, sticky="w")
+        ), "umbral_silencio").grid(row=1, column=0, sticky="w")
         lo, hi, paso = THRESHOLD_RANGES["no_speech_threshold"]
         sc_no_speech = tk.Scale(
             sliders_frame,
@@ -186,15 +193,16 @@ class TuningDialog(tk.Toplevel):
             length=180,
         )
         sc_no_speech.grid(row=1, column=1, sticky="w", padx=10)
+        con_ayuda(sc_no_speech, "umbral_silencio")
 
         # Slider logprob
-        tk.Label(
+        con_ayuda(tk.Label(
             sliders_frame,
             text="Confianza mínima (avg_logprob < X descarta):",
             bg=P.superficie,
             fg=P.texto_tenue,
             font=("Segoe UI", 9),
-        ).grid(row=2, column=0, sticky="w")
+        ), "umbral_confianza").grid(row=2, column=0, sticky="w")
         lo, hi, paso = THRESHOLD_RANGES["logprob_threshold"]
         sc_logprob = tk.Scale(
             sliders_frame,
@@ -210,15 +218,16 @@ class TuningDialog(tk.Toplevel):
             length=180,
         )
         sc_logprob.grid(row=2, column=1, sticky="w", padx=10)
+        con_ayuda(sc_logprob, "umbral_confianza")
 
         # Slider compression
-        tk.Label(
+        con_ayuda(tk.Label(
             sliders_frame,
             text="Anti-bucles repetición (ratio compresión > X descarta):",
             bg=P.superficie,
             fg=P.texto_tenue,
             font=("Segoe UI", 9),
-        ).grid(row=3, column=0, sticky="w")
+        ), "umbral_bucles").grid(row=3, column=0, sticky="w")
         lo, hi, paso = THRESHOLD_RANGES["compression_ratio_threshold"]
         sc_comp = tk.Scale(
             sliders_frame,
@@ -234,6 +243,7 @@ class TuningDialog(tk.Toplevel):
             length=180,
         )
         sc_comp.grid(row=3, column=1, sticky="w", padx=10)
+        con_ayuda(sc_comp, "umbral_bucles")
 
         # 5. Sandbox de prueba interactivo
         sandbox = tk.LabelFrame(
@@ -271,7 +281,9 @@ class TuningDialog(tk.Toplevel):
             padx=8,
         )
         btn_random.pack(side="right", padx=(8, 0))
-        tk.Entry(test_row, textvariable=self.var_test_input, **ENTRY_STYLE).pack(
+        con_ayuda(btn_test, "probar_reglas")
+        con_ayuda(btn_random, "frase_ejemplo")
+        con_ayuda(tk.Entry(test_row, textvariable=self.var_test_input, **ENTRY_STYLE), "sandbox").pack(
             side="left", fill="x", expand=True, ipady=4
         )
 
@@ -291,7 +303,7 @@ class TuningDialog(tk.Toplevel):
         actions = tk.Frame(self, bg=P.fondo)
         actions.pack(fill="x", padx=16, pady=(8, 16))
 
-        tk.Button(
+        con_ayuda(tk.Button(
             actions,
             text="Cancelar",
             command=self.destroy,
@@ -300,14 +312,14 @@ class TuningDialog(tk.Toplevel):
             relief="flat",
             padx=12,
             font=("Segoe UI", 9),
-        ).pack(side="right", padx=(8, 0))
+        ), "cancelar").pack(side="right", padx=(8, 0))
 
-        tk.Button(
+        con_ayuda(tk.Button(
             actions,
             text="💾 Guardar Calibración",
             command=self._save_changes,
             **BTN_STYLE,
-        ).pack(side="right")
+        ), "guardar_calibracion").pack(side="right")
 
         self._run_test()
 

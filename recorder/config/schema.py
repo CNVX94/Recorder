@@ -14,7 +14,7 @@ CAPTURE_QUALITIES: Tuple[str, ...] = ("off", "light", "normal", "high")
 DEFAULT_CAPTURES = "normal"
 
 # Apariencia. «theme»: los temas de recorder/paleta.py; «sistema» sigue el modo de Windows.
-# «animations»: cuánto se anima la interfaz (este campo aún no lo usa nadie).
+# «animations»: cuánto se anima la interfaz (hoy, el fundido de los tooltips: ui/tooltip.py).
 THEMES: Tuple[str, ...] = NOMBRES
 ANIMATIONS: Tuple[str, ...] = ("completas", "reducidas", "ninguna")
 

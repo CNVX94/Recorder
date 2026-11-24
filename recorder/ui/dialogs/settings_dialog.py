@@ -41,6 +41,7 @@ from ...config.schema import (
 )
 from ...engine.whispercpp import vulkan_readiness, whispercpp_ready, whispercpp_status
 from ..theme import BTN_STYLE, ENTRY_STYLE, LABEL_STYLE, P, fit_window
+from ..tooltip import con_ayuda
 from .tuning_dialog import TuningDialog
 
 # Color del estado de la carpeta de whisper.cpp según su nivel (ver `whispercpp_status`).
@@ -124,26 +125,28 @@ class SettingsDialog(tk.Toplevel):
 
     def _build_ui(self):
         # Filas de configuración
-        self._row_entry(0, "Carpeta de notas (.md):", self.v_notes, browse=True)
-        self._row_entry(1, "Carpeta de capturas:", self.v_caps, browse=True)
-        self._row_entry(2, "Palabras clave (coma):", self.v_keywords)
+        self._row_entry(0, "Carpeta de notas (.md):", self.v_notes, "carpeta_notas", browse=True)
+        self._row_entry(1, "Carpeta de capturas:", self.v_caps, "carpeta_capturas", browse=True)
+        self._row_entry(2, "Palabras clave (coma):", self.v_keywords, "palabras_clave")
 
         out_devs = device_choices(wasapi_devices(self.pa, "out"))
         mic_devs = device_choices(wasapi_devices(self.pa, "mic"))
-        self._row_choice(3, "Salida a capturar 🔊:", self.v_out_dev, out_devs)
-        self._row_choice(4, "Micrófono 🎤:", self.v_mic_dev, mic_devs)
-        self.om_target = self._row_choice(5, "Qué capturar 📸:", self.v_screen, self._targets())
-        tk.Button(self, text="🔄", command=self._refresh_targets, **BTN_STYLE).grid(row=5, column=2, padx=(6, 16))
+        self._row_choice(3, "Salida a capturar 🔊:", self.v_out_dev, out_devs, "salida_audio")
+        self._row_choice(4, "Micrófono 🎤:", self.v_mic_dev, mic_devs, "microfono")
+        self.om_target = self._row_choice(5, "Qué capturar 📸:", self.v_screen, self._targets(), "que_capturar")
+        con_ayuda(tk.Button(self, text="🔄", command=self._refresh_targets, **BTN_STYLE), "releer_ventanas").grid(
+            row=5, column=2, padx=(6, 16)
+        )
         # Calidad del buffer de capturas por palabra clave, o apagarlas (docs/captura-diferida.md)
-        self._row_choice(6, "Capturas por palabra clave:", self.v_captures, capture_choices())
+        self._row_choice(6, "Capturas por palabra clave:", self.v_captures, capture_choices(), "capturas_clave")
         self._build_quality_row(7)  # fila 7 = selector, fila 8 = descripción (se aplica al reiniciar)
         self._build_recommendation_row(9)
         self._build_engine_rows(10)  # filas 10 a 13: hilos, whisper.cpp, su estado y la GPU de Vulkan
-        self._row_choice(14, "Tema (se aplica al guardar):", self.v_theme, list(THEME_LABELS.values()))
+        self._row_choice(14, "Tema (se aplica al guardar):", self.v_theme, list(THEME_LABELS.values()), "tema")
 
         bottom = tk.Frame(self, bg=P.fondo)
         bottom.grid(row=15, column=0, columnspan=3, sticky="ew", padx=16, pady=(8, 4))
-        tk.Checkbutton(
+        con_ayuda(tk.Checkbutton(
             bottom,
             text="Transcribir también mi micrófono 🎤",
             variable=self.v_mic,
@@ -153,10 +156,10 @@ class SettingsDialog(tk.Toplevel):
             activebackground=P.fondo,
             activeforeground=P.texto,
             font=("Segoe UI", 10),
-        ).pack(side="left")
+        ), "transcribir_mic").pack(side="left")
 
         # Botón destacado para calibrar alucinaciones
-        tk.Button(
+        con_ayuda(tk.Button(
             bottom,
             text="🎯 Calibrar Alucinaciones & Vocabulario...",
             command=self._open_tuning,
@@ -166,13 +169,13 @@ class SettingsDialog(tk.Toplevel):
             font=("Segoe UI Semibold", 10),
             padx=12,
             pady=4,
-        ).pack(side="right")
+        ), "calibrar").pack(side="right")
 
         # Botonera inferior
         btn_box = tk.Frame(self, bg=P.fondo)
         btn_box.grid(row=16, column=1, columnspan=2, sticky="e", padx=16, pady=10)
 
-        tk.Button(
+        con_ayuda(tk.Button(
             btn_box,
             text="Cancelar",
             command=self.destroy,
@@ -181,31 +184,33 @@ class SettingsDialog(tk.Toplevel):
             relief="flat",
             padx=10,
             font=("Segoe UI", 10),
-        ).pack(side="right", padx=(8, 0))
+        ), "cancelar").pack(side="right", padx=(8, 0))
 
-        tk.Button(
+        con_ayuda(tk.Button(
             btn_box,
             text="Guardar",
             command=self._save,
             **BTN_STYLE,
-        ).pack(side="right")
+        ), "guardar_opciones").pack(side="right")
 
-    def _row_entry(self, r: int, text: str, var: tk.StringVar, browse: bool = False):
-        tk.Label(self, text=text, **LABEL_STYLE).grid(row=r, column=0, sticky="w", padx=16, pady=6)
-        tk.Entry(self, textvariable=var, width=46, **ENTRY_STYLE).grid(
+    def _row_entry(self, r: int, text: str, var: tk.StringVar, clave: str, browse: bool = False):
+        """Etiqueta y campo de texto (y 📁 para elegir carpeta); `clave` es su texto de recorder/ayuda.py."""
+        con_ayuda(tk.Label(self, text=text, **LABEL_STYLE), clave).grid(row=r, column=0, sticky="w", padx=16, pady=6)
+        con_ayuda(tk.Entry(self, textvariable=var, width=46, **ENTRY_STYLE), clave).grid(
             row=r, column=1, ipady=4, sticky="ew", padx=(0, 16 if not browse else 0)
         )
         if browse:
-            tk.Button(
+            con_ayuda(tk.Button(
                 self,
                 text="📁",
                 command=lambda: var.set(filedialog.askdirectory(initialdir=var.get()) or var.get()),
                 **BTN_STYLE,
-            ).grid(row=r, column=2, padx=(6, 16))
+            ), "examinar").grid(row=r, column=2, padx=(6, 16))
 
-    def _row_choice(self, r: int, text: str, var: tk.StringVar, choices: List[str]):
-        tk.Label(self, text=text, **LABEL_STYLE).grid(row=r, column=0, sticky="w", padx=16, pady=6)
-        om = tk.OptionMenu(self, var, *choices)
+    def _row_choice(self, r: int, text: str, var: tk.StringVar, choices: List[str], clave: str):
+        """Etiqueta y desplegable; `clave` es su texto de recorder/ayuda.py."""
+        con_ayuda(tk.Label(self, text=text, **LABEL_STYLE), clave).grid(row=r, column=0, sticky="w", padx=16, pady=6)
+        om = con_ayuda(tk.OptionMenu(self, var, *choices), clave)
         om.config(
             bg=P.superficie,
             fg=P.texto,
@@ -223,16 +228,16 @@ class SettingsDialog(tk.Toplevel):
     # ------------------------------------------------------------------ calidad
     def _build_quality_row(self, r: int):
         """Selector de calidad: la decisión principal, con una línea que explica cada preset."""
-        tk.Label(
+        con_ayuda(tk.Label(
             self,
             text="Calidad de transcripción (se aplica al reiniciar):",
             bg=P.fondo,
             fg=P.texto,
             font=("Segoe UI Semibold", 10),
-        ).grid(row=r, column=0, sticky="w", padx=16, pady=(10, 2))
+        ), "calidad").grid(row=r, column=0, sticky="w", padx=16, pady=(10, 2))
 
         self.v_quality = tk.StringVar()
-        self.om_quality = tk.OptionMenu(self, self.v_quality, "")
+        self.om_quality = con_ayuda(tk.OptionMenu(self, self.v_quality, ""), "calidad")
         self.om_quality.config(
             bg=P.superficie,
             fg=P.acento,
@@ -259,6 +264,7 @@ class SettingsDialog(tk.Toplevel):
             anchor="w",
         )
         self.lbl_quality_desc.grid(row=r + 1, column=0, columnspan=3, sticky="ew", padx=16, pady=(0, 6))
+        con_ayuda(self.lbl_quality_desc, "calidad")
 
         self.v_quality.trace_add("write", self._on_quality_change)
         self._on_quality_change()
@@ -296,11 +302,11 @@ class SettingsDialog(tk.Toplevel):
         box.grid(row=r, column=0, columnspan=3, sticky="ew", padx=16, pady=(0, 6))
         box.columnconfigure(0, weight=1)
         self.v_rec = tk.StringVar()
-        tk.Label(
+        con_ayuda(tk.Label(
             box, textvariable=self.v_rec, bg=P.fondo, fg=P.ok, font=("Segoe UI", 9),
             wraplength=480, justify="left", anchor="w",
-        ).grid(row=0, column=0, sticky="ew")
-        self.btn_rec = tk.Button(box, text="Usar recomendado", command=self._use_recommended, **BTN_STYLE)
+        ), "recomendado").grid(row=0, column=0, sticky="ew")
+        self.btn_rec = con_ayuda(tk.Button(box, text="Usar recomendado", command=self._use_recommended, **BTN_STYLE), "recomendado")
         self.btn_rec.grid(row=0, column=1, sticky="ne", padx=(8, 0))
 
     def _refresh_recommendation(self):
@@ -324,51 +330,55 @@ class SettingsDialog(tk.Toplevel):
 
     # ------------------------------------------------------------------ motor
     def _build_engine_rows(self, r: int):
-        tk.Label(self, text="Hilos de CPU:", **LABEL_STYLE).grid(row=r, column=0, sticky="w", padx=16, pady=4)
+        con_ayuda(tk.Label(self, text="Hilos de CPU:", **LABEL_STYLE), "hilos").grid(
+            row=r, column=0, sticky="w", padx=16, pady=4
+        )
         fila = tk.Frame(self, bg=P.fondo)
         fila.grid(row=r, column=1, columnspan=2, sticky="ew", padx=(0, 16))
-        tk.Spinbox(
+        con_ayuda(tk.Spinbox(
             fila, from_=0, to=MAX_THREADS, width=5, textvariable=self.v_threads,
             buttonbackground=P.superficie, **ENTRY_STYLE,
-        ).pack(side="left", ipady=2)
+        ), "hilos").pack(side="left", ipady=2)
         self.v_threads_hint = tk.StringVar()
-        tk.Label(fila, textvariable=self.v_threads_hint, **LABEL_STYLE).pack(side="left", padx=(8, 0))
+        con_ayuda(tk.Label(fila, textvariable=self.v_threads_hint, **LABEL_STYLE), "hilos").pack(side="left", padx=(8, 0))
 
-        tk.Label(self, text="whisper.cpp (GPU AMD/Intel):", **LABEL_STYLE).grid(
+        con_ayuda(tk.Label(self, text="whisper.cpp (GPU AMD/Intel):", **LABEL_STYLE), "whispercpp").grid(
             row=r + 1, column=0, sticky="w", padx=16, pady=4
         )
-        tk.Entry(self, textvariable=self.v_wcpp_dir, width=46, **ENTRY_STYLE).grid(
+        con_ayuda(tk.Entry(self, textvariable=self.v_wcpp_dir, width=46, **ENTRY_STYLE), "whispercpp").grid(
             row=r + 1, column=1, ipady=4, sticky="ew"
         )
-        tk.Button(
+        con_ayuda(tk.Button(
             self,
             text="📁",
             command=lambda: self.v_wcpp_dir.set(
                 filedialog.askdirectory(initialdir=self.v_wcpp_dir.get() or None) or self.v_wcpp_dir.get()
             ),
             **BTN_STYLE,
-        ).grid(row=r + 1, column=2, padx=(6, 16))
+        ), "examinar").grid(row=r + 1, column=2, padx=(6, 16))
         self.v_wcpp_status = tk.StringVar()
-        self.lbl_wcpp_status = tk.Label(
+        self.lbl_wcpp_status = con_ayuda(tk.Label(
             self, textvariable=self.v_wcpp_status, bg=P.fondo, fg=P.texto_tenue, font=("Segoe UI", 9),
             wraplength=620, justify="left", anchor="w",
-        )
+        ), "estado_whispercpp")
         self.lbl_wcpp_status.grid(row=r + 2, column=0, columnspan=3, sticky="ew", padx=16)
 
-        tk.Label(self, text="GPU de whisper.cpp:", **LABEL_STYLE).grid(row=r + 3, column=0, sticky="w", padx=16, pady=4)
+        con_ayuda(tk.Label(self, text="GPU de whisper.cpp:", **LABEL_STYLE), "gpu").grid(
+            row=r + 3, column=0, sticky="w", padx=16, pady=4
+        )
         fila = tk.Frame(self, bg=P.fondo)
         fila.grid(row=r + 3, column=1, columnspan=2, sticky="ew", padx=(0, 16))
-        self.om_gpu = tk.OptionMenu(fila, self.v_gpu, AUTO_GPU)
+        self.om_gpu = con_ayuda(tk.OptionMenu(fila, self.v_gpu, AUTO_GPU), "gpu")
         self.om_gpu.config(
             bg=P.superficie, fg=P.texto, activebackground=P.acento, activeforeground=P.texto_sobre_acento, relief="flat", highlightthickness=0,
             font=("Segoe UI", 10), anchor="w", width=30,
         )
         self.om_gpu["menu"].config(bg=P.superficie, fg=P.texto, activebackground=P.acento, activeforeground=P.texto_sobre_acento)
         self.om_gpu.pack(side="left")
-        tk.Checkbutton(
+        con_ayuda(tk.Checkbutton(
             fila, text="Flash attention", variable=self.v_flash, bg=P.fondo, fg=P.texto, selectcolor=P.superficie,
             activebackground=P.fondo, activeforeground=P.texto, font=("Segoe UI", 10),
-        ).pack(side="left", padx=(10, 0))
+        ), "flash").pack(side="left", padx=(10, 0))
         self._rebuild_gpu_menu()
         self.v_wcpp_dir.trace_add("write", lambda *_: self._refresh_engine())
 
