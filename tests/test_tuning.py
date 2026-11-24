@@ -20,6 +20,8 @@ from recorder.filters.tuning import (
     with_common_ignore,
 )
 
+test_phrase.__test__ = False  # es la función del sandbox de Calibrar, no una prueba: que pytest no la recoja
+
 KEYWORDS = ["pendiente", "bloqueo", "captura"]
 
 

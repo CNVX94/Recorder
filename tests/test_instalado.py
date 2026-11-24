@@ -279,7 +279,9 @@ class TestRegistroDeFallos(CasoInstalado):
     def test_instalar_dos_veces_no_duplica_y_desinstalar_devuelve_los_ganchos(self):
         registro.instalar()
         registro.instalar()
-        self.assertEqual(len(registro._log.handlers), 1)
+        # Solo los nuestros: pytest 9 cuelga sus manejadores de captura también de los loggers
+        # que no propagan, como este.
+        self.assertEqual(len([h for h in registro._log.handlers if isinstance(h, registro._ArchivoRotatorio)]), 1)
         self.assertIs(sys.excepthook, registro._gancho_sys)
         registro.desinstalar()
         self.assertIs(sys.excepthook, self.sys_previo)
