@@ -29,7 +29,7 @@ PERFIL = HardwareProfile(
     p_cores=6, avx2=True, ram_total_mb=16327, desktop=True,
 )
 # Posiciones (1-based) en el menú del asistente.
-CARPETAS, AUDIO, CAPTURAS, CALIDAD, TODO, GUARDAR, SALIR = "1", "2", "3", "4", "5", "6", "7"
+CARPETAS, AUDIO, CAPTURAS, CALIDAD, APARIENCIA, TODO, GUARDAR, SALIR = "1", "2", "3", "4", "5", "6", "7", "8"
 
 
 class CasoConfig(unittest.TestCase):
@@ -152,10 +152,24 @@ class TestAsistente(CasoConfig):
         self.assertIn("No hay bin\\whisper-server.exe", salida)
         self.assertIn(AUTO_GPU, salida)
 
+    def test_tema_guarda_lo_mismo_que_la_ventana(self):
+        self.guardar(AppConfig())
+        with respuestas(APARIENCIA, "2", "s"):  # Claro; guardar
+            codigo, salida = self.correr()
+        self.assertEqual(codigo, 0)
+        esperado = AppConfig()
+        form = settings_form(esperado, PANTALLAS)
+        form.theme = "claro"
+        apply_settings(esperado, form, PANTALLAS)
+        self.assertEqual(self.guardado(), esperado.to_dict())
+        self.assertEqual(self.guardado()["theme"], "claro")
+        self.assertIn("Tema", salida)  # en la tabla de cambios: Oscuro → Claro
+        self.assertIn("Claro", salida)
+
     def test_todo_sin_cambios_no_escribe(self):
         antes = self.guardar(AppConfig())
-        # carpetas (3), audio (3), capturas (2), whisper.cpp (1), recomendado: no, calidad e hilos (2)
-        with respuestas(TODO, "", "", "", "", "", "", "", "", "", "n", "", "", SALIR):
+        # carpetas (3), audio (3), capturas (2), whisper.cpp (1), recomendado: no, calidad e hilos (2), tema (1)
+        with respuestas(TODO, "", "", "", "", "", "", "", "", "", "n", "", "", "", SALIR):
             codigo, salida = self.correr()
         self.assertEqual(codigo, 0)
         self.assertIn("Sin cambios.", salida)

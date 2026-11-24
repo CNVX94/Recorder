@@ -13,7 +13,7 @@ from ..session import (
 from .dialogs.settings_dialog import SettingsDialog
 from .dialogs.digest_dialog import DigestDialog
 from .dialogs.tuning_dialog import TuningDialog
-from .theme import ACC, BG, BTN_STYLE, DIM, ERR, FG, HEADER_STYLE, MIC, PANEL, app_icon, fit_window
+from .theme import BTN_STYLE, P, aplicar_tema, app_icon, fit_window, scroll_nativo
 
 POLL_MS = 200  # sondeo con la ventana a la vista
 POLL_HIDDEN_MS = 1000  # minimizada: no hay nada que pintar; basta vaciar la cola y decidir el ☕
@@ -90,21 +90,22 @@ class MainWindow:
     def _build_gui(self):
         self.root = tk.Tk()
         self.root.title("Recorder · Daily")
-        self.root.configure(bg=BG)
+        aplicar_tema(self.root, self.session.config.theme)  # antes de crear widgets: ya nacen con su paleta
+        self.root.configure(bg=P.fondo)
         app_icon(self.root)  # el icono de la ventana y de sus diálogos, si viene con el programa
         # Una excepción en un botón o en el sondeo la atrapa Tk: queda en el registro de fallos
         self.root.report_callback_exception = self._fallo_en_callback
         fit_window(self.root, 1040, 560)  # la cabecera con "⛔ reintento N" y "☕" no cabe en 860
 
         # Cabecera
-        top = tk.Frame(self.root, bg=BG)
+        top = tk.Frame(self.root, bg=P.fondo)
         top.pack(fill="x", padx=14, pady=(12, 0))
 
         self.lbl_status = tk.Label(
-            top, text="Iniciando…", bg=BG, fg=DIM, anchor="w", font=("Segoe UI Semibold", 11)
+            top, text="Iniciando…", bg=P.fondo, fg=P.texto_tenue, anchor="w", font=("Segoe UI Semibold", 11)
         )
         # Medidores: barras por fuente, ⛔ si está caída y 🔇 si lleva 10 min sin audio (ver session.StatusSnapshot)
-        self.lbl_meter = tk.Label(top, text="", bg=BG, fg=DIM, font=("Consolas", 10), cursor="hand2")
+        self.lbl_meter = tk.Label(top, text="", bg=P.fondo, fg=P.texto_tenue, font=("Consolas", 10), cursor="hand2")
         self.lbl_meter.bind("<Button-1>", lambda _e: self.reconnect_audio())
 
         # Botones cabecera. Se empacan ANTES que el estado y los medidores: con pack, lo primero
@@ -143,8 +144,8 @@ class MainWindow:
         self.lbl_path = tk.Label(
             self.root,
             text=str(self.session.file_path),
-            bg=BG,
-            fg=DIM,
+            bg=P.fondo,
+            fg=P.texto_tenue,
             anchor="w",
             font=("Segoe UI", 8),
         )
@@ -153,9 +154,9 @@ class MainWindow:
         # Área de texto desplazable
         self.txt = scrolledtext.ScrolledText(
             self.root,
-            bg=BG,
-            fg=FG,
-            insertbackground=FG,
+            bg=P.fondo,
+            fg=P.texto,
+            insertbackground=P.texto,
             wrap="word",
             relief="flat",
             font=("Segoe UI", 11),
@@ -165,11 +166,12 @@ class MainWindow:
             height=10,
         )
         self.txt.pack(fill="both", expand=True, padx=14, pady=(10, 14))
-        self.txt.tag_config("t", foreground=DIM, font=("Consolas", 10))
-        self.txt.tag_config("kw", foreground=ACC)
-        self.txt.tag_config("mic", foreground=MIC)
-        self.txt.tag_config("err", foreground=ERR)
-        self.txt.tag_config("info", foreground=DIM)
+        scroll_nativo(self.txt.vbar)
+        self.txt.tag_config("t", foreground=P.texto_tenue, font=("Consolas", 10))
+        self.txt.tag_config("kw", foreground=P.acento)
+        self.txt.tag_config("mic", foreground=P.mic)
+        self.txt.tag_config("err", foreground=P.error)
+        self.txt.tag_config("info", foreground=P.texto_tenue)
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         # Al volver de la barra de tareas se repinta ya, sin esperar al sondeo lento (ver _tick)
@@ -207,6 +209,7 @@ class MainWindow:
     def open_options(self):
         def handle_save(new_config: AppConfig, notes_changed: bool, devices_changed: bool):
             self.session.apply_settings(new_config, notes_changed, devices_changed)
+            aplicar_tema(self.root, new_config.theme)  # en caliente, también a los diálogos abiertos
             if notes_changed:
                 self.lbl_path.config(text=str(self.session.file_path))
 
@@ -227,7 +230,7 @@ class MainWindow:
             self._painted[lbl] = opts
 
     def _paint_header(self, st: StatusSnapshot):
-        self._set_label(self.lbl_status, text=st.status_text, fg=FG if st.status_highlight else DIM)
+        self._set_label(self.lbl_status, text=st.status_text, fg=P.texto if st.status_highlight else P.texto_tenue)
         self._set_label(self.lbl_meter, text=st.meter_text)
 
     def _visible(self) -> bool:

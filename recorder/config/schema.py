@@ -1,7 +1,9 @@
+import ctypes
 import dataclasses
 import pathlib
 from typing import Tuple, Dict, List, Optional, Sequence
 
+from ..paleta import NOMBRES, POR_DEFECTO
 from ..rutas import como_instalar_whispercpp, documento
 from .hardware import VENDOR_NVIDIA, GpuInfo, HardwareProfile, describe_gpu, gb, short_cpu_name
 
@@ -10,6 +12,21 @@ from .hardware import VENDOR_NVIDIA, GpuInfo, HardwareProfile, describe_gpu, gb,
 # (actions/capture_buffer.QUALITIES). El valor por defecto es el de AppConfig.
 CAPTURE_QUALITIES: Tuple[str, ...] = ("off", "light", "normal", "high")
 DEFAULT_CAPTURES = "normal"
+
+# Apariencia. «theme»: los temas de recorder/paleta.py; «sistema» sigue el modo de Windows.
+# «animations»: cuánto se anima la interfaz (este campo aún no lo usa nadie).
+THEMES: Tuple[str, ...] = NOMBRES
+ANIMATIONS: Tuple[str, ...] = ("completas", "reducidas", "ninguna")
+
+
+def system_animations() -> str:
+    """«reducidas» si Windows tiene apagadas las animaciones (SPI_GETCLIENTAREAANIMATION); si no, «completas»."""
+    activas = ctypes.c_int(1)
+    try:
+        ctypes.windll.user32.SystemParametersInfoW(0x1042, 0, ctypes.byref(activas), 0)
+    except (AttributeError, OSError):
+        pass  # sin user32: se animan como siempre
+    return "completas" if activas.value else "reducidas"
 
 
 @dataclasses.dataclass
@@ -100,9 +117,18 @@ class AppConfig:
     compression_ratio_threshold: float = 2.4  # Descartar repeticiones si zlib ratio excede umbral
     repetition_penalty: float = 1.1
 
+    # Un config.json anterior no trae estos dos campos y carga con los de fábrica: el tema de
+    # siempre y las animaciones que diga Windows. Un valor desconocido cae a lo mismo.
+    theme: str = POR_DEFECTO  # "oscuro", "claro" o "sistema"
+    animations: str = dataclasses.field(default_factory=system_animations)  # ANIMATIONS
+
     def __post_init__(self):
         if self.captures not in CAPTURE_QUALITIES:
             self.captures = DEFAULT_CAPTURES
+        if self.theme not in THEMES:
+            self.theme = POR_DEFECTO
+        if self.animations not in ANIMATIONS:
+            self.animations = system_animations()
 
     def to_dict(self) -> dict:
         return dataclasses.asdict(self)

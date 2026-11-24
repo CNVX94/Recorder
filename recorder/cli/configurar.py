@@ -1,7 +1,7 @@
 """`daily config`: la ventana ⚙ Opciones en la terminal, sobre la misma lógica (config/options.py).
 
 Sin argumentos pregunta por secciones (carpetas, audio, capturas con la calidad del buffer de
-capturas por palabra clave, calidad y motor), enseña qué cambió y guarda solo al confirmar. `--ver` muestra la configuración, `--editor` abre config.json
+capturas por palabra clave, calidad y motor, y tema), enseña qué cambió y guarda solo al confirmar. `--ver` muestra la configuración, `--editor` abre config.json
 en el editor del sistema y `--recomendado` aplica la configuración recomendada para el equipo
 (lo mismo que `daily recomendar --aplicar`). No importa tkinter.
 
@@ -29,6 +29,7 @@ from ..config.manager import ConfigManager
 from ..config.options import (
     AUTO_GPU,
     MAX_THREADS,
+    THEME_LABELS,
     WINDOW_PREFIX,
     SettingsForm,
     apply_settings,
@@ -84,7 +85,7 @@ ETIQUETAS = {
     "ignore": "Frases a ignorar",
     "fixes": "Correcciones", "no_speech_threshold": "Umbral de silencio",
     "logprob_threshold": "Umbral de confianza", "compression_ratio_threshold": "Umbral anti-bucles",
-    "repetition_penalty": "Penalización de repetición",
+    "repetition_penalty": "Penalización de repetición", "theme": "Tema", "animations": "Animaciones",
 }
 
 
@@ -155,6 +156,7 @@ SECCIONES = [
     "Audio: salida a capturar y micrófono",
     "Capturas: pantalla o ventana, y calidad de las capturas por palabra clave",
     "Calidad y motor: preset, hilos, whisper.cpp y GPU",
+    "Apariencia: tema claro u oscuro",
 ]
 TODO, GUARDAR, SALIR = "Todo, paso a paso", "Guardar y salir", "Salir sin guardar"
 
@@ -166,7 +168,7 @@ def asistente(mgr: ConfigManager, config: AppConfig, consola: Console) -> int:
     entorno = detectar_entorno(consola)
     form = settings_form(config, entorno.screens)
     pasos: List[Callable[[Console, SettingsForm, AppConfig, Entorno], None]] = [
-        paso_carpetas, paso_audio, paso_capturas, paso_calidad,
+        paso_carpetas, paso_audio, paso_capturas, paso_calidad, paso_apariencia,
     ]
     opciones = SECCIONES + [TODO, GUARDAR, SALIR]
     while True:
@@ -290,6 +292,13 @@ def paso_calidad(consola: Console, form: SettingsForm, config: AppConfig, entorn
         form.whispercpp_flash_attn = confirmar(consola, "¿Flash attention en whisper.cpp?", form.whispercpp_flash_attn)
 
 
+def paso_apariencia(consola: Console, form: SettingsForm, config: AppConfig, entorno: Entorno) -> None:
+    imprimir(consola, "\n[acento]Apariencia[/]")
+    imprimir(consola, "  [tenue]El mismo tema para la ventana y para los colores de esta terminal.[/]")
+    claves = list(THEME_LABELS)
+    form.theme = claves[elegir(consola, "Tema", list(THEME_LABELS.values()), claves.index(form.theme))]
+
+
 # ------------------------------------------------------------------ qué cambió
 def formatear(campo: str, valor) -> str:
     """Un valor de AppConfig como se lee: listas por coma, sí/no, y el significado de los vacíos."""
@@ -301,6 +310,8 @@ def formatear(campo: str, valor) -> str:
         return valor or "(ninguna: se captura la pantalla)"
     if campo == "captures":
         return capture_choice(valor)
+    if campo == "theme":
+        return THEME_LABELS.get(valor, valor)
     if isinstance(valor, bool):
         return "sí" if valor else "no"
     if isinstance(valor, list):
@@ -362,6 +373,7 @@ def filas_resumen(config: AppConfig) -> List[Tuple[str, str]]:
             f"silencio {config.no_speech_threshold} · confianza {config.logprob_threshold} · "
             f"anti-bucles {config.compression_ratio_threshold}"
         )),
+        ("Tema", formatear("theme", config.theme)),
     ]
 
 

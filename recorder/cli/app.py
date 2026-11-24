@@ -19,13 +19,15 @@ aunque aún no esté todo), pero un módulo roto o al que le falte una dependenc
 """
 import argparse
 import importlib
+import json
 import sys
 from types import ModuleType
 from typing import Dict, Optional, Sequence
 
 from rich.console import Console
 
-from .. import registro
+from .. import paleta, registro
+from ..rutas import ruta_config
 from .consola import make_console
 
 COMANDOS = (
@@ -126,13 +128,22 @@ def abrir_ventana() -> int:
     return 0
 
 
+def tema_guardado() -> str:
+    """El «theme» de config.json para los colores de la terminal; el de fábrica si no se puede leer.
+    Solo lee: un config.json roto lo explica el comando que lo cargue (ConfigManager)."""
+    try:
+        return str(json.loads(ruta_config().read_text(encoding="utf-8-sig")).get("theme", paleta.POR_DEFECTO))
+    except Exception:
+        return paleta.POR_DEFECTO
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     """`daily …` con consola: reparte según los argumentos. Devuelve el código de salida."""
     comandos = cargar_comandos()
     args = construir_parser(comandos).parse_args(argv)
     if args.gui or args.comando == "ventana":
         return abrir_ventana()
-    consola = make_console(ascii_mode=True if args.ascii else None)
+    consola = make_console(ascii_mode=True if args.ascii else None, tema=tema_guardado())
     if args.comando is None:
         from .live import grabar
 

@@ -22,7 +22,7 @@ depende de esta conversación ni de los demás prompts (solo de que los pasos pr
 ### Decisiones tomadas por defecto (cámbialas antes de lanzar el paso que afecta)
 
 1. **Se mantiene Tkinter** (sin migrar a Qt ni a una interfaz web). Fundidos, transiciones de color, tooltips e intro por fotogramas son viables en Tk.
-2. **El tema cristal queda condicionado a una prueba** (paso 2): Tk pinta fondos opacos, así que el «glass» real solo se consigue con el fondo de sistema de Windows 11 (Mica/Acrylic) en marcos y barra de título más transparencia de ventana. Si la prueba no es legible, se entregan claro y oscuro y se decide aparte.
+2. **El tema cristal queda condicionado a una prueba** (paso 2): Tk pinta fondos opacos, así que el «glass» real solo se consigue con el fondo de sistema de Windows 11 (Mica/Acrylic) en marcos y barra de título más transparencia de ventana. Si la prueba no es legible, se entregan claro y oscuro y se decide aparte. **Resultado: descartado.** Mica solo en la barra apenas se distingue del oscuro; Acrylic en toda la ventana lava los colores; `-alpha` mezcla el texto de detrás; y el color clave con Acrylic deja halos en las letras, deja pasar los clics a la ventana de detrás y no garantiza el contraste AA. Capturas en `docs/capturas-ui/cristal-prototipo-*.png`.
 3. **Terminal con `rich` + lector de teclas propio** (sin Textual ni otras dependencias).
 4. **La GPU integrada sigue desactivada por defecto** hasta medirla en el equipo (paso 6).
 5. **Grabar en Linux queda fuera**: la captura es WASAPI (`pyaudiowpatch`). La terminal se hace portable (menús, opciones, notas), pero grabar en Linux necesita otro backend de audio (PulseAudio/PipeWire) y es una fase aparte.
@@ -336,7 +336,7 @@ Aceptación
 
 ```text
 Contexto del proyecto
-Recorder es una app de escritorio para Windows que transcribe en vivo las dailies de Teams en el propio equipo (sin nube) y deja una nota Markdown ordenada con capturas de pantalla. Se distribuye como ejecutable con instalador (Recorder.exe ventana, daily.exe terminal). La interfaz es Tkinter con temas claro, oscuro y cristal; la paleta está en el módulo de paleta del repositorio (búscalo con las herramientas codegraph_*; si el índice no responde, `codegraph init -i`). El icono actual lo genera packaging/generar_icono.py (recorder/assets/recorder.ico): la identidad visual parte de ahí. Tipografías disponibles: Segoe UI Variable / Segoe UI. Blender está conectado por MCP para modelar y renderizar. Usa el flujo /design para la propuesta visual si está disponible; si no, entrega el storyboard como documento con imágenes.
+Recorder es una app de escritorio para Windows que transcribe en vivo las dailies de Teams en el propio equipo (sin nube) y deja una nota Markdown ordenada con capturas de pantalla. Se distribuye como ejecutable con instalador (Recorder.exe ventana, daily.exe terminal). La interfaz es Tkinter con temas claro, oscuro y sistema; la paleta está en el módulo de paleta del repositorio (búscalo con las herramientas codegraph_*; si el índice no responde, `codegraph init -i`). El icono actual lo genera packaging/generar_icono.py (recorder/assets/recorder.ico): la identidad visual parte de ahí. Tipografías disponibles: Segoe UI Variable / Segoe UI. Blender está conectado por MCP para modelar y renderizar. Usa el flujo /design para la propuesta visual si está disponible; si no, entrega el storyboard como documento con imágenes.
 
 Reglas de trabajo
 1. Primero planea (propuesta de concepto y storyboard en texto), después produce los entregables.
@@ -403,7 +403,7 @@ Aceptación
 
 ```text
 Contexto del proyecto
-Recorder es una app de escritorio en Python 3.14 para Windows que transcribe en vivo las dailies de Teams. Se han aplicado mejoras en varios pasos: métricas y motor efectivo, temas claro/oscuro/cristal, textos de ayuda y tooltips, ventana con menú nuevo, responsive, animaciones y panel de rendimiento, terminal interactiva, asistente de ajuste de rendimiento e introducción animada (detalle en docs/plan-mejoras-experiencia-y-rendimiento.md). El repositorio tiene índice CodeGraph (.codegraph/): usa las herramientas codegraph_* (context, search, callers, impact, explore) antes de abrir archivos; si no responde, `codegraph init -i`. Pruebas: `python -m pytest` y `python recorder.py --selftest`. Empaquetado: packaging\build.ps1. Shell: PowerShell 5.1.
+Recorder es una app de escritorio en Python 3.14 para Windows que transcribe en vivo las dailies de Teams. Se han aplicado mejoras en varios pasos: métricas y motor efectivo, temas claro/oscuro/sistema, textos de ayuda y tooltips, ventana con menú nuevo, responsive, animaciones y panel de rendimiento, terminal interactiva, asistente de ajuste de rendimiento e introducción animada (detalle en docs/plan-mejoras-experiencia-y-rendimiento.md). El repositorio tiene índice CodeGraph (.codegraph/): usa las herramientas codegraph_* (context, search, callers, impact, explore) antes de abrir archivos; si no responde, `codegraph init -i`. Pruebas: `python -m pytest` y `python recorder.py --selftest`. Empaquetado: packaging\build.ps1. Shell: PowerShell 5.1.
 
 Reglas de trabajo
 1. Primero planea el recorrido de verificación y después ejecútalo.

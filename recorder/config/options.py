@@ -20,6 +20,7 @@ from .schema import (
     CUSTOM_PRESET,
     DEFAULT_CAPTURES,
     QUALITY_PRESETS,
+    THEMES,
     Recommendation,
     apply_preset,
     describe_recommendation,
@@ -45,6 +46,12 @@ CAPTURE_LABELS: Dict[str, str] = {
     "high": "Máximas: PNG sin pérdida, como antes (~440 MB/h)",
 }
 assert tuple(CAPTURE_LABELS) == CAPTURE_QUALITIES
+THEME_LABELS: Dict[str, str] = {
+    "oscuro": "Oscuro",
+    "claro": "Claro",
+    "sistema": "Sistema (sigue el modo claro u oscuro de Windows)",
+}
+assert tuple(THEME_LABELS) == THEMES
 
 RuntimeValues = Tuple[str, int, str, str]  # (modelo, haz, dispositivo, precisión)
 
@@ -71,6 +78,7 @@ class SettingsForm:
     whispercpp_dir: str
     whispercpp_flash_attn: bool
     whispercpp_device: int  # -1 = automática (ver `gpu_choices`)
+    theme: str  # clave de THEME_LABELS (la etiqueta la pone cada interfaz)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -98,6 +106,7 @@ def settings_form(config: AppConfig, screens: Sequence[str]) -> SettingsForm:
         whispercpp_dir=config.whispercpp_dir,
         whispercpp_flash_attn=config.whispercpp_flash_attn,
         whispercpp_device=config.whispercpp_device,
+        theme=config.theme,
     )
 
 
@@ -135,6 +144,7 @@ def apply_settings(config: AppConfig, form: SettingsForm, screens: Sequence[str]
     config.whispercpp_dir = form.whispercpp_dir.strip()
     config.whispercpp_flash_attn = form.whispercpp_flash_attn
     config.whispercpp_device = form.whispercpp_device
+    config.theme = form.theme if form.theme in THEMES else config.theme
     return SettingsChanges(notes_changed, devices_changed)
 
 

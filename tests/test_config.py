@@ -1,9 +1,12 @@
+import ctypes
 import dataclasses
 import json
 import tempfile
 import unittest
 import pathlib
+from unittest import mock
 
+from recorder.config import schema
 from recorder.config.schema import AppConfig
 from recorder.config.manager import ConfigManager
 
@@ -46,6 +49,39 @@ class TestConfig(unittest.TestCase):
             self.assertEqual(cfg.notes_dir, "C:/Dailies")
             self.assertEqual(cfg.model, "base")
             self.assertIn("pendiente", cfg.keywords)
+
+    def test_config_anterior_a_los_temas_carga_igual(self):
+        """Un config.json sin «theme» ni «animations»: el tema de siempre y las animaciones de Windows."""
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg_file = pathlib.Path(tmp) / "config.json"
+            antiguo = {k: v for k, v in AppConfig().to_dict().items() if k not in ("theme", "animations")}
+            antiguo["model"] = "base"
+            cfg_file.write_text(json.dumps(antiguo), encoding="utf-8")
+            mgr = ConfigManager(cfg_file)
+            cfg = mgr.load()
+            self.assertEqual(mgr.last_error, "")
+            self.assertEqual((cfg.model, cfg.theme), ("base", "oscuro"))
+            self.assertEqual(cfg.animations, schema.system_animations())
+            mgr.save(cfg)  # al guardar ya se escriben
+            self.assertEqual(json.loads(cfg_file.read_text(encoding="utf-8"))["theme"], "oscuro")
+
+    def test_tema_y_animaciones_desconocidos_caen_a_los_de_fabrica(self):
+        cfg = AppConfig.from_dict({"theme": "cristal", "animations": "turbo"})
+        self.assertEqual((cfg.theme, cfg.animations), ("oscuro", schema.system_animations()))
+        self.assertEqual(AppConfig.from_dict({"theme": "sistema"}).theme, "sistema")
+
+    def test_animaciones_por_defecto_siguen_a_windows(self):
+        def windows_con_animaciones(activas):
+            def spi(_accion, _param, puntero, _flags):
+                puntero._obj.value = activas
+                return 1
+            return mock.patch.object(ctypes.windll.user32, "SystemParametersInfoW", spi)
+
+        with windows_con_animaciones(0):
+            self.assertEqual(AppConfig().animations, "reducidas")
+        with windows_con_animaciones(1):
+            self.assertEqual(AppConfig().animations, "completas")
+        self.assertEqual(AppConfig(animations="ninguna").animations, "ninguna")
 
 
 if __name__ == "__main__":

@@ -5,17 +5,19 @@ from typing import Optional
 from rich.console import Console, detect_legacy_windows
 from rich.theme import Theme
 
-# Los colores de la ventana (recorder/ui/theme.py, Catppuccin Mocha). Se copian en vez de
-# importarlos porque `recorder.ui` carga tkinter y la terminal no lo necesita.
-TEMA = Theme({
-    "texto": "#cdd6f4",
-    "tenue": "#7f849c",
-    "acento": "#f9e2af",
-    "mic": "#89b4fa",
-    "error": "#f38ba8",
-    "ok": "#a6e3a1",
-    "borde": "#45475a",
-})
+from .. import paleta
+
+# Estilo de rich -> token de la paleta que comparte con la ventana (recorder/paleta.py, sin tkinter).
+ESTILOS = {
+    "texto": "texto", "tenue": "texto_tenue", "acento": "acento", "mic": "mic",
+    "error": "error", "ok": "ok", "borde": "borde",
+}
+
+
+def tema_rich(nombre: str = paleta.POR_DEFECTO) -> Theme:
+    """Los colores de la ventana para el tema `nombre` de config («sistema» se resuelve)."""
+    colores = paleta.TEMAS[paleta.resolver(nombre)]
+    return Theme({estilo: colores[token] for estilo, token in ESTILOS.items()})
 
 # Equivalentes para la consola clásica (conhost), que pinta mal los emoji y los bloques.
 ASCII = {
@@ -53,8 +55,8 @@ def presentar(texto: str, consola) -> str:
     return asciify(texto) if getattr(consola, "ascii_mode", False) else emoji_seguro(texto)
 
 
-def make_console(ascii_mode: Optional[bool] = None, **kwargs) -> Console:
-    """Consola de rich con el tema de Recorder.
+def make_console(ascii_mode: Optional[bool] = None, tema: str = paleta.POR_DEFECTO, **kwargs) -> Console:
+    """Consola de rich con el tema de Recorder (`tema`: el «theme» de config).
 
     `ascii_mode`: None lo decide solo (sí en la consola clásica sin secuencias VT, donde los emoji
     salen rotos; no en Windows Terminal). Quien pinte texto con emoji o medidores debe pasarlo por
@@ -69,6 +71,6 @@ def make_console(ascii_mode: Optional[bool] = None, **kwargs) -> Console:
             pass
     if ascii_mode is None:
         ascii_mode = detect_legacy_windows()
-    console = Console(theme=TEMA, highlight=False, emoji=not ascii_mode, **kwargs)
+    console = Console(theme=tema_rich(tema), highlight=False, emoji=not ascii_mode, **kwargs)
     console.ascii_mode = ascii_mode  # atributo propio: lo consultan los comandos al pintar
     return console

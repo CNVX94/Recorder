@@ -11,6 +11,7 @@ from ...config.options import (
     AUTO_GPU,
     DEFAULT_DEV,
     MAX_THREADS,
+    THEME_LABELS,
     WINDOW_PREFIX,
     SettingsForm,
     apply_settings,
@@ -39,11 +40,11 @@ from ...config.schema import (
     recommend_config,
 )
 from ...engine.whispercpp import vulkan_readiness, whispercpp_ready, whispercpp_status
-from ..theme import ACC, BG, BTN_STYLE, DIM, ENTRY_STYLE, ERR, FG, LABEL_STYLE, PANEL, SUCCESS, fit_window
+from ..theme import BTN_STYLE, ENTRY_STYLE, LABEL_STYLE, P, fit_window
 from .tuning_dialog import TuningDialog
 
 # Color del estado de la carpeta de whisper.cpp según su nivel (ver `whispercpp_status`).
-STATUS_COLOR = {"ok": SUCCESS, "warning": ERR, "info": DIM}
+STATUS_COLOR = {"ok": "ok", "warning": "error", "info": "texto_tenue"}  # tokens de la paleta
 
 
 class SettingsDialog(tk.Toplevel):
@@ -62,7 +63,7 @@ class SettingsDialog(tk.Toplevel):
         self.on_save = on_save
 
         self.title("Opciones del Sistema")
-        self.configure(bg=BG)
+        self.configure(bg=P.fondo)
         self.transient(parent)
         self.grab_set()
 
@@ -99,6 +100,7 @@ class SettingsDialog(tk.Toplevel):
         self.v_wcpp_dir = tk.StringVar(value=f.whispercpp_dir)
         self.v_flash = tk.BooleanVar(value=f.whispercpp_flash_attn)
         self.v_gpu = tk.StringVar()
+        self.v_theme = tk.StringVar(value=THEME_LABELS[f.theme])
 
     def _form(self) -> SettingsForm:
         """Lo que hay escrito y elegido ahora en la ventana, como valores planos."""
@@ -117,6 +119,7 @@ class SettingsDialog(tk.Toplevel):
             whispercpp_dir=self.v_wcpp_dir.get(),
             whispercpp_flash_attn=self.v_flash.get(),
             whispercpp_device=self._gpu_choices_map.get(self.v_gpu.get(), -1),
+            theme=next((k for k, v in THEME_LABELS.items() if v == self.v_theme.get()), self.config.theme),
         )
 
     def _build_ui(self):
@@ -136,18 +139,19 @@ class SettingsDialog(tk.Toplevel):
         self._build_quality_row(7)  # fila 7 = selector, fila 8 = descripción (se aplica al reiniciar)
         self._build_recommendation_row(9)
         self._build_engine_rows(10)  # filas 10 a 13: hilos, whisper.cpp, su estado y la GPU de Vulkan
+        self._row_choice(14, "Tema (se aplica al guardar):", self.v_theme, list(THEME_LABELS.values()))
 
-        bottom = tk.Frame(self, bg=BG)
-        bottom.grid(row=14, column=0, columnspan=3, sticky="ew", padx=16, pady=(8, 4))
+        bottom = tk.Frame(self, bg=P.fondo)
+        bottom.grid(row=15, column=0, columnspan=3, sticky="ew", padx=16, pady=(8, 4))
         tk.Checkbutton(
             bottom,
             text="Transcribir también mi micrófono 🎤",
             variable=self.v_mic,
-            bg=BG,
-            fg=FG,
-            selectcolor=PANEL,
-            activebackground=BG,
-            activeforeground=FG,
+            bg=P.fondo,
+            fg=P.texto,
+            selectcolor=P.superficie,
+            activebackground=P.fondo,
+            activeforeground=P.texto,
             font=("Segoe UI", 10),
         ).pack(side="left")
 
@@ -156,8 +160,8 @@ class SettingsDialog(tk.Toplevel):
             bottom,
             text="🎯 Calibrar Alucinaciones & Vocabulario...",
             command=self._open_tuning,
-            bg=PANEL,
-            fg=ACC,
+            bg=P.superficie,
+            fg=P.acento,
             relief="flat",
             font=("Segoe UI Semibold", 10),
             padx=12,
@@ -165,15 +169,15 @@ class SettingsDialog(tk.Toplevel):
         ).pack(side="right")
 
         # Botonera inferior
-        btn_box = tk.Frame(self, bg=BG)
-        btn_box.grid(row=15, column=1, columnspan=2, sticky="e", padx=16, pady=10)
+        btn_box = tk.Frame(self, bg=P.fondo)
+        btn_box.grid(row=16, column=1, columnspan=2, sticky="e", padx=16, pady=10)
 
         tk.Button(
             btn_box,
             text="Cancelar",
             command=self.destroy,
-            bg=PANEL,
-            fg=DIM,
+            bg=P.superficie,
+            fg=P.texto_tenue,
             relief="flat",
             padx=10,
             font=("Segoe UI", 10),
@@ -203,16 +207,16 @@ class SettingsDialog(tk.Toplevel):
         tk.Label(self, text=text, **LABEL_STYLE).grid(row=r, column=0, sticky="w", padx=16, pady=6)
         om = tk.OptionMenu(self, var, *choices)
         om.config(
-            bg=PANEL,
-            fg=FG,
-            activebackground=ACC,
+            bg=P.superficie,
+            fg=P.texto,
+            activebackground=P.acento, activeforeground=P.texto_sobre_acento,
             relief="flat",
             highlightthickness=0,
             font=("Segoe UI", 10),
             anchor="w",
             width=40,  # los títulos de ventana pueden ser larguísimos; que no ensanchen el diálogo
         )
-        om["menu"].config(bg=PANEL, fg=FG, activebackground=ACC)
+        om["menu"].config(bg=P.superficie, fg=P.texto, activebackground=P.acento, activeforeground=P.texto_sobre_acento)
         om.grid(row=r, column=1, sticky="ew", padx=(0, 16))
         return om
 
@@ -222,24 +226,24 @@ class SettingsDialog(tk.Toplevel):
         tk.Label(
             self,
             text="Calidad de transcripción (se aplica al reiniciar):",
-            bg=BG,
-            fg=FG,
+            bg=P.fondo,
+            fg=P.texto,
             font=("Segoe UI Semibold", 10),
         ).grid(row=r, column=0, sticky="w", padx=16, pady=(10, 2))
 
         self.v_quality = tk.StringVar()
         self.om_quality = tk.OptionMenu(self, self.v_quality, "")
         self.om_quality.config(
-            bg=PANEL,
-            fg=ACC,
-            activebackground=ACC,
+            bg=P.superficie,
+            fg=P.acento,
+            activebackground=P.acento, activeforeground=P.texto_sobre_acento,
             relief="flat",
             highlightthickness=0,
             font=("Segoe UI Semibold", 10),
             anchor="w",
             width=40,
         )
-        self.om_quality["menu"].config(bg=PANEL, fg=FG, activebackground=ACC)
+        self.om_quality["menu"].config(bg=P.superficie, fg=P.texto, activebackground=P.acento, activeforeground=P.texto_sobre_acento)
         self.om_quality.grid(row=r, column=1, sticky="ew", padx=(0, 16), pady=(10, 2))
         self._rebuild_quality_menu(preset_key_for_config(self.config) or CUSTOM_PRESET)
 
@@ -247,8 +251,8 @@ class SettingsDialog(tk.Toplevel):
         self.lbl_quality_desc = tk.Label(
             self,
             textvariable=self.v_quality_desc,
-            bg=BG,
-            fg=DIM,
+            bg=P.fondo,
+            fg=P.texto_tenue,
             font=("Segoe UI", 9),
             wraplength=620,
             justify="left",
@@ -279,7 +283,7 @@ class SettingsDialog(tk.Toplevel):
             return  # el desplegable se rellena antes de existir la descripción
         key = self._current_quality_key()
         unavailable = key != CUSTOM_PRESET and not preset_availability(key, self.cuda_devices, self.vulkan_ready).available
-        self.lbl_quality_desc.config(fg=ERR if unavailable else DIM)
+        self.lbl_quality_desc.config(fg=P.error if unavailable else P.texto_tenue)
         self.v_quality_desc.set(
             quality_description(
                 key, custom_runtime(self.config, self._custom_values), self.rec, self.cuda_devices, self.vulkan_ready
@@ -288,12 +292,12 @@ class SettingsDialog(tk.Toplevel):
 
     # ------------------------------------------------------------------ recomendación
     def _build_recommendation_row(self, r: int):
-        box = tk.Frame(self, bg=BG)
+        box = tk.Frame(self, bg=P.fondo)
         box.grid(row=r, column=0, columnspan=3, sticky="ew", padx=16, pady=(0, 6))
         box.columnconfigure(0, weight=1)
         self.v_rec = tk.StringVar()
         tk.Label(
-            box, textvariable=self.v_rec, bg=BG, fg=SUCCESS, font=("Segoe UI", 9),
+            box, textvariable=self.v_rec, bg=P.fondo, fg=P.ok, font=("Segoe UI", 9),
             wraplength=480, justify="left", anchor="w",
         ).grid(row=0, column=0, sticky="ew")
         self.btn_rec = tk.Button(box, text="Usar recomendado", command=self._use_recommended, **BTN_STYLE)
@@ -321,11 +325,11 @@ class SettingsDialog(tk.Toplevel):
     # ------------------------------------------------------------------ motor
     def _build_engine_rows(self, r: int):
         tk.Label(self, text="Hilos de CPU:", **LABEL_STYLE).grid(row=r, column=0, sticky="w", padx=16, pady=4)
-        fila = tk.Frame(self, bg=BG)
+        fila = tk.Frame(self, bg=P.fondo)
         fila.grid(row=r, column=1, columnspan=2, sticky="ew", padx=(0, 16))
         tk.Spinbox(
             fila, from_=0, to=MAX_THREADS, width=5, textvariable=self.v_threads,
-            buttonbackground=PANEL, **ENTRY_STYLE,
+            buttonbackground=P.superficie, **ENTRY_STYLE,
         ).pack(side="left", ipady=2)
         self.v_threads_hint = tk.StringVar()
         tk.Label(fila, textvariable=self.v_threads_hint, **LABEL_STYLE).pack(side="left", padx=(8, 0))
@@ -346,24 +350,24 @@ class SettingsDialog(tk.Toplevel):
         ).grid(row=r + 1, column=2, padx=(6, 16))
         self.v_wcpp_status = tk.StringVar()
         self.lbl_wcpp_status = tk.Label(
-            self, textvariable=self.v_wcpp_status, bg=BG, fg=DIM, font=("Segoe UI", 9),
+            self, textvariable=self.v_wcpp_status, bg=P.fondo, fg=P.texto_tenue, font=("Segoe UI", 9),
             wraplength=620, justify="left", anchor="w",
         )
         self.lbl_wcpp_status.grid(row=r + 2, column=0, columnspan=3, sticky="ew", padx=16)
 
         tk.Label(self, text="GPU de whisper.cpp:", **LABEL_STYLE).grid(row=r + 3, column=0, sticky="w", padx=16, pady=4)
-        fila = tk.Frame(self, bg=BG)
+        fila = tk.Frame(self, bg=P.fondo)
         fila.grid(row=r + 3, column=1, columnspan=2, sticky="ew", padx=(0, 16))
         self.om_gpu = tk.OptionMenu(fila, self.v_gpu, AUTO_GPU)
         self.om_gpu.config(
-            bg=PANEL, fg=FG, activebackground=ACC, relief="flat", highlightthickness=0,
+            bg=P.superficie, fg=P.texto, activebackground=P.acento, activeforeground=P.texto_sobre_acento, relief="flat", highlightthickness=0,
             font=("Segoe UI", 10), anchor="w", width=30,
         )
-        self.om_gpu["menu"].config(bg=PANEL, fg=FG, activebackground=ACC)
+        self.om_gpu["menu"].config(bg=P.superficie, fg=P.texto, activebackground=P.acento, activeforeground=P.texto_sobre_acento)
         self.om_gpu.pack(side="left")
         tk.Checkbutton(
-            fila, text="Flash attention", variable=self.v_flash, bg=BG, fg=FG, selectcolor=PANEL,
-            activebackground=BG, activeforeground=FG, font=("Segoe UI", 10),
+            fila, text="Flash attention", variable=self.v_flash, bg=P.fondo, fg=P.texto, selectcolor=P.superficie,
+            activebackground=P.fondo, activeforeground=P.texto, font=("Segoe UI", 10),
         ).pack(side="left", padx=(10, 0))
         self._rebuild_gpu_menu()
         self.v_wcpp_dir.trace_add("write", lambda *_: self._refresh_engine())
@@ -383,7 +387,7 @@ class SettingsDialog(tk.Toplevel):
         """Lo que depende de la carpeta de whisper.cpp o del perfil: estado, Extra y recomendación."""
         estado = whispercpp_status(self.v_wcpp_dir.get(), self.hardware)
         self.v_wcpp_status.set(estado.text)
-        self.lbl_wcpp_status.config(fg=STATUS_COLOR[estado.level])
+        self.lbl_wcpp_status.config(fg=getattr(P, STATUS_COLOR[estado.level]))
         ready = self._extra_vulkan_ready()
         if ready != self.vulkan_ready:
             self.vulkan_ready = ready

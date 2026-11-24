@@ -23,7 +23,8 @@ from recorder.cli.live import CTRL_C, ENTER, ESC, RETROCESO, PantallaEnVivo
 from recorder.session import mute_text
 from tests.test_session import BaseSesion
 
-TENUE, ACENTO, MIC, ERROR = "127;132;156", "249;226;175", "137;180;250", "243;139;168"
+# Los colores del tema oscuro de recorder/paleta.py (tenue: #a6adc8).
+TENUE, ACENTO, MIC, ERROR = "166;173;200", "249;226;175", "137;180;250", "243;139;168"
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 
 

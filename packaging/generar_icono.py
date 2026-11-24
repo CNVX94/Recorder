@@ -1,7 +1,7 @@
 """Genera el icono de Recorder (recorder/assets/recorder.ico) con Pillow.
 
 Un micrófono sobre su soporte y un punto rojo de «grabando», con la paleta de la ventana
-(Catppuccin Mocha, recorder/ui/theme.py). Cada tamaño se dibuja aparte, con sobremuestreo,
+(Catppuccin Mocha, el tema oscuro de recorder/paleta.py). Cada tamaño se dibuja aparte, con sobremuestreo,
 para que a 16 px siga siendo un micrófono y no una mancha.
 
     python packaging\\generar_icono.py                       # escribe recorder/assets/recorder.ico
@@ -19,7 +19,7 @@ RAIZ = pathlib.Path(__file__).resolve().parent.parent
 SALIDA = RAIZ / "recorder" / "assets" / "recorder.ico"
 TAMANOS = (16, 20, 24, 32, 40, 48, 64, 128, 256)
 
-# Paleta de recorder/ui/theme.py (Catppuccin Mocha)
+# Tema oscuro de recorder/paleta.py (Catppuccin Mocha)
 FONDO = "#1e1e2e"
 ACENTO = "#f9e2af"  # soporte del micrófono
 MIC = "#89b4fa"  # cápsula
