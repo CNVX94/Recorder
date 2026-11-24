@@ -18,6 +18,7 @@ from ..config.schema import (
     vulkan_model_for,
 )
 from ..filters.pipeline import TextPipeline
+from ..metricas import MotorEfectivo, Velocidad, hilos_efectivos
 from .whispercpp import EngineUnavailable, load_whispercpp_model, whispercpp_ready
 
 CAP_COOLDOWN_SEC = 15.0  # en tiempo de reunión: entre dos palabras clave dichas, no entre dos transcritas
@@ -70,6 +71,9 @@ class TranscriberWorker:
         self.busy = False  # True mientras transcribe un fragmento ya sacado de la cola
         self.buffer = None  # CaptureBuffer que pone la sesión; None = captura inmediata (plan B)
         self.lag_marked_min = 0  # último atraso anotado en la nota (0 = al día)
+        self.motor: Optional[MotorEfectivo] = None  # lo que de verdad se cargó; None mientras carga
+        self.modelo = None  # el modelo en uso (su `pid` es el de whisper-server, para las métricas)
+        self.velocidad = Velocidad()  # factor de tiempo real de cada fragmento (metricas.py)
         self.update_pipeline(config)
 
     def update_pipeline(self, config: AppConfig):
@@ -93,7 +97,7 @@ class TranscriberWorker:
         fallo afecta a un unico fragmento y no debe costar el resto de la reunion.
         """
         try:
-            model = self._load_model()
+            model = self.modelo = self._load_model()
         except Exception as e:
             self.ui_queue.put(("status", f"⛔ No se pudo cargar el modelo: {e!r}"))
             return
@@ -116,7 +120,7 @@ class TranscriberWorker:
                     self.ui_queue.put(("status", f"⚠ {e}; se sigue en CPU."))
                     try:
                         getattr(model, "close", lambda: None)()
-                        model = self._load_cpu_fallback()
+                        model = self.modelo = self._load_cpu_fallback(str(e))
                         self._process(model, t0, kind, audio, t_ini)
                     except Exception as e2:
                         self._report_lost(t0, e2)
@@ -147,6 +151,8 @@ class TranscriberWorker:
         self.beam_size = beam
         if aviso:
             self.ui_queue.put(("status", aviso))
+        # Se pidió GPU y resolve_runtime ya cayó al preset de CPU (el aviso dice por qué).
+        caida = aviso.removeprefix("⚠ ") if device == "cpu" and cfg.device != "cpu" else ""
         donde = f" en {vulkan.name}" if device == "vulkan" and vulkan is not None and vulkan.name else ""
         self.ui_queue.put(("status", f"Cargando modelo {model_name}{donde}…"))
 
@@ -161,7 +167,7 @@ class TranscriberWorker:
                 # Vulkan no arranca (driver, VRAM): preset de CPU entero, no el mismo modelo,
                 # porque en faster-whisper serian otros GB de descarga para ir lento.
                 self.ui_queue.put(("status", f"⚠ La GPU (Vulkan) no pudo cargar {model_name} ({e!r}); usando CPU en su lugar."))
-                return self._load_cpu_fallback()
+                return self._load_cpu_fallback(f"la GPU (Vulkan) no pudo cargar {model_name}: {e!r}")
             usada = getattr(model, "vulkan_device", None)
             if usada is not None and usada.uma and cfg.whispercpp_device < 0:
                 # Sin enumeracion previa (o si no coincidio), whisper.cpp toma su dispositivo 0,
@@ -172,18 +178,27 @@ class TranscriberWorker:
                     f"⚠ whisper.cpp tomó la GPU integrada ({usada.name}), que Recorder no usa sin "
                     f"pedírsela (whispercpp_device); usando CPU en su lugar.",
                 ))
-                return self._load_cpu_fallback()
+                return self._load_cpu_fallback(f"whisper.cpp tomó la GPU integrada ({usada.name}) sin pedírsela")
+            # La GPU que dice el registro de whisper-server manda sobre la enumeración previa.
+            self.motor = MotorEfectivo(
+                "whisper.cpp", "vulkan", model_name, beam,
+                gpu=usada.name if usada else (vulkan.name if vulkan else ""),
+                integrada=usada.uma if usada else bool(vulkan and vulkan.integrated),
+            )
             return model
 
         from faster_whisper import WhisperModel
 
+        hilos = hilos_efectivos(cfg.cpu_threads)
         try:
-            return WhisperModel(
+            model = WhisperModel(
                 model_name,
                 device=device,
                 compute_type=compute_type,
                 cpu_threads=cfg.cpu_threads,  # 0 = por defecto de la biblioteca
             )
+            self.motor = MotorEfectivo("faster-whisper", device, model_name, beam, hilos if device == "cpu" else 0, caida=caida)
+            return model
         except Exception as e:
             if device == "cpu":
                 raise
@@ -192,21 +207,29 @@ class TranscriberWorker:
                 "status",
                 f"⚠ La GPU no pudo cargar {model_name} ({e!r}); usando CPU en su lugar.",
             ))
-            return WhisperModel(
+            model = WhisperModel(
                 model_name, device="cpu", compute_type="int8",
                 cpu_threads=cfg.cpu_threads,
             )
+            self.motor = MotorEfectivo(
+                "faster-whisper", "cpu", model_name, beam, hilos, caida=f"la GPU no pudo cargar {model_name}: {e!r}",
+            )
+            return model
 
-    def _load_cpu_fallback(self):
+    def _load_cpu_fallback(self, motivo: str):
         """El preset de CPU entero (modelo y haz), para cuando la GPU de whisper.cpp falla."""
         from faster_whisper import WhisperModel
 
         cpu = QUALITY_PRESETS[CPU_FALLBACK_PRESET]
         self.beam_size = cpu.beam_size
-        return WhisperModel(
+        model = WhisperModel(
             cpu.model, device=cpu.device, compute_type=cpu.compute_type,
             cpu_threads=self.config.cpu_threads,
         )
+        self.motor = MotorEfectivo(
+            "faster-whisper", cpu.device, cpu.model, cpu.beam_size, hilos_efectivos(self.config.cpu_threads), caida=motivo,
+        )
+        return model
 
     def _report_lost(self, t0: float, err: Exception):
         """Deja constancia del fragmento perdido en la nota y en el contador de la cabecera."""
@@ -271,6 +294,7 @@ class TranscriberWorker:
         )
         text, hits, offset = self.pipeline.process(segs)  # el generador se consume aquí: esto es lo que tarda
         took = time.time() - started
+        self.velocidad.registrar(len(audio) / 16000, took)
         if took > SLOW_STEP_SEC:
             self._marker(t0, f"⚠ fragmento lento: {human_secs(took)} para {human_secs(len(audio) / 16000)} de audio", "a las")
         if not text:

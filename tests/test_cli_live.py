@@ -529,6 +529,28 @@ class TestPieBarato(BasePantalla):
         self.assertEqual(l[4], l[5])
         self.assertIn("🎤 ████████", self.salida.getvalue())
 
+    def test_el_motor_y_la_velocidad_van_en_el_pie_y_solo_redibujan_al_cambiar(self):
+        from recorder.metricas import MotorEfectivo, Velocidad
+
+        self.escuchando()
+        self.worker.velocidad = Velocidad()
+
+        def avanza(tic):
+            if tic == 1:
+                self.worker.motor = MotorEfectivo("faster-whisper", "cpu", "small", 5, 4)
+            if tic == 3:
+                self.worker.velocidad.registrar(10, 5)
+
+        self.reloj.al_tic = avanza
+        texto = limpio(self.correr(None, None, None, None, None, "q"))
+        l = self.reloj.longitudes
+        self.assertGreater(l[1], l[0], "el modelo cargó: aparece la línea del motor")
+        self.assertEqual(l[1], l[2], "sin fragmentos nuevos no se escribe nada")
+        self.assertGreater(l[3], l[2], "acabó un fragmento: cambia la velocidad")
+        self.assertEqual(l[3], l[4])
+        self.assertIn("faster-whisper · CPU, 4 hilos · small · haz 5\n", texto)
+        self.assertIn("faster-whisper · CPU, 4 hilos · small · haz 5 · 2,0× tiempo real\n", texto)
+
 
 class TestAscii(BasePantalla):
     ascii_mode = True

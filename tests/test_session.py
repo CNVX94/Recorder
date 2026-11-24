@@ -434,6 +434,32 @@ class TestCierre(BaseSesion):
         self.session.reconnect_audio()
         self.assertEqual(self.audio.llamadas[-1], ("restart", "Auriculares", "", True))
 
+    def test_al_cerrar_deja_el_resumen_de_rendimiento_una_vez(self):
+        anotados = []
+        original = ses.registro.anotar_resumen
+        ses.registro.anotar_resumen = anotados.append
+        self.addCleanup(setattr, ses.registro, "anotar_resumen", original)
+        self.session.start()
+        self.session.shutdown()
+        self.session.shutdown()
+        self.assertEqual(len(anotados), 1, anotados)
+        self.assertTrue(anotados[0].startswith("resumen de la grabación: modelo sin cargar"), anotados)
+
+
+class TestMetricas(BaseSesion):
+    def test_la_foto_trae_metricas_del_transcriptor_y_la_cola(self):
+        from recorder.metricas import MotorEfectivo
+
+        self.assertIsNone(self.session.status.metricas.motor, "mientras carga no hay motor")
+        self.worker.motor = MotorEfectivo("faster-whisper", "cpu", "small", 5, 4)
+        self.encolar(20)
+        self.encolar(25)
+        self.session.metricas.muestrear()
+        m = self.session.status.metricas
+        self.assertEqual(m.motor.texto, "faster-whisper · CPU, 4 hilos · small · haz 5")
+        self.assertIsNone(m.velocidad, "el transcriptor de mentira no anota velocidad")
+        self.assertEqual((m.cola, m.atraso_s), (2, 45.0))
+
 
 class TestOpcionesYCalibrar(BaseSesion):
     def test_guardar_opciones_mueve_la_nota_recarga_filtros_y_reabre_el_audio(self):

@@ -415,6 +415,12 @@ class WhisperCppModel:
         self.request_timeout = request_timeout
         self.vulkan_device: Optional[VulkanLogDevice] = None  # la GPU que dice el registro que usa
 
+    @property
+    def pid(self) -> Optional[int]:
+        """El de whisper-server mientras vive (las métricas suman su CPU y su RAM); None si no."""
+        proc = self.server.proc
+        return proc.pid if proc is not None and proc.poll() is None else None
+
     def transcribe(
         self,
         audio: np.ndarray,

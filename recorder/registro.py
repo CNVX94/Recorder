@@ -8,8 +8,10 @@ avisa con un cuadro de diálogo si no se pudo ni arrancar.
 
 En la terminal no cambia nada que se vea: los ganchos anotan y después llaman a los de siempre, que
 imprimen el traceback como hasta ahora. Desde el código el archivo no se crea hasta el primer fallo
-(instalado se escribe una línea al arrancar, con la versión). Se registran solo excepciones, con
-su traceback, y esa línea de arranque: nunca texto transcrito ni audio.
+o el primer cierre de una grabación (instalado se escribe además una línea al arrancar, con la
+versión). Se registran solo excepciones, con su traceback, esa línea de arranque y, al cerrar cada
+grabación, el resumen de rendimiento (motor, velocidad, CPU y cola; ver metricas.py): nunca texto
+transcrito ni audio.
 
 Solo biblioteca estándar al importar; tkinter se carga solo para el aviso de arranque fallido.
 """
@@ -56,6 +58,16 @@ def anotar(contexto: str, exc_info) -> None:
     try:
         _log.error("Recorder %s (%s): excepción sin atrapar %s", __version__, modo(), contexto, exc_info=exc_info)
     except Exception:  # ponytail: el registro de fallos no puede fallar él mismo
+        pass
+
+
+def anotar_resumen(texto: str) -> None:
+    """Una línea informativa: el resumen de rendimiento al cerrar una grabación."""
+    if _manejador is None:
+        return
+    try:
+        _log.info("Recorder %s (%s): %s", __version__, modo(), texto)
+    except Exception:  # ponytail: el registro no puede fallar él mismo
         pass
 
 

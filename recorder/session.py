@@ -25,9 +25,10 @@ import pathlib
 import queue
 import threading
 import time
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 import pyaudiowpatch as pa
 
+from . import registro
 from .actions.capture_buffer import QUALITIES, CaptureBuffer, should_buffer
 from .actions.notes import NotesSession, md_ref
 from .actions.power import keep_awake, should_stay_awake
@@ -52,6 +53,7 @@ from .config.schema import (
 )
 from .engine.whisper_worker import TranscriberWorker
 from .engine.whispercpp import vulkan_readiness
+from .metricas import Metricas, Muestreador
 
 
 # ---------------------------------------------------------------------------
@@ -215,6 +217,9 @@ class StatusSnapshot:
     attempts: Dict[str, int]
     muted: Optional[str]  # "out" o "mic" si esa fuente lleva MUTE_WARN_SEC sin fragmentos (🔇); None si no
     file_path: pathlib.Path  # la nota de hoy
+    # Motor efectivo, velocidad y coste (CPU, RAM, GPU, cola): ver metricas.py. Con valor por
+    # defecto para que quien construya la foto sin él siga valiendo.
+    metricas: Optional[Metricas] = None
 
     @property
     def status_text(self) -> str:
@@ -289,6 +294,8 @@ class RecorderSession:
         )
         self._detect = hardware_detector
         self._buffer_factory = buffer_factory
+        # Motor efectivo y coste para la interfaz, y el resumen del registro al cerrar (metricas.py).
+        self.metricas = Muestreador(self.transcriber, self._cola)
 
         self.awake = False     # True mientras se le pide a Windows que no suspenda por inactividad
         self.draining = False  # True cuando se pidió cerrar pero se espera a vaciar la cola
@@ -322,6 +329,7 @@ class RecorderSession:
         self._anotar_fuentes()  # antes de abrir los flujos: solo enumera dispositivos
         self._start_buffer()
         self.audio_manager.start()
+        self.metricas.iniciar()
         threading.Thread(target=self._detect_hardware, daemon=True).start()
         if self.recommend_pending:
             # Sin config.json, los valores de fábrica (Media, 4 hilos) no dependen del equipo:
@@ -472,10 +480,14 @@ class RecorderSession:
     def file_path(self) -> pathlib.Path:
         return self.notes_session.file_path
 
-    def _pending_summary(self) -> str:
+    def _cola(self) -> Tuple[int, float]:
+        """(fragmentos, segundos de audio) esperando a transcribirse."""
         with self.chunk_queue.mutex:  # queue.Queue documenta mutex y queue para esto
             chunks = list(self.chunk_queue.queue)
-        return pending_summary(len(chunks), pending_audio_sec(chunks))
+        return len(chunks), pending_audio_sec(chunks)
+
+    def _pending_summary(self) -> str:
+        return pending_summary(*self._cola())
 
     @property
     def status(self) -> StatusSnapshot:
@@ -496,6 +508,7 @@ class RecorderSession:
             attempts=dict(self.audio_manager.attempts),
             muted=self.muted,
             file_path=self.file_path,
+            metricas=self.metricas.foto(),
         )
 
     def poll(self) -> List[Event]:
@@ -690,6 +703,8 @@ class RecorderSession:
         """Para la captura, el transcriptor y el buffer, y suelta el equipo. La interfaz se cierra después."""
         self.audio_manager.stop()
         self.stop_event.set()
+        if self.metricas.parar():  # una vez por sesión, aunque se cierre dos veces
+            registro.anotar_resumen(self.metricas.resumen())
         keep_awake(False)
         if self.buffer is not None:  # la cola ya se vació o se abandonó: nada de la pantalla queda en disco
             self.buffer.stop()  # para y vacía

@@ -6,8 +6,9 @@ avisos (las fuentes resueltas al arrancar, el atraso de la transcripción) y las
 caen, vuelven o enmudecen como líneas normales, que se quedan en el historial de la terminal (se
 pueden copiar y desplazar): la hora en tenue, una columna de icono (🔊 la salida, 🎤 el
 micrófono, nada en los hechos de la sesión y los avisos, que llevan su propio símbolo) y el
-texto. Al pie, dos líneas que se redibujan solo cuando cambian: la cabecera (`status_text`) con
-los medidores (`meter_text`, con 🔇 en la fuente muda) y las teclas. En silencio no se escribe
+texto. Al pie, líneas que se redibujan solo cuando cambian: la cabecera (`status_text`) con
+los medidores (`meter_text`, con 🔇 en la fuente muda), el motor efectivo con su velocidad en
+cuanto carga el modelo (`metricas.linea`, cambia al acabar cada fragmento) y las teclas. En silencio no se escribe
 nada y el proceso no gasta CPU. Las líneas se imprimen sin partir (`soft_wrap`): las parte la
 terminal a su ancho real, así que cambiar el tamaño de la ventana no deja frases rotas.
 
@@ -277,16 +278,20 @@ class PantallaEnVivo:
         if self._live is None:
             return  # modo plano, o aún no arrancó el pie
         teclas = self._teclas_del_pie(st)
-        clave = (st.status_text, st.status_highlight, st.meter_text, teclas, self._panel and self._panel.clave())
+        # El motor y la velocidad solo cambian al cargar el modelo o al acabar un fragmento.
+        motor = st.metricas.linea if st.metricas else ""
+        clave = (st.status_text, st.status_highlight, st.meter_text, motor, teclas, self._panel and self._panel.clave())
         if clave == self._pie_pintado:
             return
         self._pie_pintado = clave
         self._live.update(self._pie(st, teclas), refresh=True)
 
     def _pie(self, st: StatusSnapshot, teclas: Sequence[Tuple[str, str]]) -> RenderableType:
-        """El pie: cabecera y medidores en una línea; debajo las teclas, la pregunta de cierre o
-        el panel de opciones."""
+        """El pie: cabecera y medidores en una línea; debajo el motor efectivo y su velocidad (en
+        cuanto carga el modelo) y las teclas, la pregunta de cierre o el panel de opciones."""
         lineas = [self._texto((st.status_text, "bold" if st.status_highlight else "tenue"), ("   ", ""), (st.meter_text, "tenue"))]
+        if st.metricas and st.metricas.linea:
+            lineas.append(self._texto((st.metricas.linea, "tenue")))
         if self._panel is not None:
             lineas += self._lineas_panel()
         elif self._preguntando:
