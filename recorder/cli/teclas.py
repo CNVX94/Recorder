@@ -2,13 +2,15 @@
 
 `teclado()` da, dentro de un `with`, una función que devuelve la tecla pulsada o None si no hay
 ninguna esperando. Las especiales llegan con su nombre (ARRIBA, ABAJO, IZQUIERDA, DERECHA,
-ENTER, ESC, TAB, RETROCESO); el resto, como su carácter.
+INICIO, FIN, SUPR, REPAG, AVPAG, ENTER, ESC, TAB, RETROCESO); el resto, como su carácter (el
+espacio, como ESPACIO).
 
-- Windows: msvcrt. Las flechas llegan como un prefijo \\xe0 o \\x00 y un código; las demás
-  especiales (F1, Inicio…) se consumen y se ignoran.
+- Windows: msvcrt. Las flechas, Inicio, Fin, Supr, RePág y AvPág llegan como un prefijo \\xe0 o
+  \\x00 y un código; las demás especiales (F1…) se consumen y se ignoran.
 - Linux/macOS: la terminal pasa a modo cbreak (sin eco ni esperar a Enter; Ctrl+C sigue siendo
   SIGINT) y se lee lo que haya con select. Las flechas son ESC [ A…D (o ESC O A…D); un ESC sin
-  nada detrás en ESPERA_ESC segundos es la tecla Esc. Al salir del `with` la terminal se restaura
+  nada detrás en ESPERA_ESC segundos es la tecla Esc. Inicio y Fin son ESC [ H / F (o ESC [ 1 ~ y
+  ESC [ 4 ~) y Supr, RePág y AvPág, ESC [ 3 ~, 5 ~ y 6 ~. Al salir del `with` la terminal se restaura
   siempre, también si salta una excepción o Ctrl+C. Con la entrada redirigida no hay teclas.
 
 Los decodificadores son puros y se prueban con secuencias guionizadas (tests/test_cli_teclas.py).
@@ -24,13 +26,18 @@ if os.name == "nt":
     import msvcrt
 
 ARRIBA, ABAJO, IZQUIERDA, DERECHA = "arriba", "abajo", "izquierda", "derecha"
+INICIO, FIN, SUPR, REPAG, AVPAG = "inicio", "fin", "supr", "repag", "avpag"
 ENTER, ESC, TAB, RETROCESO = "enter", "esc", "tab", "retroceso"
+ESPACIO = " "  # llega como su carácter: en un campo de texto es texto y en un interruptor, alternar
 CTRL_C = "\x03"  # lo que el manejador de SIGINT de la pantalla en vivo mete en su cola de teclas
 ESPERA_ESC = 0.05  # s que se espera tras un ESC suelto por el resto de una secuencia
 
 SIMPLES = {"\r": ENTER, "\n": ENTER, "\t": TAB, "\x08": RETROCESO, "\x7f": RETROCESO, "\x1b": ESC}
-WINDOWS = {"H": ARRIBA, "P": ABAJO, "K": IZQUIERDA, "M": DERECHA}  # el código tras \x00 o \xe0
-POSIX = {"A": ARRIBA, "B": ABAJO, "C": DERECHA, "D": IZQUIERDA}  # el final de ESC [ X o ESC O X
+WINDOWS = {  # el código tras \x00 o \xe0
+    "H": ARRIBA, "P": ABAJO, "K": IZQUIERDA, "M": DERECHA, "G": INICIO, "O": FIN, "S": SUPR, "I": REPAG, "Q": AVPAG,
+}
+POSIX = {"A": ARRIBA, "B": ABAJO, "C": DERECHA, "D": IZQUIERDA, "H": INICIO, "F": FIN}  # el final de ESC [ X o ESC O X
+POSIX_VIRGULILLA = {"1": INICIO, "7": INICIO, "4": FIN, "8": FIN, "3": SUPR, "5": REPAG, "6": AVPAG}  # ESC [ n ~
 
 Lector = Callable[[], Optional[str]]
 
@@ -56,7 +63,11 @@ def decodificar_posix(datos: str) -> Tuple[Optional[str], str]:
         fin += 1
     if fin == len(datos):
         return None, ""  # secuencia cortada: se descarta
-    return (POSIX.get(datos[fin]) if fin == 2 else None), datos[fin + 1:]
+    if datos[fin] == "~":
+        tecla = POSIX_VIRGULILLA.get(datos[2:fin])
+    else:
+        tecla = POSIX.get(datos[fin]) if fin == 2 else None
+    return tecla, datos[fin + 1:]
 
 
 def leer_windows() -> Optional[str]:

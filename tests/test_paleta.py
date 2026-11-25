@@ -116,7 +116,7 @@ class TestTerminal(unittest.TestCase):
             self.assertEqual(estilos["tenue"].color.triplet.hex, TEMAS[nombre]["texto_tenue"])
             self.assertEqual(estilos["acento"].color.triplet.hex, TEMAS[nombre]["acento"])
         with windows_en_modo(1):
-            consola = make_console(ascii_mode=True, tema="sistema", file=None)
+            consola = make_console(ascii_mode=False, tema="sistema", file=None)  # en ASCII la terminal usa los 16 colores, no la paleta
         self.assertEqual(consola.get_style("error").color.triplet.hex, TEMAS["claro"]["error"])
 
     def test_daily_lee_el_tema_de_config_json(self):

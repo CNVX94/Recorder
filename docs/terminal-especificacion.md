@@ -156,6 +156,10 @@ Reglas:
   «consola» (nivel G). Hoy salen como `^v`, `<->` y el recorte ya usa «…» (lo pone rich): el paso 3 los
   añade a `SEGUROS_CONSOLA` junto con el resto de la columna «consola» y lo confirma con una captura
   en la consola de PowerShell; lo que falle pasa a su reserva sin tocar ninguna vista.
+  **Hecho en el paso 3**: toda la columna «consola» se vio bien en la consola de PowerShell
+  (`docs/capturas-terminal/powershell/simbolos-consola.png`, con `tools/simbolos_consola.py`, y las
+  capturas `base-100`, `base-60` y `base-ascii`), así que ninguna usa su reserva. `‥` quedó fuera. `►`
+  es la marca de fila (pregunta abierta 1 resuelta).
 * En ASCII el par de flechas del pie es `[^v]` y `[<>]`, no `[<->]`: se sustituye el par entero, no
   flecha a flecha.
 * Las etiquetas de las pantallas no llevan emoji en ningún juego («Salida a capturar», «Micrófono»,

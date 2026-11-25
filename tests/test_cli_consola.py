@@ -56,25 +56,67 @@ class SimbolosTest(unittest.TestCase):
                 self.assertTrue(ord(c) < 0x2000 or c in SEGUROS_CONSOLA, f"{simbolo!r} deja {c!r}")
 
     def test_consola_conserva_lo_seguro_y_cambia_lo_demas(self):
-        self.assertEqual(consolificar("█░ ● ‹ › ─ ‥ · « »"), "█░ ● ‹ › ─ ‥ · « »")
-        self.assertEqual(consolificar("▶ Opciones"), "› Opciones")
+        seguros = "█░ ● ‹ › ─ · « » ► ↑ ↓ ← → … ▲ ○ ■ ▌ ▄ │ √ ‖ • ∙"
+        self.assertEqual(consolificar(seguros), seguros)
+        self.assertEqual(consolificar("▶ Opciones"), "► Opciones", "la marca de fila propia del juego")
         self.assertEqual(consolificar("🎯 Calibrar"), "Calibrar", "el emoji se lleva su espacio")
-        self.assertEqual(consolificar("✔ ok ⚠ 🎤"), "OK ok ! MIC")
-        self.assertEqual(CONSOLA["▶"], "›")
+        self.assertEqual(consolificar("✔ ok ⚠ ⛔ ⏸ ⏳ 📸 🎤"), "√ ok ▲ × ‖ … ■ MIC")
+        self.assertEqual(consolificar("‥"), "", "«‥» no está en Consolas: solo se veía porque Windows la toma de otra fuente")
+        self.assertNotIn("‥", SEGUROS_CONSOLA)
+        self.assertEqual(CONSOLA["▶"], "►")
+
+    def test_cada_simbolo_propio_tiene_reserva_si_sale_de_la_lista_segura(self):
+        for propio in consola.PROPIOS_CONSOLA.values():
+            self.assertTrue(propio in SEGUROS_CONSOLA or ord(propio) < consola.LATIN1 or propio in consola.RESERVA_CONSOLA, propio)
+        for reserva in consola.RESERVA_CONSOLA.values():
+            self.assertTrue(all(ord(c) < 0x2000 or c in SEGUROS_CONSOLA for c in reserva), f"la reserva {reserva!r} no es segura")
+
+    def test_un_simbolo_que_se_ve_mal_pasa_a_su_reserva_quitandolo_de_la_lista(self):
+        sin = "".join(c for c in SEGUROS_CONSOLA if c not in "►‖")
+        with mock.patch.object(consola, "SEGUROS_CONSOLA", sin):
+            tabla = consola.construir_consola()
+        self.assertEqual((tabla["▶"], tabla["⏸"], tabla["►"]), ("›", "=", "›"))
 
     def test_presentar_segun_el_juego(self):
         def con(juego):
             return mock.Mock(juego=juego, ascii_mode=juego == JUEGO_ASCII)
 
         self.assertEqual(presentar("▶ █ ⚠", con(JUEGO_ASCII)), "> # !")
-        self.assertEqual(presentar("▶ █ ⚠", con(JUEGO_CONSOLA)), "› █ !")
+        self.assertEqual(presentar("▶ █ ⚠", con(JUEGO_CONSOLA)), "► █ ▲")
         self.assertEqual(presentar("▶ █ ✔", con(JUEGO_COMPLETO)), "▶ █ ✅")
+
+    def test_los_pares_de_flechas_del_pie_son_un_par_en_ascii(self):
+        self.assertEqual(presentar("[↑↓] Mover · [←→] Cambiar", mock.Mock(juego=JUEGO_ASCII)), "[^v] Mover · [<>] Cambiar")
+        self.assertEqual(presentar("[↑↓] [←→]", mock.Mock(juego=JUEGO_CONSOLA)), "[↑↓] [←→]")
 
     def test_consola_sin_juego_se_guia_por_ascii_mode(self):
         class Vieja:
             ascii_mode = True
 
         self.assertEqual(presentar("▶", Vieja()), ">")
+
+
+class SpinnerYTemaTest(unittest.TestCase):
+    def test_cada_juego_tiene_su_spinner_y_el_de_consola_solo_usa_simbolos_seguros(self):
+        self.assertTrue(all(c in SEGUROS_CONSOLA for c in consola.FOTOGRAMAS[JUEGO_CONSOLA]))
+        self.assertEqual(consola.fotograma(JUEGO_CONSOLA, 0.0), "∙")
+        self.assertEqual(consola.fotograma(JUEGO_CONSOLA, consola.TIC_ANIMACION * 1.5), "•")
+        self.assertEqual(consola.fotograma(JUEGO_CONSOLA, consola.TIC_ANIMACION * 4), "∙", "da la vuelta")
+        self.assertEqual(consola.fotograma(JUEGO_ASCII, consola.TIC_ANIMACION * 2), "|")
+
+    def test_en_ascii_el_tema_es_el_de_16_colores_y_sin_fondo(self):
+        c = make_console(ascii_mode=True, file=io.StringIO(), force_terminal=True, color_system="standard")
+        for estilo, color in (("texto", "bright_white"), ("acento", "bright_yellow"), ("mic", "bright_cyan")):
+            self.assertEqual(c.get_style(estilo).color.name, color)
+        self.assertIsNone(c.get_style("fondo").bgcolor)
+        nombres = {str(c.get_style(e).color.name) for e in consola.ESTILOS_16 if c.get_style(e).color}
+        self.assertFalse({"magenta", "yellow"} & nombres, "el acceso directo de PowerShell redefine esas dos casillas")
+
+    def test_con_color_real_el_tema_trae_aviso_fondo_y_fila(self):
+        c = make_console(ascii_mode=False, file=io.StringIO(), force_terminal=True, color_system="truecolor")
+        self.assertEqual(c.get_style("aviso").color.get_truecolor().hex, "#fab387")
+        self.assertEqual(c.get_style("fondo").bgcolor.get_truecolor().hex, "#1e1e2e")
+        self.assertEqual(c.get_style("fila").bgcolor.get_truecolor().hex, "#313244")
 
 
 class FalsoKernel32:

@@ -135,6 +135,18 @@ def preparar() -> pathlib.Path:
 # ------------------------------------------------------------------ escenarios
 # Cada paso: ("teclas", [...]) | ("texto", "linea") (teclea y Enter) | ("foto", nombre, espera) | ("ctrlc",)
 E, ENT = "esc", "enter"
+BASE = [
+    ("foto", "inicio", 5), ("teclas", ["2"]), ("foto", "opciones-cargando", 0.3), ("foto", "opciones", 3),
+    ("teclas", ["abajo", "abajo", ENT, "e", "r", "r", "o", "r", "izquierda", "izquierda"]), ("foto", "texto-con-cursor", 1),
+    ("teclas", [ENT]), ("foto", "con-cambios", 1),
+    ("teclas", ["abajo", ENT]), ("foto", "lista-de-seleccion", 1.5),
+    ("teclas", [E, "abajo", " "]), ("foto", "interruptor", 1),
+    ("teclas", [E]), ("foto", "aviso-sin-guardar", 1),
+    ("teclas", ["g"]), ("foto", "confirmar", 1),
+    ("teclas", [ENT]), ("foto", "guardado", 1),
+    ("teclas", [E, "7"]), ("foto", "rendimiento", 8),
+    ("teclas", [E, "8"]), ("foto", "ayuda", 1.5), ("teclas", ["abajo"] * 6), ("foto", "ayuda-bajando", 1),
+]
 ESCENARIOS = {
     "menu": ("menu", 100, 30, [
         ("foto", "inicio", 5), ("teclas", ["3"]), ("foto", "calibrar-desde-el-menu", 3),
@@ -167,6 +179,11 @@ ESCENARIOS = {
     "inicio-100": ("menu", 100, 30, [("foto", "inicio", 5), ("teclas", ["2"]), ("foto", "opciones", 3), ("teclas", [E, E])]),
     "inicio-60": ("menu", 60, 24, [("foto", "inicio", 5), ("teclas", ["2"]), ("foto", "opciones", 3), ("teclas", [E, E])]),
     "inicio-ascii": ("--ascii menu", 100, 30, [("foto", "inicio", 5), ("teclas", ["2"]), ("foto", "opciones", 3), ("teclas", [E, E])]),
+    # La base común del paso 3: Opciones con sus componentes (texto con cursor, lista de selección, interruptor,
+    # confirmación «antes → después»), el aviso, Rendimiento (tendencia) y Ayuda; en la consola de PowerShell y con --ascii.
+    "base-100": ("menu", 100, 30, BASE),
+    "base-60": ("menu", 60, 24, BASE),
+    "base-ascii": ("--ascii menu", 100, 30, BASE),
     "recomendar": ("recomendar", 100, 30, [("foto", "salida", 5)]),
     "ayuda": ("-h", 100, 30, [("foto", "daily-h", 2)]),
     "grabar": ("", 100, 30, [
@@ -238,12 +255,12 @@ def main():
     powershell = "--powershell" in sys.argv
     salida = pathlib.Path(argv[0]) if argv else REPO / "docs" / "capturas-terminal"
     elegidos = argv[1:] or list(ESCENARIOS)
-    raiz = preparar()
-    try:
-        for nombre in elegidos:
+    for nombre in elegidos:
+        raiz = preparar()  # uno nuevo por escenario: lo que guarde uno no cambia lo que ve el siguiente
+        try:
             correr(nombre, raiz, salida, powershell)
-    finally:
-        shutil.rmtree(raiz, ignore_errors=True)  # el config.json y las notas sintéticas
+        finally:
+            shutil.rmtree(raiz, ignore_errors=True)  # el config.json y las notas sintéticas
 
 
 if __name__ == "__main__":

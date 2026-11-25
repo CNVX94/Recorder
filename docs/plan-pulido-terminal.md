@@ -370,6 +370,8 @@ Aceptación
 Fuera de alcance: Calibrar, Reagrupar, Recomendación y la grabación (pasos 4-7).
 ```
 
+**Resultado del paso 3**: el paquete `recorder/cli/pantallas/` (`terminal`, `base`, `marco`, `componentes`, `registro` y una pantalla por módulo: `inicio`, `opciones`, `rendimiento`, `ayuda`); una pantalla nueva es su módulo y una línea en `registro.PANTALLAS`, y se abre suelta con `Terminal(..., inicial=Clase)` (Esc sale a la terminal) o se cierra dejando un aviso con `Terminal.volver((texto, estilo))`. Todos los símbolos de la columna «consola» de la especificación se vieron bien en la consola de PowerShell (`docs/capturas-terminal/powershell/simbolos-consola.png`, `base-100`, `base-60` y `base-ascii`), así que `SEGUROS_CONSOLA` los lleva todos y ninguno usa su reserva; `‥` salió. Con color real se pinta el fondo de la paleta y la fila elegida con `superficie`; en ASCII, los 16 colores de la especificación §3.4 y sin fondo. Queda sin hacer de la lista de cambios del paso 3 de la especificación: la ficha «Próxima grabación» y las filas sin descripción de Inicio (se dejó el Inicio como estaba), los avisos de vuelta de la grabación y de la ventana, y el «↓ N más abajo» propio de Ayuda.
+
 ---
 
 ### Paso 4. Calibrar como pantalla

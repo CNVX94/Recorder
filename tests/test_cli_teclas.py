@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 from recorder.cli import teclas
 from recorder.cli.teclas import (
-    ABAJO, ARRIBA, DERECHA, ENTER, ESC, ESPERA_ESC, IZQUIERDA, RETROCESO, TAB,
+    ABAJO, ARRIBA, AVPAG, DERECHA, ENTER, ESC, ESPACIO, ESPERA_ESC, FIN, INICIO, IZQUIERDA, REPAG, RETROCESO, SUPR, TAB,
     LectorPosix, decodificar_posix, decodificar_windows, modo_cbreak,
 )
 
@@ -23,14 +23,20 @@ class TestWindows(unittest.TestCase):
                 [self.tecla(prefijo, c) for c in "HPKM"], [ARRIBA, ABAJO, IZQUIERDA, DERECHA], repr(prefijo)
             )
 
+    def test_inicio_fin_supr_y_paginas(self):
+        for prefijo in ("\xe0", "\x00"):
+            self.assertEqual(
+                [self.tecla(prefijo, c) for c in "GOSIQ"], [INICIO, FIN, SUPR, REPAG, AVPAG], repr(prefijo)
+            )
+
     def test_otras_especiales_se_consumen_y_se_ignoran(self):
         self.assertIsNone(self.tecla("\x00", ";"))  # F1
-        self.assertIsNone(self.tecla("\xe0", "G"))  # Inicio
+        self.assertIsNone(self.tecla("\xe0", "R"))  # Insert
 
     def test_teclas_con_nombre_y_caracteres(self):
         self.assertEqual(
-            [self.tecla(c) for c in ("\r", "\x1b", "\t", "\x08", "q", "Ñ", "?")],
-            [ENTER, ESC, TAB, RETROCESO, "q", "Ñ", "?"],
+            [self.tecla(c) for c in ("\r", "\x1b", "\t", "\x08", "q", "Ñ", "?", " ")],
+            [ENTER, ESC, TAB, RETROCESO, "q", "Ñ", "?", ESPACIO],
         )
 
 
@@ -38,6 +44,16 @@ class TestPosix(unittest.TestCase):
     def test_flechas_csi_y_ss3(self):
         for secuencia, tecla in (("\x1b[A", ARRIBA), ("\x1b[B", ABAJO), ("\x1b[C", DERECHA), ("\x1b[D", IZQUIERDA), ("\x1bOA", ARRIBA)):
             self.assertEqual(decodificar_posix(secuencia), (tecla, ""), repr(secuencia))
+
+    def test_inicio_fin_supr_y_paginas(self):
+        casos = (
+            ("\x1b[H", INICIO), ("\x1b[F", FIN), ("\x1bOH", INICIO), ("\x1bOF", FIN), ("\x1b[1~", INICIO),
+            ("\x1b[4~", FIN), ("\x1b[7~", INICIO), ("\x1b[8~", FIN), ("\x1b[3~", SUPR), ("\x1b[5~", REPAG), ("\x1b[6~", AVPAG),
+        )
+        for secuencia, tecla in casos:
+            self.assertEqual(decodificar_posix(secuencia), (tecla, ""), repr(secuencia))
+        self.assertEqual(decodificar_posix("\x1b[6~j"), (AVPAG, "j"))
+        self.assertEqual(decodificar_posix(" "), (ESPACIO, ""))
 
     def test_secuencias_que_no_son_flechas_se_consumen_enteras(self):
         self.assertEqual(decodificar_posix("\x1b[1;5Aj"), (None, "j"))  # Ctrl+↑ y una j

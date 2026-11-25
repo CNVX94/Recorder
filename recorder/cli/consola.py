@@ -2,7 +2,7 @@
 import os
 import re
 import sys
-from typing import List, Mapping, Optional, Sequence, Tuple
+from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 from rich.console import Console
 from rich.theme import Theme
@@ -14,40 +14,84 @@ from . import vt
 JUEGO_COMPLETO = "completo"  # Windows Terminal, VS Code, terminales que no son de Windows: todos, emoji incluidos
 JUEGO_CONSOLA = "consola"  # conhost con VT (cmd y Windows PowerShell): solo lo que dibuja Consolas
 JUEGO_ASCII = "ascii"  # consola sin VT, salida redirigida o --ascii
+ELIDIDO, ELIDIDO_ASCII = "…", "..."  # lo que sustituye al texto cortado (ASCII no tiene «…»)
 VARIABLE_WT = "WT_SESSION"  # la define Windows Terminal
 VARIABLE_PROGRAMA, PROGRAMA_VSCODE = "TERM_PROGRAM", "vscode"
 
 # Estilo de rich -> token de la paleta que comparte con la ventana (recorder/paleta.py, sin tkinter).
 ESTILOS = {
     "texto": "texto", "tenue": "texto_tenue", "acento": "acento", "mic": "mic",
-    "error": "error", "ok": "ok", "borde": "borde",
+    "error": "error", "ok": "ok", "borde": "borde", "aviso": "aviso",
+}
+# Con 16 colores (consola sin VT o `--ascii`) la paleta no se puede pintar: se usan los colores
+# de la consola que se leen bien sobre negro y sobre el azul de PowerShell (docs/terminal-especificacion.md §3.4).
+# Nunca `magenta` ni `yellow`: ese acceso directo redefine las dos casillas.
+ESTILOS_16 = {
+    "texto": "bright_white", "tenue": "white", "acento": "bright_yellow", "mic": "bright_cyan",
+    "error": "bold bright_red", "ok": "bright_green", "borde": "white", "aviso": "bright_yellow",
+    "elegido": "bold bright_yellow", "fondo": "", "fila": "",
 }
 
 
-def tema_rich(nombre: str = paleta.POR_DEFECTO) -> Theme:
-    """Los colores de la ventana para el tema `nombre` de config («sistema» se resuelve)."""
+def tema_rich(nombre: str = paleta.POR_DEFECTO, dieciseis: bool = False) -> Theme:
+    """Los colores de la ventana para el tema `nombre` de config («sistema» se resuelve); con
+    `dieciseis`, los 16 colores de la consola en vez de la paleta."""
+    if dieciseis:
+        return Theme(ESTILOS_16)
     colores = paleta.TEMAS[paleta.resolver(nombre)]
     estilos = {estilo: colores[token] for estilo, token in ESTILOS.items()}
     estilos["elegido"] = f"bold {colores['acento']}"  # la fila elegida de un menú
+    estilos["fondo"] = f"on {colores['fondo']}"  # el fondo propio de las pantallas completas
+    estilos["fila"] = f"on {colores['superficie']}"  # la fila elegida (su fondo)
     return Theme(estilos)
 
-# Equivalentes para la consola clásica (conhost), que pinta mal los emoji y los bloques.
+# Equivalentes para la consola clásica (conhost), que pinta mal los emoji y los bloques. Los pares
+# de flechas van antes que las sueltas: en el pie, «←→» es «<>» y no «<->».
 ASCII = {
+    "↑↓": "^v", "←→": "<>",
     "🔊": "OUT", "🎤": "MIC", "🔇": "(mudo)", "📸": "[cap]", "⚠": "!", "⛔": "x", "✅": "OK", "✔": "OK",
-    "●": "*", "⏸": "||", "▶": ">", "⏳": "...", "☕": "(despierto)", "🖥": "", "💻": "", "⚙": "", "🔧": "",
+    "●": "*", "⏸": "||", "▶": ">", "►": ">", "⏳": "...", "☕": "(despierto)", "🖥": "", "💻": "", "⚙": "", "🔧": "",
     "🎯": "", "🧪": "", "🧹": "", "📝": "", "📑": "", "█": "#", "░": ".", "→": "->", "➔": "->", "…": "...",
     "↑": "^", "↓": "v", "←": "<", "‹": "<", "›": ">", "─": "-",
+    "▌": "_", "○": "o", "▲": "!", "√": "OK", "‖": "||", "■": "[cap]", "▄": ".", "│": "|", "•": "*", "∙": ".",
 }
 # Desde U+2000 (salvo las rayas – y —) y el espacio que lo siga.
 FUERA_DE_ASCII = re.compile("[^\\x00-\\u1fff–—] ?")
 
-# Los únicos símbolos fuera de ASCII que Consolas dibuja bien en la consola clásica (verificados en
-# docs/capturas-terminal/powershell/); el resto se sustituye. Con «‥» y «·» se hace la tendencia.
-SEGUROS_CONSOLA = "─█░‹›‥●·«»"
-# El juego «consola»: lo mismo que ASCII salvo lo seguro, y la marca de fila sin ▶.
-CONSOLA = {k: v for k, v in ASCII.items() if k not in SEGUROS_CONSOLA}
-CONSOLA["▶"] = "›"
+# Los símbolos fuera de ASCII que Consolas dibuja bien en la consola clásica; el resto se sustituye.
+# Visto en captura de la consola de PowerShell (docs/capturas-terminal/powershell/): ver el resultado
+# del paso 3 en docs/plan-pulido-terminal.md. Si alguno se ve mal, basta quitarlo de aquí: pasa a su reserva.
+SEGUROS_CONSOLA = "─█░‹›●·«»►↑↓←→…▲○■▌▄│√‖•∙"
+# Lo que el juego «consola» pone en lugar de cada símbolo del juego completo (columna «consola» de la
+# especificación, §2), y su reserva si ese símbolo no está en SEGUROS_CONSOLA.
+PROPIOS_CONSOLA = {"▶": "►", "✔": "√", "✅": "√", "⚠": "▲", "⛔": "×", "⏸": "‖", "⏳": "…", "📸": "■"}
+RESERVA_CONSOLA = {"►": "›", "√": "OK", "▲": "!", "‖": "=", "…": "...", "■": "·"}
+LATIN1 = 0x100  # lo que está por debajo (×, ·, «») lo dibuja cualquier fuente
+
+
+def construir_consola() -> Dict[str, str]:
+    """La tabla del juego «consola»: lo mismo que ASCII salvo lo seguro, con sus propios símbolos (o su
+    reserva, si el propio no está en SEGUROS_CONSOLA)."""
+    tabla = {k: v for k, v in ASCII.items() if not all(c in SEGUROS_CONSOLA for c in k)}
+    tabla.update({k: v for k, v in RESERVA_CONSOLA.items() if k not in SEGUROS_CONSOLA})
+    tabla.update({
+        k: v if v in SEGUROS_CONSOLA or ord(v) < LATIN1 else RESERVA_CONSOLA[v] for k, v in PROPIOS_CONSOLA.items()
+    })
+    return tabla
+
+
+CONSOLA = construir_consola()
 FUERA_DE_CONSOLA = re.compile(f"[^\\x00-\\u1fff–—{re.escape(SEGUROS_CONSOLA)}] ?")
+
+# El spinner de cada juego, un fotograma cada TIC_ANIMACION s (el braille de rich no está en Consolas).
+TIC_ANIMACION = 0.2
+FOTOGRAMAS = {JUEGO_COMPLETO: "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏", JUEGO_CONSOLA: "∙•●•", JUEGO_ASCII: "-\\|/"}
+
+
+def fotograma(juego: str, ahora: float) -> str:
+    """El fotograma del spinner de `juego` en el instante `ahora` (s)."""
+    cuadros = FOTOGRAMAS[juego]
+    return cuadros[int(ahora / TIC_ANIMACION) % len(cuadros)]
 
 # Símbolos con presentación de texto (✔ ⚙ 🖥: Emoji_Presentation=No) que rich mide a una celda
 # pero Windows Terminal dibuja con un glifo de dos (el de Segoe UI Symbol/Emoji), pisando el
@@ -84,6 +128,11 @@ def emoji_seguro(texto: str) -> str:
     for simbolo, sustituto in EMOJI_SEGURO.items():
         texto = texto.replace(simbolo, sustituto)
     return texto
+
+
+def tema_de(consola, nombre: str = paleta.POR_DEFECTO) -> Theme:
+    """El tema de rich que le toca a `consola`: la paleta, o los 16 colores en ASCII."""
+    return tema_rich(nombre, juego_de(consola) == JUEGO_ASCII)
 
 
 def juego_de(consola) -> str:
@@ -158,7 +207,7 @@ def make_console(ascii_mode: Optional[bool] = None, tema: str = paleta.POR_DEFEC
         juego = elegir_juego(_es_terminal(kwargs), vt.hay_vt())
     else:
         juego = JUEGO_ASCII if ascii_mode else JUEGO_COMPLETO
-    console = Console(theme=tema_rich(tema), highlight=False, emoji=juego == JUEGO_COMPLETO, **kwargs)
+    console = Console(theme=tema_rich(tema, juego == JUEGO_ASCII), highlight=False, emoji=juego == JUEGO_COMPLETO, **kwargs)
     console.juego = juego  # atributos propios: los consultan los comandos al pintar
     console.ascii_mode = juego == JUEGO_ASCII
     return console

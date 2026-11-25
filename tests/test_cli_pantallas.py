@@ -42,8 +42,8 @@ ENTORNO = configurar.Entorno(
     ["(todas las pantallas)", "Pantalla 1: 1920×1080 en (0, 0)"], ["Chat | Microsoft Teams"],
     ["Altavoces", "Auriculares"], ["Micrófono"], PERFIL,
 )
-# Filas de Opciones (pantallas.Opciones._componer)
-NOTAS, MIC, TEMA = 0, 4, 13
+# Filas de Opciones (pantallas.opciones.Opciones._componer; sin carpeta de whisper.cpp no hay GPU ni flash attention)
+NOTAS, MIC, TEMA = 0, 4, 12
 
 
 def limpio(salida: str) -> str:
@@ -129,7 +129,7 @@ class BaseTerminal(unittest.TestCase):
         parche.start()
         self.addCleanup(parche.stop)
 
-    def terminal(self, *guion, ancho=80, alto=24, ascii_mode=False, windows=True) -> Terminal:
+    def terminal(self, *guion, ancho=80, alto=24, ascii_mode=False, windows=True, inicial=None) -> Terminal:
         self.salida = io.StringIO()
         self.consola = make_console(
             ascii_mode=ascii_mode, file=self.salida, width=ancho, height=alto,
@@ -139,7 +139,7 @@ class BaseTerminal(unittest.TestCase):
         self.teclado = Teclado(guion)
         self.t = Terminal(
             self.consola, self.comandos, self.mgr, leer_tecla=self.teclado, dormir=self.reloj.dormir,
-            reloj=self.reloj, windows=windows, detectar=lambda: ENTORNO, muestreador=lambda: self.muestreo,
+            reloj=self.reloj, windows=windows, detectar=lambda: ENTORNO, muestreador=lambda: self.muestreo, inicial=inicial,
         )
         return self.t
 
@@ -167,7 +167,7 @@ class TestLogica(unittest.TestCase):
         self.assertEqual(tendencia([0, 50, 100, None], 4), "▁▅█ ")
         self.assertEqual(tendencia([0, 50, 100, None], 2), "█ ", "las últimas")
         self.assertEqual(tendencia([0, 50, 100], 3, JUEGO_ASCII), "_=#")
-        self.assertEqual(tendencia([0, 50, 100], 3, JUEGO_CONSOLA), "·░█")
+        self.assertEqual(tendencia([0, 50, 100], 3, JUEGO_CONSOLA), "·▄█")
         self.assertEqual(tendencia([10], 0), "")
 
     def test_nota_de_hoy_es_la_ultima_y_no_una_copia(self):
@@ -193,15 +193,16 @@ class TestInicio(BaseTerminal):
     def test_lo_elegido_cambia_de_color_al_moverse(self):
         self.correr(ABAJO, "q")
         salida = self.salida.getvalue()
-        acento = "\x1b[1;38;2;249;226;175m"  # bold acento del tema oscuro
-        self.assertIn(acento + "Grabar", salida)
-        self.assertIn(acento + "Opciones", salida)
+        acento = r"\x1b\[1;38;2;249;226;175(;48;2;49;50;68)?m"  # bold acento del tema oscuro (y el fondo de la fila elegida)
+        self.assertRegex(salida, acento + "Grabar")
+        self.assertRegex(salida, acento + "Opciones")
+        self.assertRegex(salida, r"\x1b\[[0-9;]*48;2;49;50;68m +\x1b\[0m", "la fila elegida llega al borde con el fondo de la superficie")
 
     def test_j_k_numeros_y_esc_vuelve(self):
         codigo, texto = self.correr("j", "k", "8", *["j"] * 80, ESC, ESC)
         self.assertEqual(codigo, 0)
         self.assertIn("Inicio › Ayuda", texto)
-        self.assertIn("Teclas de este menú", texto)
+        self.assertIn("Teclas de las pantallas", texto)
         self.assertIn("  [p] Pausar / seguir: ", texto, "las de la grabación, de recorder/ayuda.py")
         self.assertIn("Glosario", texto, "bajando se llega al glosario")
         self.assertIn("  Markdown (.md): ", texto, "y a su final")
@@ -249,7 +250,8 @@ class TestInicio(BaseTerminal):
         self.assertEqual(self.guardado()["theme"], "claro")
         self.assertIn("Tema claro guardado: vale también para la ventana", texto)
         salida = self.salida.getvalue()
-        self.assertIn("\x1b[1;38;2;138;81;0mGrabar", salida, "el acento del tema claro (#8a5100)")
+        self.assertRegex(salida, r"\x1b\[1;38;2;138;81;0(;48;2;220;224;232)?mGrabar", "el acento del tema claro (#8a5100)")
+        self.assertIn("48;2;239;241;245m", salida, "sobre el fondo propio del tema claro (#eff1f5)")
 
     def test_con_config_ilegible_el_tema_no_se_guarda(self):
         self.ruta.write_bytes(b"{ roto")
@@ -262,12 +264,14 @@ class TestInicio(BaseTerminal):
 class TestOpciones(BaseTerminal):
     def test_cambia_una_lista_y_guarda_como_daily_config(self):
         antes = AppConfig.from_dict(self.guardado())
-        codigo, texto = self.correr("2", self.opciones_listas, ARRIBA, ARRIBA, DERECHA, "g", ENTER, ESC, "q")
+        codigo, texto = self.correr("2", self.opciones_listas, ARRIBA, DERECHA, "g", ENTER, ESC, "q")
         self.assertEqual(codigo, 0)
         self.assertIn("Inicio › Opciones", texto)
-        self.assertRegex(texto, r"▶ Tema {20,}‹ Claro ›")
-        self.assertIn("Cambios que se guardarán en config.json:", texto)
-        self.assertIn("  Tema: Oscuro → Claro", texto)
+        self.assertRegex(texto, r"▶ +Tema {5,}‹ Claro ›")
+        self.assertIn("● cambios sin guardar", texto, "la marca junto a la ruta")
+        self.assertIn("Inicio › Opciones › Guardar", texto, "la confirmación es una subpantalla")
+        self.assertIn("Se guardará en config.json:", texto)
+        self.assertRegex(texto, r"Tema +Oscuro +→ +Claro")
         self.assertIn("Guardado en", texto)
         esperado = configurar.aplicado(antes, configurar.settings_form(antes, ENTORNO.screens), ENTORNO.screens)
         esperado.theme = "claro"
@@ -279,13 +283,13 @@ class TestOpciones(BaseTerminal):
         guion = ["2", self.opciones_listas, ENTER] + [RETROCESO] * len("notas") + list("NotasQ?") + [ENTER, "g", ENTER, "q", "q"]
         _codigo, texto = self.correr(*guion, ancho=160)
         self.assertIn(ayuda.linea("opciones_editar")[:50], texto)
-        self.assertIn(carpeta[:-len("notas")] + "NotasQ?_", texto, "se teclea tal cual: q y ? no salen ni abren la ayuda")
+        self.assertIn(carpeta[:-len("notas")] + "NotasQ?▌", texto, "se teclea tal cual: q y ? no salen ni abren la ayuda")
         self.assertEqual(self.guardado()["notes_dir"], carpeta[:-len("notas")] + "NotasQ?")
 
     def test_hilos_no_numericos_no_se_aceptan(self):
         guion = ["2", self.opciones_listas] + ["j"] * 9 + [ENTER, RETROCESO, "x", ENTER, ESC, "q", "q"]
         _codigo, texto = self.correr(*guion)
-        self.assertIn("⚠ Hilos de CPU: escribe un número entre 0 y 256.", texto)
+        self.assertIn("⚠ Hilos de CPU: Escribe un número entre 0 y 256.", texto)
         self.assertEqual(self.guardado()["cpu_threads"], 0)
 
     def test_avisa_de_cambios_sin_guardar_y_el_segundo_esc_los_descarta(self):
@@ -299,11 +303,11 @@ class TestOpciones(BaseTerminal):
         guion = ["2", self.opciones_listas, *["j"] * MIC, DERECHA, ESC, "j", DERECHA, ESC, ESC, "q"]
         _codigo, texto = self.correr(*guion)
         self.assertEqual(texto.count("⚠ Hay cambios sin guardar"), 2, "avisa otra vez tras volver a editar")
-        self.assertRegex(texto[texto.rindex("⚠ Hay cambios sin guardar"):], r"\nInicio +\n", "y el Esc siguiente sí sale")
+        self.assertRegex(texto[texto.rindex("⚠ Hay cambios sin guardar"):], r"\n Inicio +\n", "y el Esc siguiente sí sale")
         self.assertEqual(self.ruta.read_bytes(), guardado)
 
     def test_usar_la_recomendada(self):
-        _codigo, texto = self.correr("2", self.opciones_listas, ARRIBA, ENTER, "g", ENTER, "q", "q")
+        _codigo, texto = self.correr("2", self.opciones_listas, ARRIBA, ARRIBA, ENTER, "g", ENTER, "q", "q")
         self.assertIn("Recomendado para este equipo:", texto)
         self.assertEqual(self.guardado()["cpu_threads"], 5, "i5-9500: Media con 5 hilos")
 
@@ -325,7 +329,7 @@ class TestOpciones(BaseTerminal):
         t._detectar = detectar
         self.assertEqual(t.run(), 0)
         texto = limpio(self.salida.getvalue())
-        self.assertIn("detectando dispositivos, pantallas y equipo…", texto)
+        self.assertIn("Detectando dispositivos, pantallas y equipo…", texto)
         self.assertIn("Carpeta de notas", texto)
 
 
