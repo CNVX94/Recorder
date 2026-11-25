@@ -118,6 +118,12 @@ class SpinnerYTemaTest(unittest.TestCase):
         self.assertEqual(c.get_style("fondo").bgcolor.get_truecolor().hex, "#1e1e2e")
         self.assertEqual(c.get_style("fila").bgcolor.get_truecolor().hex, "#313244")
 
+    def test_el_fondo_propio_lleva_el_color_de_texto_del_tema(self):
+        """Lo que no lleva estilo (negritas, huecos) no se queda con el blanco de la consola sobre un fondo claro."""
+        for tema in ("oscuro", "claro"):
+            c = make_console(ascii_mode=False, file=io.StringIO(), force_terminal=True, color_system="truecolor", tema=tema)
+            self.assertEqual(c.get_style("fondo").color.get_truecolor().hex, c.get_style("texto").color.get_truecolor().hex)
+
 
 class FalsoKernel32:
     """Un kernel32 de mentira: dos salidas con su modo, para probar el activar y el restaurar."""

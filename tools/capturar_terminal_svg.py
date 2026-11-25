@@ -27,11 +27,11 @@ from rich.text import Text  # noqa: E402
 
 from recorder.cli import app, configurar, pantallas  # noqa: E402
 from recorder.cli.consola import make_console  # noqa: E402
+from recorder.config.hardware import cached_hardware  # noqa: E402
 from recorder.config.manager import ConfigManager  # noqa: E402
 
 VENTANAS = ["Daily | Microsoft Teams", "Presentación - PowerPoint"]  # sintéticas: nada de lo abierto de verdad
 configurar.window_titles = lambda: list(VENTANAS)
-pantallas.configurar.window_titles = configurar.window_titles
 
 SALIDA = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else REPO / "docs" / "capturas-terminal" / "svg"
 SALIDA.mkdir(parents=True, exist_ok=True)
@@ -70,29 +70,47 @@ def comando(nombre, respuestas, argv=(), ancho=100):
     guardar(c, f"{nombre}{'-' + str(ancho) if ancho != 100 else ''}", f"daily {nombre}")
 
 
-comando("config", ["2", "", "", "", "4", "", "", "", "", "1", "", "", "bloqueo, demo", "n", "8"])
-comando("calibrar", ["6", "?", "gracias por ver", "", "4", "", "", "", "8"])
-comando("calibrar", ["6", "?", "", "8"], ancho=60)
-comando("sintesis", ["", "", "", "", "", "", "", "n"])
+# Modo línea (entrada redirigida o argumentos de script): el contrato de los scripts y de tests/test_cli_*.py
 comando("recomendar", [])
 
-# Las pantallas del menú nuevo, como referencia del estilo
-mgr = ConfigManager(RAIZ / "config.json")
-c = consola()
-t = pantallas.Terminal(c, app.cargar_comandos(), mgr, leer_tecla=lambda: None)
-t._refrescar_cabecera()
-c.print(Group(*t.marco()))
-guardar(c, "menu-inicio", "daily menu")
-c = consola()
-t.consola = c
+# Las pantallas del menú, entrando desde el Inicio con ↑/↓ y Enter, como en una terminal moderna
+from recorder.cli.teclas import ABAJO, ENTER, ESC  # noqa: E402
+
+FILAS = {"grabar": 0, "opciones": 1, "calibrar": 2, "reagrupar": 3, "recomendacion": 4, "ventana": 5, "rendimiento": 6, "ayuda": 7}
 entorno = configurar.Entorno(["(todas las pantallas)", "Pantalla 1: 1920×1080 en (0, 0)"], VENTANAS,
-                             ["Altavoces", "Auriculares USB"], ["Micrófono del portátil"], pantallas.cached_hardware())
-t._detectar = lambda: entorno
-t.entorno()
-t._hilo_entorno.join()
-t.abrir(pantallas.Opciones(t))
-c.print(Group(*t.marco()))
-guardar(c, "menu-opciones", "daily menu · Opciones")
+                             ["Altavoces", "Auriculares USB"], ["Micrófono del portátil"], cached_hardware())
+mgr = ConfigManager(RAIZ / "config.json")
+
+
+def pantalla(nombre, titulo, destino=None, teclas=(), ancho=100, alto=30, ascii_mode=False):
+    """Una pantalla del menú: del Inicio a `destino` con flechas y Enter, las `teclas` que siguen y el cuadro."""
+    c = make_console(ascii_mode=ascii_mode, record=True, file=io.StringIO(), width=ancho, height=alto,
+                     force_terminal=True, color_system="truecolor", legacy_windows=False, no_color=False)
+    t = pantallas.Terminal(c, app.cargar_comandos(), mgr, leer_tecla=lambda: None, detectar=lambda: entorno)
+    t._refrescar_cabecera()
+    if destino:
+        for _ in range(FILAS[destino]):
+            t._tecla(ABAJO)
+        t._tecla(ENTER)
+        t.entorno()
+        t._hilo_entorno.join()
+    for k in teclas:
+        t._tecla(k)
+    c.print(Group(*t.marco()))
+    guardar(c, nombre, titulo)
+
+
+pantalla("menu-inicio", "daily menu")
+pantalla("menu-inicio-60", "daily menu · 60 columnas", ancho=60, alto=24)
+pantalla("menu-inicio-ascii", "daily --ascii menu", ascii_mode=True)
+pantalla("menu-opciones", "daily menu · Opciones", "opciones")
+pantalla("menu-calibrar", "daily menu · Calibrar", "calibrar")
+pantalla("menu-calibrar-60", "daily menu · Calibrar · 60 columnas", "calibrar", ancho=60, alto=26)
+pantalla("menu-reagrupar", "daily menu · Reagrupar nota", "reagrupar")
+pantalla("menu-reagrupar-60", "daily menu · Reagrupar nota · 60 columnas", "reagrupar", ancho=60, alto=26)
+pantalla("menu-recomendacion", "daily menu · Recomendación", "recomendacion")
+pantalla("menu-rendimiento", "daily menu · Rendimiento", "rendimiento")
+pantalla("menu-ayuda", "daily menu · Ayuda", "ayuda")
 
 # La grabación (`daily`): líneas, pie y panel de opciones, con una sesión de mentira
 from recorder.cli.live import TECLAS, Panel, PantallaEnVivo  # noqa: E402

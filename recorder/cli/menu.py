@@ -94,7 +94,8 @@ def menu(
                 continue
             if accion == "salir":
                 return 0
-            consola.print(texto((ayuda.linea("menu_" + accion), "tenue")), soft_wrap=True)  # qué se abre y para qué
+            clave = "menu_grabar_linea" if accion == "grabar" else "menu_" + accion  # aquí grabar no vuelve al menú
+            consola.print(texto((ayuda.linea(clave), "tenue")), soft_wrap=True)  # qué se abre y para qué
             if accion == "grabar":
                 from .live import grabar
 

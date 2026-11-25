@@ -91,6 +91,9 @@ class TestMenu(unittest.TestCase):
         with patch("recorder.cli.live.grabar", return_value=4) as grabar:
             self.assertEqual(self.correr("1", "0"), 4)
         grabar.assert_called_once_with(consola=self.consola)
+        salida = self.salida.getvalue()
+        self.assertIn(linea("menu_grabar_linea"), salida)
+        self.assertNotIn("vuelves a este menú", salida, "en el menú numerado grabar no vuelve")
         with patch.object(app, "abrir_ventana", return_value=0) as ventana:
             self.assertEqual(self.correr("6", "0"), 0)
         ventana.assert_called_once()

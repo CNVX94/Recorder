@@ -41,7 +41,9 @@ def tema_rich(nombre: str = paleta.POR_DEFECTO, dieciseis: bool = False) -> Them
     colores = paleta.TEMAS[paleta.resolver(nombre)]
     estilos = {estilo: colores[token] for estilo, token in ESTILOS.items()}
     estilos["elegido"] = f"bold {colores['acento']}"  # la fila elegida de un menú
-    estilos["fondo"] = f"on {colores['fondo']}"  # el fondo propio de las pantallas completas
+    # el fondo propio de las pantallas completas, con el color de texto del tema: lo que no lleva estilo (títulos en
+    # negrita, huecos) no debe quedar con el blanco de la consola sobre un fondo claro
+    estilos["fondo"] = f"{colores['texto']} on {colores['fondo']}"
     estilos["fila"] = f"on {colores['superficie']}"  # la fila elegida (su fondo)
     return Theme(estilos)
 

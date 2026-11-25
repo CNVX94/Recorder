@@ -199,6 +199,11 @@ TERMINAL: Textos = {
         "Empieza a transcribir la reunión a pantalla completa y la guarda en la nota de hoy. "
         "Al terminar vuelves a este menú.",
     ),
+    # el menú numerado (entrada redirigida) no vuelve tras grabar: acaba el proceso
+    "menu_grabar_linea": (
+        "Grabar",
+        "Empieza a transcribir la reunión en esta terminal y la guarda en la nota de hoy.",
+    ),
     "menu_config": (
         "Opciones",
         "Cambia carpetas, audio, capturas, calidad y tema, paso a paso. Antes de guardar te "
