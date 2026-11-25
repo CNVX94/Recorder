@@ -9,6 +9,7 @@ from .base import Pantalla
 PANTALLAS: Dict[str, Tuple[str, str]] = {
     "config": ("opciones", "Opciones"),
     "rendimiento": ("rendimiento", "Rendimiento"),
+    "recomendar": ("recomendacion", "Recomendacion"),
     "ayuda": ("ayuda", "Ayuda"),
     "calibrar": ("calibrar", "Calibrar"),
     "sintesis": ("reagrupar", "ReagruparNota"),

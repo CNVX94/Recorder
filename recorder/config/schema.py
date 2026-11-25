@@ -1,4 +1,4 @@
-import ctypes
+﻿import ctypes
 import dataclasses
 import pathlib
 from typing import Tuple, Dict, List, Optional, Sequence
@@ -487,16 +487,15 @@ def _cpu_description(p: HardwareProfile) -> str:
     nucleos = f"{p.physical_cores} núcleos" if p.physical_cores else "núcleos desconocidos"
     if p.hybrid:
         nucleos += f", {p.p_cores}P+{p.e_cores}E"
-    isa = "AVX-512" if p.avx512 else "AVX2" if p.avx2 else "sin AVX2"
     ram = f", {p.ram_total_mb / 1024:.0f} GB" if p.ram_total_mb else ""
-    return f"{short_cpu_name(p.cpu_name)} ({nucleos}, {isa}{ram})"
+    return f"{short_cpu_name(p.cpu_name)} ({nucleos}{ram})"
 
 
 def cpu_tier(p: HardwareProfile) -> Tuple[str, str]:
     """Gama de la CPU ("baja", "media" o "alta") sin contar la bateria, y el motivo si no es obvio."""
     fisicos = p.physical_cores or p.logical_cores // 2
     if not p.avx2:
-        return "baja", "sin AVX2, CTranslate2 pierde su camino rápido en int8"
+        return "baja", "sin AVX2 (las instrucciones que aceleran el cálculo), la transcripción va más lenta"
     if p.ram_total_mb and p.ram_total_mb < MIN_RAM_MB:
         return "baja", "menos de 8 GB de RAM"
     if fisicos and fisicos < CPU_MEDIA_MIN_PHYSICAL:
@@ -512,15 +511,15 @@ def cpu_tier(p: HardwareProfile) -> Tuple[str, str]:
 
 _CPU_TIER_TEXT = {
     "alta": (
-        "Alta (large-v3-turbo) da la mejor calidad sin GPU: un i7-1255U (2P+8E) iba a ~1,0x con 4 "
-        "hilos [medido] y esta CPU tiene más margen [estimado]. Si la cola de pendientes crece en las "
+        "Alta da la mejor calidad sin tarjeta gráfica: un i7-1255U (2P+8E) iba justo al ritmo del habla "
+        "con 4 hilos y este procesador tiene más margen. Si la cola de pendientes crece en las "
         "reuniones, baja a Media."
     ),
     "media": (
-        "Media (small, haz 5) va a ~3,0x el tiempo real medido en un i7-1255U, holgada aun con la "
-        "videollamada abierta; Alta iría al límite."
+        "Media va unas 3 veces más rápido que el habla (medido en un i7-1255U), con margen aunque la "
+        "videollamada esté abierta; Alta iría al límite."
     ),
-    "baja": "Baja (small, haz 1) va a ~5,4x medido: la única que no acumula retraso en un equipo así.",
+    "baja": "Baja va unas 5 veces más rápido que el habla: la única que no acumula retraso en un equipo así.",
 }
 
 
@@ -557,16 +556,16 @@ def recommend_config(
             return _from_preset(
                 "extra", hilos, engine="faster-whisper", tier="gpu-nvidia", confidence="estimada",
                 reason=(
-                    f"{nombre} con CUDA: large-v3 en float16, la mejor calidad. Con 6 GB o más va a "
-                    f"8x-15x el tiempo real según terceros y deja la CPU libre para la videollamada."
+                    f"{nombre} con CUDA: la mejor calidad (large-v3). Con 6 GB o más va de 8 a 15 veces más "
+                    f"rápido que el habla, según terceros, y deja el procesador libre para la videollamada."
                 ),
             )
         motivo = "VRAM desconocida" if not (gpu and gpu.vram_mb) else f"{gb(gpu.vram_mb)} de VRAM"
         return Recommendation(
             None, "large-v3-turbo", 5, "cuda", "float16", hilos, "faster-whisper", "gpu-nvidia",
             reason=(
-                f"{nombre} con CUDA y {motivo}: large-v3-turbo en float16 (~2,5 GB). large-v3 pide "
-                f"~4,5 GB y por debajo de 6 GB no deja margen [terceros]."
+                f"{nombre} con CUDA y {motivo}: se usa large-v3-turbo (~2,5 GB de memoria). large-v3 pide "
+                f"~4,5 GB y por debajo de 6 GB no deja margen."
             ),
             confidence="estimada",
         )
@@ -574,16 +573,17 @@ def recommend_config(
     vk = _vulkan_candidate(profile)
     if vk is not None and (vulkan_turbo_ready or vulkan_large_ready):
         medida = _measured(vk.name, MEASURED_VULKAN_GPUS)
-        donde = "en esta GPU" if medida else "en una RX 6700 XT (en esta GPU es una estimación)"
+        donde = "en esta tarjeta" if medida else "en una RX 6700 XT (en esta tarjeta es una estimación)"
         if vulkan_turbo_ready:
             return Recommendation(
                 None, "large-v3-turbo", 5, "vulkan", "float16", hilos, "whisper.cpp", "gpu-vulkan",
                 reason=(
-                    f"{describe_gpu(vk)} con whisper.cpp y Vulkan: large-v3-turbo en float16 con flash "
-                    f"attention, 8,5x el tiempo real y 6,8 % de WER medidos {donde}. large-v3 (Extra) "
-                    f"iba a 2,6x con 7,7 %: poco margen sobre el 2x de dos fuentes, y se queda corto si "
-                    f"la GPU se comparte (streaming, escritorio remoto). Si ves frases repetidas o "
-                    f"cierres del driver, desactiva flash attention."
+                    f"{describe_gpu(vk)} con whisper.cpp y Vulkan: large-v3-turbo con flash attention, "
+                    f"8,5 veces más rápido que el habla y 6,8 % de palabras erradas, medido {donde}. "
+                    f"large-v3 (Extra) iba 2,6 veces más rápido con 7,7 %: poco margen sobre el doble "
+                    f"que piden dos fuentes, y se queda corto si la tarjeta se comparte (streaming, "
+                    f"escritorio remoto). Si ves frases repetidas o cierres del driver, desactiva "
+                    f"flash attention."
                 ),
                 confidence="medida" if medida else "estimada",
                 flash_attn=True,
@@ -592,9 +592,9 @@ def recommend_config(
             "extra", hilos, engine="whisper.cpp", tier="gpu-vulkan",
             confidence="medida" if medida else "estimada", flash_attn=True,
             reason=(
-                f"{describe_gpu(vk)} con whisper.cpp, pero solo está descargado large-v3: Extra, 2,6x "
-                f"medido {donde}. large-v3-turbo iría 3,3x más rápido con el mismo WER: descárgalo "
-                f"con {como_instalar_whispercpp()} -Modelos large-v3-turbo."
+                f"{describe_gpu(vk)} con whisper.cpp, pero solo está descargado large-v3: Extra, 2,6 veces "
+                f"más rápido que el habla, medido {donde}. large-v3-turbo iría 3,3 veces más rápido con "
+                f"las mismas palabras erradas: descárgalo con {como_instalar_whispercpp()} -Modelos large-v3-turbo."
             ),
         )
 
@@ -602,7 +602,7 @@ def recommend_config(
     enchufado = tier
     if profile.on_battery and tier != "baja":
         tier = CPU_TIERS[CPU_TIERS.index(tier) - 1]
-    reason = f"{_cpu_description(profile)}: {motivo + ', ' if motivo else ''}gama {enchufado}. {_CPU_TIER_TEXT[tier]}"
+    reason = f"{_cpu_description(profile)}: {motivo + ', ' if motivo else ''}es de gama {enchufado}. {_CPU_TIER_TEXT[tier]}"
     if tier != enchufado:
         reason += (
             f" Con batería se baja una gama (la CPU limita su potencia); enchufado se recomendaría "
@@ -612,20 +612,19 @@ def recommend_config(
     nvidia_sin_cuda = [g for g in nvidias if not g.integrated]
     if nvidia_sin_cuda:
         notas.append(
-            f"Hay una {describe_gpu(nvidia_sin_cuda[0])} pero CUDA no responde (driver, o faltan las "
-            f"bibliotecas de CUDA 12 y cuDNN 9 que usa faster-whisper): hasta resolverlo, CPU. También "
+            f"Hay una {describe_gpu(nvidia_sin_cuda[0])} pero CUDA no responde (el controlador, o faltan "
+            f"las bibliotecas de CUDA 12 y cuDNN 9): hasta resolverlo se usa el procesador. También "
             f"puede usarse con whisper.cpp y Vulkan ({como_instalar_whispercpp()})."
         )
     if vk is not None and vk.vendor_id != VENDOR_NVIDIA:
         notas.append(
-            f"La GPU {describe_gpu(vk)} solo se aprovecha con whisper.cpp y Vulkan: ejecuta "
+            f"La tarjeta {describe_gpu(vk)} solo se aprovecha con whisper.cpp y Vulkan: ejecuta "
             f"{como_instalar_whispercpp()} ({documento('gpu-amd-vulkan')}) y vuelve a pulsar «Usar recomendado»."
         )
     elif vk is None and profile.has_igpu:
         notas.append(
-            "La GPU integrada no se usa por defecto: su memoria es la RAM del sistema (el mismo ancho "
-            "de banda que ya usa la CPU) y comparte con la CPU, y con Teams, la potencia. Se puede "
-            "probar a mano (whispercpp_device) tras medirla."
+            "La tarjeta gráfica integrada no se usa: comparte memoria y potencia con el procesador y con "
+            "Teams. Se puede probar a mano en Opciones tras medirla."
         )
     if notas:
         reason += " " + " ".join(notas)
@@ -743,3 +742,4 @@ def startup_notices(config: AppConfig, profile: HardwareProfile, rec: Recommenda
     elif rec.device != "cpu" and config.device == "cpu" and not avisos:
         avisos.append((f"💡 Este equipo puede transcribir en la GPU: {describe_recommendation(rec)}.", ACTION_RECOMMEND))
     return avisos
+

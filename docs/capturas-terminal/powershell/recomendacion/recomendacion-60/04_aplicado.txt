@@ -1,0 +1,24 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media…
+ ──────────────────────────────────────────────────────────
+ Inicio › Recomendación del equipo
+                         Ahora       Recomendado
+    Calidad              Media       Media        ○ igual
+    Dónde se transcribe  Procesador  Procesador   ○ igual
+    Hilos                9           9            ○ igual
+
+ √ Ya usas lo recomendado
+
+    Por qué
+     · 12th Gen Intel Core i7-1255U (10 núcleos,
+       2P+8E, 32 GB): solo 2 núcleos de rendimiento (los E
+       rinden menos de la mitad), es de gama media.
+     · Media va unas 3 veces más rápido que el habla
+       (medido en un i7-1255U), con margen aunque la
+     ↓ 6 más abajo
+
+ No hay nada que cambiar.
+
+
+
+ √ Aplicado. Vale desde la próxima grabación.
+ [Esc] Volver · [?] Ayuda · [t] Tema

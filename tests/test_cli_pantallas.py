@@ -181,7 +181,9 @@ class TestLogica(unittest.TestCase):
 
 class TestInicio(BaseTerminal):
     def test_flechas_mueven_y_enter_abre_un_comando(self):
-        codigo, texto = self.correr(ABAJO, ABAJO, ENTER, "x", "q")
+        with mock.patch.dict(registro.PANTALLAS):
+            registro.PANTALLAS.pop("recomendar")  # aquí «recomendar» hace de comando que usa la terminal entera
+            codigo, texto = self.correr(ABAJO, ABAJO, ENTER, "x", "q")
         self.assertEqual(codigo, 0)
         self.assertEqual(self.ejecutados, ["recomendar"])
         self.assertIn("▶ 5  Recomendación del equipo", texto, "lo elegido lleva la marca")

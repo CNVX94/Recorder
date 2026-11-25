@@ -1,4 +1,4 @@
-"""Los textos de ayuda de Recorder, sin tkinter ni rich: los tooltips de la ventana (ui/tooltip.py)
+﻿"""Los textos de ayuda de Recorder, sin tkinter ni rich: los tooltips de la ventana (ui/tooltip.py)
 y las líneas de ayuda de la terminal (cli/menu.py, cli/pantallas.py) salen de aquí.
 
 Cada clave da (título corto, explicación). Reglas de redacción: tuteo, lenguaje llano, una o dos
@@ -217,7 +217,7 @@ TERMINAL: Textos = {
     "menu_recomendar": (
         "Recomendación del equipo",
         "Detecta tu procesador, memoria y tarjeta gráfica y te dice qué calidad conviene. "
-        "Solo informa: para aplicarla, ve a Opciones → Calidad.",
+        "Puedes aplicarla ahí mismo.",
     ),
     "menu_ventana": (
         "Abrir la ventana",
@@ -348,6 +348,36 @@ TERMINAL: Textos = {
     "terminal_vacio": ("(vacío)", "Este ajuste no tiene valor. Enter para escribirlo."),
     "terminal_actual": ("(actual)", "Lo que está guardado ahora."),
     "terminal_sin_opciones": ("Sin opciones", "No hay nada que elegir aquí. Esc vuelve."),
+    # Recomendación del equipo: «recomendacion_» + la pieza
+    "recomendacion_equipo": ("Tu equipo", "Lo que se detecta en este equipo."),
+    "recomendacion_ahora": ("Ahora", "Lo que tienes guardado."),
+    "recomendacion_recomendado": ("Recomendado", "Lo que mejor va con este equipo."),
+    "recomendacion_calidad": ("Calidad", "El nivel de calidad de la transcripción."),
+    "recomendacion_donde": ("Dónde se transcribe", "En el procesador o en la tarjeta gráfica."),
+    "recomendacion_hilos": ("Hilos", "Cuántos núcleos del procesador usa la transcripción."),
+    "recomendacion_procesador": ("Procesador", "Se transcribe con el procesador (CPU)."),
+    "recomendacion_grafica": ("Tarjeta gráfica", "Se transcribe con la tarjeta gráfica (GPU)."),
+    "recomendacion_igual": ("igual", "Ya lo tienes así."),
+    "recomendacion_cambia": ("cambia", "Cambiaría al aplicar lo recomendado."),
+    "recomendacion_porque": ("Por qué", "Los motivos de la recomendación, en dos o tres frases llanas."),
+    "recomendacion_fiable_medido": ("Fiabilidad", "Medido en un equipo como el tuyo."),
+    "recomendacion_fiable_estimado": ("Fiabilidad", "Estimado a partir de equipos parecidos al tuyo."),
+    "recomendacion_fiable_aprox": (
+        "Fiabilidad",
+        "Aproximado: no hay medidas de un equipo así. Mide el tuyo en Rendimiento.",
+    ),
+    "recomendacion_aplicar": (
+        "Aplicar lo recomendado",
+        "Guarda la calidad, los hilos y dónde se transcribe que mejor van con tu equipo. "
+        "Antes te enseña qué cambia.",
+    ),
+    "recomendacion_ya": ("Ya usas lo recomendado", "No hay nada que cambiar."),
+    "recomendacion_aplicada": ("Aplicado", "Aplicado. Vale desde la próxima grabación."),
+    "recomendacion_sin_detectar": (
+        "Sin detectar",
+        "No se pudo detectar: {que}. La recomendación no lo tiene en cuenta.",
+    ),
+    "recomendacion_no_aplica": ("No se aplica", "No se aplica: {motivo}."),
     # Botones del pie de las pantallas: «pie_» + la palabra
     "pie_mover": ("Mover", "Sube y baja por las filas con ↑ ↓ (o j k)."),
     "pie_abrir": ("Abrir", "Abre lo elegido."),
@@ -832,3 +862,4 @@ def entrada(clave: str) -> Tuple[str, str]:
 def linea(clave: str) -> str:
     """La línea de ayuda de una opción, para la terminal: la explicación sola (el título ya se ve)."""
     return entrada(clave)[1]
+

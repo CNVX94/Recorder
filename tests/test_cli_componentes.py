@@ -315,6 +315,7 @@ class TestTerminalComoBase(BaseTerminal):
         t = self.terminal()
         for accion, clase in (("config", Opciones), ("rendimiento", Rendimiento), ("ayuda", Ayuda)):
             self.assertIs(registro.clase_de(accion), clase)
+        self.assertEqual(registro.clase_de("recomendar").__name__, "Recomendacion")
         self.assertIsNone(registro.clase_de("grabar"), "lo que no es una pantalla se ejecuta fuera")
         self.assertIsNotNone(t)
 
