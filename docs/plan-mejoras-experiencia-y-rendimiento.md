@@ -35,11 +35,11 @@ depende de esta conversación ni de los demás prompts (solo de que los pasos pr
 | Paso | Qué | Perfil | Depende de | Archivos principales | En paralelo con |
 | :-: | :--- | :--- | :--- | :--- | :--- |
 | 0 | CodeGraph | — | — | `.codegraph/` | **Hecho** |
-| 1 | Rendimiento I: motor real y métricas | código | — | `session.py`, nuevo `metricas.py`, `engine/*`, `cli/live.py` | 2 |
-| 2 | Sistema de temas | código | — | `ui/*`, `cli/consola.py`, `cli/configurar.py`, `config/schema.py` | 1 |
-| 3 | Textos de ayuda y tooltips | código | 2 | nuevo `ayuda.py`, `ui/*` | 7 |
-| 4 | Ventana: menú, responsive, animaciones, panel de rendimiento | código | 1, 2, 3 | `ui/*` | 5, 7 |
-| 5 | Terminal interactiva | código | 1, 2, 3 | `cli/*` | 4, 7 |
+| 1 | Rendimiento I: motor real y métricas | código | — | `session.py`, nuevo `metricas.py`, `engine/*`, `cli/live.py` | **Hecho** |
+| 2 | Sistema de temas | código | — | `ui/*`, `cli/consola.py`, `cli/configurar.py`, `config/schema.py` | **Hecho** (cristal descartado) |
+| 3 | Textos de ayuda y tooltips | código | 2 | nuevo `ayuda.py`, `ui/*` | **Hecho** |
+| 4 | Ventana: menú, responsive, animaciones, panel de rendimiento | código | 1, 2, 3 | `ui/*` | **Hecho** |
+| 5 | Terminal interactiva | código | 1, 2, 3 | `cli/*` | **Hecho**; el pulido de todas las vistas de terminal sigue en `docs/plan-pulido-terminal.md` |
 | 6 | Rendimiento II: ajuste por hardware y GPU integrada | código | 1, 4, 5 | `engine/*`, `config/*`, `ui/*`, `cli/*` | 7 |
 | 7 | Diseño de la intro | diseño | 2 | `docs/intro/`, `recorder/assets/intro/` | 3, 4, 5, 6 |
 | 8 | Intro en la app y empaquetado | código | 4, 7 | nuevo `ui/intro.py`, `packaging/*` | — |
@@ -320,7 +320,7 @@ Hechos ya conocidos
 
 Qué hacer
 1. Medir antes de programar: con config.json actual (sin modificarlo), ¿está instalado whisper.cpp (whispercpp_dir con bin\whisper-server.exe)? Si lo está, mide CPU (4/6/8/10 hilos) frente a Vulkan en la integrada con tools/medir_rendimiento.py sobre una muestra corta. Si no lo está, no lo instales: indica en el informe los pasos (tools/instalar_whispercpp.ps1). Comprueba que el equipo esté en reposo como hace la herramienta; si no lo está, dilo y no saques conclusiones. Anota los resultados en docs/rendimiento.md.
-2. «Medir mi equipo» dentro de la app (ventana y terminal): prueba corta (2-3 min máximo, barra de progreso, cancelable) con la lógica de medición movida a recorder/ para que vaya en el ejecutable (tools/medir_rendimiento.py la reutiliza). Prueba solo los candidatos con sentido en ese hardware: CPU con varios hilos, GPU dedicada y la integrada solo si el usuario la permite. Muestra una tabla: velocidad (x tiempo real), CPU usada y si aguanta dos fuentes a la vez (>= 2,0x). Botón «Aplicar el mejor» que escribe solo las claves afectadas, tras confirmación.
+2. «Medir mi equipo» dentro de la app (ventana y terminal): prueba corta (2-3 min máximo, barra de progreso, cancelable) con la lógica de medición movida a recorder/ para que vaya en el ejecutable (tools/medir_rendimiento.py la reutiliza). Prueba solo los candidatos con sentido en ese hardware: CPU con varios hilos, GPU dedicada y la integrada solo si el usuario la permite. Muestra una tabla: velocidad (x tiempo real), CPU usada y si aguanta dos fuentes a la vez (>= 2,0x). Botón «Aplicar el mejor» que escribe solo las claves afectadas, tras confirmación. En la terminal es una pantalla más del menú (paquete recorder/cli/pantallas/), con la vista «Medir mi equipo» de docs/terminal-especificacion.md si existe, nunca preguntas en el historial; pruébala en la consola de Windows PowerShell 5.1 (conhost), que es donde se usa a diario.
 3. Ajustes manuales con efecto visible en el panel de rendimiento: motor y dispositivo; hilos (con aviso de núcleos P/E en CPU híbridas); «Permitir GPU integrada» (desactivado por defecto; su texto de ayuda explica que comparte RAM y GPU con Teams); prioridad del proceso (normal por defecto, «por debajo de lo normal» para no molestar a Teams, nunca alta ni tiempo real). Si un cambio requiere recargar el modelo, dilo y aplícalo en la siguiente sesión, o recargando sin perder la cola si el worker lo permite con seguridad. Los campos nuevos de config.json cargan bien en configuraciones antiguas.
 4. Coherencia: `recomendar` y el asistente usan los mismos datos; la última medición (fecha y resultados) se guarda y la recomendación la tiene en cuenta.
 
@@ -354,7 +354,7 @@ Entregables
 1. Storyboard de 4-5 escenas con tiempos. Propuesta de partida (mejórala): revelado del logotipo -> «Graba tu daily» (ondas de audio que se convierten en texto) -> «Transcribe en tu equipo, sin nube» -> «Notas en Markdown con capturas» -> «Comenzar». Para cada escena: duración, qué se mueve, curva de aceleración (ease-out, ease-in-out), transición a la siguiente (fundido cruzado, escalonado) y texto exacto.
 2. Especificación de movimiento: duraciones, easing, fundidos, escalonado, y la versión «movimiento reducido» (solo fundidos).
 3. Logotipo 3D animado renderizado en Blender como secuencia PNG (24-30 fps, 480-640 px, fondo transparente o el del tema), más un fotograma estático de reserva. Variantes para tema claro y oscuro si el contraste lo pide. Presupuesto total de assets: 3 MB como máximo.
-4. Versión de terminal: logotipo ANSI de 1 s como máximo y su equivalente en ASCII puro.
+4. Versión de terminal: logotipo ANSI de 1 s como máximo en tres juegos de símbolos: completo (Windows Terminal), consola (la consola clásica de Windows PowerShell y cmd: solo los caracteres verificados en docs/plan-pulido-terminal.md §1, sin emoji ni ▶) y ASCII puro. Que se lea sobre fondo negro y sobre el azul #012456 de PowerShell.
 5. Accesibilidad: nada que destelle más de 3 veces por segundo, contraste AA en los textos, botón «Saltar» visible siempre; Esc, Enter, Espacio y clic saltan.
 
 Dónde
@@ -387,7 +387,7 @@ Qué hacer
 1. recorder/ui/intro.py: ventana sin bordes centrada (fit_window / work_area), reproduce los fotogramas con after al ritmo de la especificación, superpone los textos con sus fundidos, botón «Saltar» y Esc / Enter / Espacio / clic. Respeta «animations»: reducidas = solo fundidos; ninguna = sin intro animada. Al terminar o saltar: fade-out y se abre la ventana principal.
 2. Cuándo sale: la primera vez (campo «intro_seen» en config.json, compatible con configuraciones antiguas) y bajo demanda desde «Ver introducción» en el menú «Más». `--sin-intro` la omite.
 3. No debe retrasar la grabación: si la carga del modelo puede empezar mientras se ve la intro sin romper la regla de PortAudio (los streams se abren en el hilo principal con una sola instancia de PyAudio), aprovéchalo; si no, la intro va antes y se documenta.
-4. Terminal: el logotipo de 1 s como máximo en el primer `daily`, saltable con cualquier tecla, versión ASCII en conhost y omitible con `--sin-intro`.
+4. Terminal: el logotipo de 1 s como máximo en el primer `daily`, saltable con cualquier tecla, con el juego de símbolos activo (completo / consola / ASCII, docs/plan-pulido-terminal.md §3) y omitible con `--sin-intro`. Pruébalo en la consola de Windows PowerShell 5.1 con la función `daily` del perfil: al terminar, el prompt queda limpio.
 5. Si faltan los fotogramas (ejecución desde el código sin ellos), la intro se omite sin error.
 6. Empaquetado: añade recorder/assets/intro/ a packaging/recorder.spec, construye con packaging\build.ps1, mide el tamaño del instalador antes y después, e instala y prueba la primera ejecución de Recorder.exe y daily.exe.
 
@@ -416,7 +416,7 @@ Tarea: comprobar que todo junto funciona, se ve bien y no cuesta rendimiento.
 
 Qué hacer
 1. `python -m pytest`, `python recorder.py --selftest`, build del ejecutable y del instalador.
-2. Recorrido manual con capturas en docs/capturas-ui/ (nombre: tema_escala_ancho.png): ventana en cada tema, a 100/125/150 % y en 1366×768; terminal en Windows Terminal y en conhost (ASCII); introducción en primera ejecución del instalado.
+2. Recorrido manual con capturas en docs/capturas-ui/ (nombre: tema_escala_ancho.png): ventana en cada tema, a 100/125/150 % y en 1366×768; terminal en la consola de Windows PowerShell 5.1 (la del día a día: conhost con color real, fondo negro y azul #012456), en cmd, con `--ascii`, y en Windows Terminal o PowerShell 7 si están instalados; introducción en primera ejecución del instalado (`Recorder.exe` y `daily.exe`).
 3. Contraste: la prueba automática de temas y una revisión a ojo de hover, foco y desactivado.
 4. Coste: sesión de unos 10 minutos grabando en CPU con audio de prueba: CPU del proceso y velocidad con panel y animaciones activados y con «animations: ninguna» y panel plegado. Anota la diferencia.
 5. Busca en el diff completo respecto a la rama principal menciones a asistentes, agentes o herramientas de IA (código, docs, textos de la app).

@@ -1,0 +1,7 @@
+Crea una copia de una nota ordenada por hora y agrupada en tramos, sin relleno. No resume y nunca
+toca el original.
+Nota origen (solo se lee; las copias reagrupadas no se listan)
+        archivo                         fecha       hora       tamaño
+  >  1  daily_2026-11-21_09-30.md       24/11/2026  22:06       1 KB * en curso
+     2  daily_2026-11-24_09-30.md       24/11/2026  22:06       1 KB
+Número (1):

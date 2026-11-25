@@ -1,0 +1,12 @@
+Detecta tu procesador, memoria y tarjeta gráfica y te dice qué calidad conviene. Solo informa: para
+aplicarla, ve a Opciones -> Calidad.
+Equipo:      12th Gen Intel Core i7-1255U · 10 núcleos (2P+8E), 12 hilos · AVX2 · 32 GB de RAM ·
+portátil · GPU: Intel(R) Iris(R) Xe Graphics (integrada)
+Recomendado: Media (small, haz 5, CPU, int8, 9 hilos) [medida]
+Motivo:      12th Gen Intel Core i7-1255U (10 núcleos, 2P+8E, AVX2, 32 GB): solo 2 núcleos de
+rendimiento (los E rinden menos de la mitad), gama media. Media (small, haz 5) va a ~3,0x el tiempo
+real medido en un i7-1255U, holgada aun con la videollamada abierta; Alta iría al límite. La GPU
+integrada no se usa por defecto: su memoria es la RAM del sistema (el mismo ancho de banda que ya
+usa la CPU) y comparte con la CPU, y con Teams, la potencia. Se puede probar a mano
+(whispercpp_device) tras medirla.
+[una tecla] volver al menú

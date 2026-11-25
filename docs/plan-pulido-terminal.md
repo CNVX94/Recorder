@@ -6,6 +6,13 @@ pantallas de `daily` sean limpias, controladas y con el mismo estilo que el men�
 pasos con un prompt autocontenido para cada uno: se copia tal cual en una sesión nueva abierta en
 este repositorio.
 
+**Revisado el 24-nov-2026 (segunda verificación)**: se comprobó de nuevo entrando desde el menú a
+cada opción, en cmd y en **Windows PowerShell 5.1** (la función `daily` del perfil, que es como se
+usa a diario). Cambios respecto a la primera versión: la grabación pasa a pantalla completa
+(decisión 1), Rendimiento entra en el rediseño, la consola de PowerShell tiene su propio paso
+(2b: color real y símbolos seguros) y se añaden las vistas que faltaban (arranque y fin de la
+grabación, vuelta al menú, «Medir mi equipo», ventana abierta). Hallazgos nuevos: 21-28.
+
 ---
 
 ## 1. Punto de partida (verificado el 24-nov-2026)
@@ -27,6 +34,23 @@ equivalente para el menú); WSL no tiene ninguna distribución Linux; el Ctrl+C 
 no equivale al del teclado, así que Ctrl+C en una pregunta de modo línea queda **sin verificar**.
 Las capturas de conhost muestran nombres reales de dispositivos de audio y del equipo.
 
+**Segunda verificación (24-nov-2026)**: con el mismo método y datos sintéticos, entrando desde
+`daily menu` a cada opción: `docs/capturas-terminal/desde-el-menu/` (calibrar, reagrupar,
+recomendar, rendimiento, grabar) y, lanzado con la función `daily` del perfil de Windows PowerShell
+5.1, `docs/capturas-terminal/powershell/menu/`. Las capturas de la grabación con audio real se
+descartaron (transcribieron lo que sonaba en el equipo); queda solo `grabar/02_abre.png`.
+
+### La consola de PowerShell, que es la del día a día
+
+| Hecho | Detalle |
+| :--- | :--- |
+| Cómo se lanza | `function daily { python "...\recorder.py" $args }` en `Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1`. Windows PowerShell 5.1; **no hay Windows Terminal ni PowerShell 7 (`pwsh`)** en el equipo: siempre es conhost. |
+| Qué detecta rich hoy | Consola antigua (`legacy_windows=True`, 16 colores): todo sale en **ASCII** y la paleta se reduce a 16 colores. Igual que en cmd (`powershell/menu/01_inicio.png`). |
+| Color real | Activando `ENABLE_VIRTUAL_TERMINAL_PROCESSING` (`SetConsoleMode`, 0x0004) **antes de crear la primera `Console`** (rich cachea la detección), la misma consola pasa a `truecolor` y la paleta se ve tal cual (`powershell/color-real-vt.png`). Verificado. |
+| Símbolos en conhost (Consolas) | Se ven bien: `─ █ ░ ‹ › ‥ ● · « »`. Salen como cuadro: `▶` y `▁▂▃▅▆▇` (solo `▄ █` existen). Se pintan encima del espacio siguiente: `✔ ⚠` y todos los emoji (monocromos). |
+| Fondo | Una consola nueva es negra; el acceso directo «Windows PowerShell» del menú Inicio usa **fondo azul `#012456`** con texto gris. La paleta debe leerse en los dos (o pintar su propio fondo en pantalla completa). |
+| Variable `NO_COLOR` | El entorno de las herramientas automáticas la trae puesta (`NO_COLOR=1`); la del usuario no. Las capturas y las pruebas de color deben quitarla. |
+
 ### Estado por pantalla
 
 | Pantalla | Cómo es hoy | Evidencia | Consecuencia para el plan |
@@ -36,16 +60,19 @@ Las capturas de conhost muestran nombres reales de dispositivos de audio y del e
 | Reagrupar nota (`cli/sintesis.py`) | Elegir nota por número, 6 preguntas seguidas a ciegas, vista previa de 10 líneas al final y confirmar. | `sintesis/`, `sintesis-60/`, `svg/sintesis.svg` | Pasar a pantalla con interruptores y vista previa que cambia al momento. |
 | Recomendación (`cli/recomendar.py`) | Tres líneas de texto plano sin color; el motivo es un párrafo de 6 líneas; no se puede aplicar desde ahí. | `recomendar/`, `svg/recomendar.svg` | Pantalla tipo tarjeta «ahora / recomendado» con «Aplicar». |
 | Asistente `daily config` (`cli/configurar.py`) | Secciones por número y preguntas en línea; tras confirmar el guardado de una sección, sale. | `config/`, `config-ver/`, `svg/config.svg` | En terminal real, `daily config` abre la pantalla Opciones; el asistente queda para entrada redirigida. |
-| Grabación (`daily`, `cli/live.py`) | `rich.Live` sin pantalla alternativa (bien: el historial se puede copiar). El panel [o] solo acepta números. | `grabar/`, `svg/grabar.svg` | Mantener el formato; panel navegable con flechas, [?] y teclas coherentes. |
-| Paso del menú a un comando | Sale de la pantalla alternativa, imprime la ayuda del menú, el comando repite su propia intro, y vuelve «pulsando una tecla». | `menu/02_*`, `menu/03_*` | Desaparece cuando cada comando tenga su pantalla. |
+| Grabación (`daily`, `cli/live.py`) | `rich.Live` sin pantalla alternativa: cabecera y frases van al historial de la terminal, mezcladas con lo anterior; la línea de fuentes se parte a mitad de nombre. El panel [o] solo acepta números. Al terminar, si se abrió desde el menú, **no vuelve al menú**: deja el prompt de PowerShell. | `grabar/`, `desde-el-menu/grabar/`, `svg/grabar.svg` | **Pantalla completa** (decisión 1): transcripción desplazable, estado y pie fijos; al salir, un resumen corto. |
+| Rendimiento (`cli/pantallas.py`) | Sí abre dentro de la pantalla, pero pobre: dos barras (CPU y GPU del equipo), «midiendo…» los primeros segundos, tendencia «__» y dos tercios de la pantalla vacíos. Durante la grabación las cifras solo están en una línea del pie y no hay vista de rendimiento. | `desde-el-menu/rendimiento/` | Rediseño (paso 6b): equipo, margen antes de grabar y, durante la grabación, una vista en vivo. |
+| Paso del menú a un comando | Sale de la pantalla alternativa al historial, imprime la ayuda del menú, el comando repite su propia intro y su menú numerado (Calibrar lo reimprime entero tras cada acción) y vuelve «pulsando una tecla». Confirmado para Calibrar, Reagrupar y Recomendación, en cmd y en PowerShell. | `menu/02_*`, `menu/03_*`, `desde-el-menu/*`, `powershell/menu/` | Desaparece cuando cada comando tenga su pantalla. |
+| Abrir la ventana | Termina el menú; la terminal no dice nada mientras la ventana está abierta (visto en el código, sin captura). | — | Estado «La ventana está abierta» y vuelta al menú al cerrarla. |
 
 ### Decisiones tomadas por defecto (cámbialas antes de lanzar el paso que afecta)
 
-1. **La grabación sigue sin pantalla alternativa**: las frases se quedan en el historial de la terminal.
+1. **La grabación pasa a pantalla completa** (cambiado el 24-nov-2026: mezclada con el historial estorba y no se entiende). La nota en disco es el registro completo; al salir se imprime un resumen de pocas líneas. El modo de historial actual se conserva solo con `daily --historial` (para quien quiera copiar de la terminal) y con la salida redirigida.
 2. **El modo línea no se toca**: con la entrada redirigida (scripts, pruebas) cada comando funciona como hoy. Es el contrato de `tests/test_cli_*.py`.
 3. **←/→ nunca aplica un dispositivo de audio en vivo**: reabriría el audio a cada paso en plena reunión. Se elige con Enter.
-4. **Sin ratón, marcos dibujados ni ventanas modales**: frágiles en conhost y caros a 60 columnas.
-5. **Una pantalla por módulo** (paso 3) para que Calibrar, Reagrupar, Recomendación y grabación puedan hacerse en paralelo.
+4. **Sin ratón ni ventanas modales**; marcos y símbolos solo con caracteres verificados en conhost (§1, tabla de PowerShell).
+5. **Una pantalla por módulo** (paso 3) para que Calibrar, Reagrupar, Recomendación, Rendimiento y grabación puedan hacerse en paralelo.
+6. **Color real en la consola de PowerShell y cmd** (paso 2b): se activa el modo VT al arrancar. Color y símbolos se deciden por separado: el color por lo que admite la consola, los símbolos por un juego «completo» (Windows Terminal, VS Code), «consola» (conhost: sin emoji ni `▶`) o «ASCII» (consola sin VT, `--ascii`).
 
 ---
 
@@ -75,6 +102,14 @@ Gravedad: **A** alta (estorba o puede hacer perder algo), **M** media, **B** baj
 | 18 | Reagrupar (nota) | La cabecera de la copia reagrupada va sin tildes («transcripcion», «aqui», «leyendola»): llega a la nota del usuario. | B | `digest/writer.py:110-112` |
 | 19 | Textos | Contradicción: la ayuda de «Descartar frases cortas» dice que casi siempre son relleno; Reagrupar avisa de que se lleva «Sí, va.». | B | `ayuda.py` (`descartar_cortas`), `sintesis.py:197` |
 | 20 | Menú | Al volver de un comando vale cualquier tecla y la ayuda del menú duplica la intro del comando. | B | `pantallas.py` (`_ejecutar`) |
+| 21 | Menú → comandos | Calibrar, Reagrupar y Recomendación salen de la pantalla limpia al historial de la terminal, con preguntas en línea y «[una tecla] volver al menú». Es la queja principal del usuario (sube a A lo que el hallazgo 20 dejaba en B). | A | `pantallas.py` (`Inicio.abrir` → `salir(accion)`, `_ejecutar`), `desde-el-menu/*` |
+| 22 | Grabación | Va al historial mezclada con lo anterior; al terminar, si se abrió desde el menú, deja el prompt de PowerShell en vez de volver al menú. | A | `pantallas.py` (`_ejecutar`: `return grabar(...)`), `desde-el-menu/grabar/` |
+| 23 | PowerShell / cmd | conhost se detecta como consola antigua: ASCII y 16 colores; la paleta y la fila elegida apenas se distinguen. Activar VT antes de la primera `Console` da color real (verificado). | A | `consola.py` (`make_console`), `powershell/menu/`, `powershell/color-real-vt.png` |
+| 24 | Rendimiento | Dos barras y dos tercios de pantalla vacíos; la tendencia empieza como «__»; sin RAM ni margen en palabras. Durante la grabación no hay vista de rendimiento, solo una línea del pie. | M | `pantallas.py` (`Rendimiento`), `desde-el-menu/rendimiento/` |
+| 25 | Símbolos | En conhost con color real, `▶` y `▁▂▃▅▆▇` salen como cuadros y `✔ ⚠` y los emoji pisan el espacio siguiente. Hoy no se nota (ASCII); aparecerá al activar el color. | M | `consola.py` (`ASCII`, `EMOJI_SEGURO`), `pantallas.py` (`MARCA`, `CHISPAS`) |
+| 26 | Grabación | Arranque y fin sin pantalla propia: «Iniciando…», carga del modelo, vaciado de la cola y ruta final se imprimen en el historial. | M | `live.py` (`_cabecera`, `_despedida`) |
+| 27 | Cabecera | La línea del equipo se corta sin «…» en ASCII («portáti»). | B | `pantallas.py` (`t`: `crop` en ASCII) |
+| 28 | Abrir la ventana | El menú termina y la terminal se queda sin decir nada mientras la ventana está abierta. | B | `pantallas.py` (`_ejecutar`) |
 
 ---
 
@@ -101,6 +136,14 @@ pie no cabe, quedan las teclas principales y «[?] Más».
 | Vacío / error | Una línea `tenue` o `error` que dice qué hacer («No hay notas todavía: se crean al grabar.») | Esc |
 
 En ASCII: `>`, `<valor>`, `_` como cursor, barras `#`/`.`, sin espacio sobrante donde había un emoji.
+
+**Juegos de símbolos** (paso 2b; la especificación del paso 2 fija los definitivos):
+
+| Juego | Cuándo | Color | Símbolos |
+| :--- | :--- | :--- | :--- |
+| completo | Windows Terminal (`WT_SESSION`), VS Code (`TERM_PROGRAM=vscode`), terminales de Linux/macOS | el que admita (truecolor casi siempre) | todos, emoji incluidos |
+| consola | conhost con VT activado: cmd y **Windows PowerShell** | truecolor | solo los verificados en Consolas (`─ █ ░ ‹ › ‥ ● · « »`); sin emoji, sin `▶`, sin `▁▂▃` |
+| ASCII | consola sin VT, `--ascii`, salida redirigida | 16 colores o ninguno | los de hoy (`>`, `#`, `.`, `-`) |
 
 **Modelo de teclas**
 
@@ -131,17 +174,20 @@ la próxima grabación.»
 | Paso | Qué | Perfil | Depende de | Archivos principales | En paralelo con |
 | :-: | :--- | :--- | :--- | :--- | :--- |
 | 1 | Correcciones inmediatas (hallazgos 1, 3, 8, 16, 17, 18, 19) | código | — | `cli/live.py`, `cli/calibrar.py`, `cli/pantallas.py`, `cli/consola.py`, `digest/writer.py`, `ayuda.py` | **Hecho** |
-| 2 | Especificación visual y de textos | diseño | — | `docs/terminal-especificacion.md` | 1 |
-| 3 | Base común: teclas nuevas, componentes y una pantalla por módulo | código | 1, 2 | `cli/teclas.py`, `cli/pantallas.py` → `cli/pantallas/` | — |
-| 4 | Calibrar como pantalla | código | 3 | nuevo `cli/pantallas/calibrar.py` | 5, 6, 7 |
-| 5 | Reagrupar con vista previa viva | código | 3 | nuevo `cli/pantallas/reagrupar.py` | 4, 6, 7 |
-| 6 | Recomendación como pantalla, con «Aplicar» | código | 3 | nuevo `cli/pantallas/recomendacion.py` | 4, 5, 7 |
-| 7 | Grabación: panel [o] navegable, [?] y teclas coherentes | código | 3 | `cli/live.py` | 4, 5, 6 |
-| 8 | Cada comando abre su pantalla en una terminal real | código | 4, 5, 6 | `cli/app.py`, `cli/configurar.py`, `cli/calibrar.py`, `cli/sintesis.py`, `cli/recomendar.py` | — |
-| 9 | Verificación con evidencia antes/después | código | todos | `docs/capturas-terminal/`, `docs/verificacion-pulido-terminal.md` | — |
+| 2 | Especificación visual y de textos de **todas** las vistas | diseño | — | `docs/terminal-especificacion.md` | 2b |
+| 2b | Color real y símbolos seguros en la consola de PowerShell y cmd | código | — | `cli/consola.py`, arranque (`recorder/__main__.py`, `recorder.py`), `tools/capturar_terminal.py` | 2 |
+| 3 | Base común: teclas nuevas, componentes y una pantalla por módulo | código | 1, 2, 2b | `cli/teclas.py`, `cli/pantallas.py` → `cli/pantallas/` | — |
+| 4 | Calibrar como pantalla | código | 3 | nuevo `cli/pantallas/calibrar.py` | 5, 6, 6b |
+| 5 | Reagrupar con vista previa viva | código | 3 | nuevo `cli/pantallas/reagrupar.py` | 4, 6, 6b |
+| 6 | Recomendación como pantalla, con «Aplicar» | código | 3 | nuevo `cli/pantallas/recomendacion.py` | 4, 5, 6b |
+| 6b | Rendimiento rediseñado (menú y vista en vivo reutilizable) | código | 3 | nuevo `cli/pantallas/rendimiento.py` | 4, 5, 6 |
+| 7 | Grabación a pantalla completa | código | 3, 6b | `cli/live.py` | 4, 5, 6 |
+| 8 | Cada comando abre su pantalla; grabar y la ventana vuelven al menú | código | 4, 5, 6, 7 | `cli/app.py`, `cli/pantallas/`, `cli/configurar.py`, `cli/calibrar.py`, `cli/sintesis.py`, `cli/recomendar.py` | — |
+| 9 | Verificación con evidencia antes/después, en cmd y en PowerShell | código | todos | `docs/capturas-terminal/`, `docs/verificacion-pulido-terminal.md` | — |
 
 * Si dos pasos van en paralelo, cada uno en su propia copia de trabajo (worktree) y se integran uno tras otro.
-* Los pasos 4-7 añaden textos a la sección «Terminal» de `recorder/ayuda.py`, cada uno con su prefijo (`calibrar_`, `reagrupar_`, `recomendacion_`, `grabacion_`), para que integrar sea trivial.
+* Los pasos 4-7 añaden textos a la sección «Terminal» de `recorder/ayuda.py`, cada uno con su prefijo (`calibrar_`, `reagrupar_`, `recomendacion_`, `rendimiento_`, `grabacion_`), para que integrar sea trivial.
+* «Medir mi equipo» es del paso 6 de `docs/plan-mejoras-experiencia-y-rendimiento.md` (pendiente); aquí solo se especifica su vista (paso 2) para que ese paso la construya igual que las demás.
 * Ningún paso añade campos a `config.json`.
 * Cada paso termina con un mensaje de commit sugerido; el commit lo haces tú después de revisar.
 
@@ -191,28 +237,90 @@ Fuera de alcance: rediseñar pantallas (pasos 3-8).
 
 ---
 
-### Paso 2. Especificación visual y de textos (perfil diseño)
+### Paso 2. Especificación visual y de textos de todas las vistas (perfil diseño)
 
 ```text
 Contexto del proyecto
-Recorder es una app que transcribe en vivo las dailies de Teams y escribe una nota Markdown. Tiene modo terminal con rich (comando `daily`): un menú de pantallas navegables por teclado (recorder/cli/pantallas.py: cabecera viva, ruta «Inicio › Opciones», lista con ▶, línea de ayuda de lo elegido, pie de botones «[Enter] Abrir · [Esc] Salir…»), y comandos que aún funcionan pregunta a pregunta: Calibrar (filtros de frases inventadas y vocabulario, con prueba de frases), Reagrupar nota (copia ordenada por hora y tramos, no resume), Recomendación (qué calidad conviene al equipo) y el asistente de configuración. La grabación (`daily`) imprime las frases en el historial y deja un pie vivo con estado, medidores y teclas. Estado actual con capturas: docs/capturas-terminal/ (svg/galeria.png es la vista general en una terminal moderna; las carpetas por escenario son la consola clásica de Windows, en ASCII y 16 colores). Hallazgos, sistema común propuesto y maquetas de partida: docs/plan-pulido-terminal.md §2 y §3. Ventana de escritorio equivalente, para la coherencia: docs/capturas-ui/oscuro-100-calibrar.png, -reagrupar.png, -opciones.png. Paleta por tokens en recorder/paleta.py (texto, tenue, acento, mic, error, ok, borde, elegido), con contraste AA en tema claro y oscuro. Textos de ayuda en recorder/ayuda.py (tuteo, lenguaje llano, una o dos frases de hasta 180 caracteres).
+Recorder es una app que transcribe en vivo las dailies de Teams y escribe una nota Markdown. Tiene modo terminal con rich (comando `daily`). Hoy conviven dos estilos:
+- Pantallas limpias a pantalla completa (recorder/cli/pantallas.py, rich.Live con pantalla alternativa): Inicio, Opciones, Rendimiento y Ayuda, con cabecera viva, ruta «Inicio › Opciones», lista con ▶, línea de ayuda de lo elegido y pie de botones «[Enter] Abrir · [Esc] Salir…».
+- Vistas que se escriben en el historial de la terminal, mezcladas con lo anterior, pregunta a pregunta: Calibrar (filtros de frases inventadas y vocabulario, con prueba de frases), Reagrupar nota (copia ordenada por hora y tramos, no resume), Recomendación (qué calidad conviene al equipo), el asistente `daily config` y la grabación (`daily`, que imprime las frases en el historial con un pie vivo). Al terminar un comando se vuelve al menú «pulsando una tecla»; al terminar de grabar no se vuelve al menú.
+El usuario lo usa a diario en Windows PowerShell 5.1 dentro de la consola clásica (conhost; no hay Windows Terminal), donde hoy todo sale en ASCII y 16 colores. Ya se verificó que activando el modo VT la misma consola muestra la paleta en color real; con la fuente Consolas se ven bien ─ █ ░ ‹ › ‥ ● · « », salen como cuadro ▶ y ▁▂▃▅▆▇, y ✔ ⚠ y los emoji pisan el espacio siguiente. El acceso directo de PowerShell usa fondo azul #012456; una consola nueva, negro.
+Evidencia: docs/capturas-terminal/ (svg/galeria.png: terminal moderna; carpetas por escenario: conhost; desde-el-menu/: lo que se ve al entrar desde el menú a cada opción; powershell/: la consola del día a día, y powershell/color-real-vt.png con color real). Hallazgos (1-28), decisiones, sistema común, juegos de símbolos y orden de los pasos: docs/plan-pulido-terminal.md. Ventana de escritorio equivalente, para la coherencia: docs/capturas-ui/oscuro-100-*.png y claro-100-*.png. Paleta por tokens en recorder/paleta.py (texto, tenue, acento, mic, error, ok, borde, elegido…), con contraste AA en tema claro y oscuro. Textos de ayuda en recorder/ayuda.py (tuteo, lenguaje llano, una o dos frases de hasta 180 caracteres). Métricas disponibles para Rendimiento: recorder/metricas.py (motor efectivo, velocidad por fragmento, cola, atraso, CPU del proceso y del sistema, GPU, RAM). El repositorio tiene índice CodeGraph (.codegraph/): usa las herramientas codegraph_* para consultar el código sin abrir archivos de más; si no responde, `codegraph init -i`.
 
 Reglas de trabajo
-1. Primero planea (qué pantallas, en qué orden, preguntas abiertas), después produce los entregables.
+1. Primero planea (inventario de vistas, orden, preguntas abiertas), después produce los entregables.
 2. No hagas commits ni push. Propón un mensaje de commit en español («Agrega…»).
 3. No menciones asistentes, agentes, modelos ni herramientas de IA en los entregables, nombres de archivo ni el commit propuesto.
-4. No escribas código de la aplicación. Usa el flujo /design para la propuesta visual si está disponible; si no, entrega maquetas en texto monoespaciado.
-5. Termina con: entregables y rutas, decisiones tomadas y preguntas abiertas.
+4. No escribas código de la aplicación. Usa el flujo /design para la propuesta visual; las maquetas finales van además en texto monoespaciado dentro de la especificación, para que el código las copie sin interpretar.
+5. Termina con: entregables y rutas, decisiones tomadas, preguntas abiertas y qué vistas quedaron fuera y por qué.
 
-Restricciones técnicas: solo lo que rich pinta en una terminal (texto, colores de la paleta, negrita, reglas); nada de ratón, marcos dibujados ni ventanas modales; debe funcionar desde 60 columnas y en ASCII sin emoji (conhost); la grabación no usa pantalla alternativa.
+Restricciones técnicas
+- Solo lo que rich pinta en una terminal: texto, colores de la paleta, negrita, atenuado, inverso y reglas. Sin ratón ni ventanas modales. Marcos solo con caracteres verificados en conhost.
+- Tres juegos de símbolos (docs/plan-pulido-terminal.md §3): completo (Windows Terminal, VS Code), consola (conhost con color real: cmd y Windows PowerShell; sin emoji ni ▶) y ASCII (consola sin VT, --ascii). El color nunca es la única señal: la fila elegida lleva marca además de color.
+- Desde 60×24 hasta pantallas grandes; nada se sale ni deja restos.
+- Toda vista interactiva vive en la pantalla alternativa; el historial de la terminal solo recibe, al salir, un resumen corto cuando tenga valor (fin de la grabación). Con la entrada redirigida sigue el modo línea actual: no hay que diseñarlo.
 
-Tarea: fijar cómo se ve y qué dice cada pantalla de terminal, para que los pasos de código solo tengan que construirlo.
+Tarea: fijar cómo se ve, cómo se maneja y qué dice cada vista de la terminal, para que los pasos de código solo tengan que construirlo, y que el conjunto se sienta una sola app limpia e intuitiva.
 
-Entregables (docs/terminal-especificacion.md)
-1. Maquetas finales de Calibrar (con la prueba de frases), Reagrupar (lista de notas y opciones con vista previa), Recomendación, el pie y el panel [o] de la grabación, la confirmación «antes → después», los estados vacío y error, y el aviso de cambios sin guardar. Cada una a 100 y a 60 columnas, y una en ASCII.
-2. El catálogo de componentes y el modelo de teclas de §3, cerrados: qué tecla hace qué en cada pantalla, sin contradicciones.
-3. Tabla de textos: cada etiqueta, línea de ayuda, aviso y confirmación, con su clave propuesta para recorder/ayuda.py (prefijos calibrar_, reagrupar_, recomendacion_, grabacion_).
-4. Qué color de la paleta lleva cada elemento (sin colores nuevos).
+Inventario cerrado (amplíalo si encuentras otra vista que hoy escriba en el historial o deje al usuario sin saber qué pasa)
+1. Inicio (referencia actual; revisa la cabecera de tres líneas y el aprovechamiento del espacio).
+2. Opciones: lista de ajustes, lista de selección (dispositivos, pantallas, ventanas), campo de texto con cursor, confirmación «antes → después».
+3. Calibrar, con «Probar una frase» y su veredicto en vivo.
+4. Reagrupar nota: elegir nota → opciones con vista previa viva → crear la copia.
+5. Recomendación: tarjeta «Ahora / Recomendado» con «Aplicar».
+6. Rendimiento sin grabación (equipo, motor previsto, margen antes de grabar, tendencias) y Rendimiento durante la grabación (velocidad frente al tiempo real en palabras, cola, atraso, CPU, GPU, RAM, motor efectivo y caída a CPU si la hubo). Sin dos tercios de pantalla vacíos.
+7. Medir mi equipo (lo construye el paso 6 de docs/plan-mejoras-experiencia-y-rendimiento.md): progreso cancelable, tabla de resultados (velocidad, CPU, si aguanta dos fuentes) y «Aplicar el mejor».
+8. Grabación a pantalla completa: arranque (carga del modelo y fuentes detectadas, con spinner), escuchando (transcripción que se desplaza sola; RePág/AvPág para revisar y Fin para volver a lo último, con aviso «N frases nuevas abajo»), frases con palabra clave y capturas marcadas, frase nueva resaltada que se apaga, pausa, aviso de fuente muda o caída, panel [o], vista de rendimiento, leyenda [?], pregunta de salida con audio pendiente, vaciado de la cola con progreso, y el resumen que queda en el historial al salir (nota, duración, frases, capturas, avisos). Desde el menú, al terminar se vuelve al Inicio con el resumen como aviso.
+9. Ayuda (teclas y glosario).
+10. Ventana abierta: qué ve la terminal mientras la ventana gráfica está abierta y cómo vuelve al menú.
+11. Estados comunes: cargando, vacío, error, config.json ilegible, cambios sin guardar, aviso pasajero.
+12. Primera ejecución en terminal: logotipo de un segundo como máximo, saltable (enlaza con los pasos 7-8 de docs/plan-mejoras-experiencia-y-rendimiento.md; aquí solo su versión de terminal).
+13. `daily -h`: decide si se queda como ayuda estándar de la línea de comandos o se le da estilo; justifícalo.
+
+Entregables (docs/terminal-especificacion.md, con imágenes en docs/terminal-especificacion/)
+1. Sistema de maquetación: regiones fijas (cabecera, ruta, cuerpo, ayuda, aviso, pie), alturas por tamaño de terminal, cómo se reparte el espacio vertical, reglas de recorte y de partido de líneas (sangría, «…»).
+2. Maqueta final de cada vista del inventario a 100×30 y a 60×24 en el juego «consola» (el del día a día); además, Inicio, Calibrar y Grabación en «completo» y en «ASCII».
+3. Catálogo de componentes y modelo de teclas cerrado para todas las vistas, grabación incluida, sin contradicciones (qué tecla hace qué en cada vista).
+4. Juegos de símbolos definitivos: tabla símbolo → completo / consola / ASCII, solo con caracteres verificados para «consola».
+5. Color: qué token de la paleta lleva cada elemento (sin colores nuevos), su equivalente en 16 colores para la consola sin VT, y comprobación de contraste AA sobre fondo negro, sobre el azul #012456 de PowerShell y sobre fondo claro. Decide si en pantalla completa la app pinta su propio fondo (recomendación de partida: sí, con color real; no, en 16 colores), y justifícalo.
+6. Movimiento en terminal: spinner, frase nueva que se apaga, pulso del indicador de grabación (lento, nunca más de 3 cambios por segundo) y aviso pasajero, con tiempos; y qué queda sin movimiento con «animations: reducidas/ninguna».
+7. Tabla de textos: cada etiqueta, línea de ayuda, aviso y confirmación, con su clave propuesta para recorder/ayuda.py (prefijos calibrar_, reagrupar_, recomendacion_, rendimiento_, grabacion_, medir_).
+8. Lista de cambios respecto al estado actual por vista, para que cada paso de código sepa qué cambia.
+```
+
+---
+
+### Paso 2b. Color real y símbolos seguros en la consola de PowerShell y cmd
+
+```text
+Contexto del proyecto
+Recorder es una app en Python 3.14 que transcribe en vivo las dailies de Teams y escribe una nota Markdown. Además de la ventana Tkinter (recorder/ui/) tiene modo terminal con rich (recorder/cli/, comando `daily`). La consola y el modo ASCII están en recorder/cli/consola.py (make_console, ASCII, EMOJI_SEGURO, asciify, presentar, tema_rich); el arranque en recorder/__main__.py, recorder.py y recorder/cli/app.py (arrancar). El usuario lanza `daily` desde Windows PowerShell 5.1 (función del perfil: `python ...\recorder.py $args`) en la consola clásica conhost; no hay Windows Terminal ni PowerShell 7. Verificado el 24-nov-2026: rich detecta conhost como consola antigua (legacy_windows) y todo sale en ASCII con 16 colores; activando ENABLE_VIRTUAL_TERMINAL_PROCESSING (SetConsoleMode, 0x0004) ANTES de crear la primera rich.Console (rich cachea la detección) la misma consola pasa a truecolor y la paleta se ve tal cual. Con la fuente Consolas se ven bien ─ █ ░ ‹ › ‥ ● · « »; salen como cuadro ▶ y ▁▂▃▅▆▇; ✔ ⚠ y los emoji pisan el espacio siguiente. Evidencia: docs/capturas-terminal/powershell/. Plan y juegos de símbolos: docs/plan-pulido-terminal.md (§1, §3, hallazgos 23 y 25); si ya existe docs/terminal-especificacion.md, su tabla de símbolos manda. El repositorio tiene índice CodeGraph (.codegraph/): usa las herramientas codegraph_* (context, search, callers, impact, explore) antes de abrir archivos; si no responde, `codegraph init -i`. Pruebas: `python -m pytest` (quita NO_COLOR del entorno: el de las herramientas automáticas la trae puesta y rompe una prueba de color) y `python recorder.py --selftest`. Shell: PowerShell 5.1.
+
+Reglas de trabajo
+1. Primero planea: explora con codegraph, escribe un plan breve (archivos, cambios, riesgos, cómo verificarás) y después ejecútalo. Solo detente a preguntar si aparece una decisión que cambie el alcance.
+2. No hagas commits ni push. Deja los cambios en el árbol de trabajo y propón un mensaje de commit en español, en el estilo de los commits del repo («Agrega…», «Corrige…», «Permite…»).
+3. No menciones asistentes, agentes, modelos ni herramientas de IA en código, comentarios, documentación ni en el commit propuesto; sin líneas de coautoría.
+4. Sin dependencias nuevas: rich, ctypes y la biblioteca estándar.
+5. Código, comentarios y textos en español. No añadas campos a config.json.
+6. `python -m pytest` y `python recorder.py --selftest` deben pasar; añade pruebas para la lógica nueva.
+7. Termina con: archivos cambiados, cómo se verificó, qué queda pendiente o sin verificar, y el commit sugerido.
+8. No toques recorder/ui/ ni el config.json del usuario (para probar a mano, RECORDER_CONFIG apuntando a una copia). No rediseñes pantallas: otro paso lo hace.
+
+Tarea: que en la consola de PowerShell y de cmd la terminal se vea con los colores reales de la paleta y con símbolos que esa consola sabe dibujar.
+
+Qué hacer
+1. Al arrancar en una consola de Windows, antes de crear cualquier rich.Console, activa el modo VT en la salida (y en la de errores) con SetConsoleMode, guardando el modo original. Si falla (Windows antiguo, salida redirigida), todo sigue como hoy. Al salir (normal, Ctrl+C o excepción) se restaura el modo original, se quitan los colores y el cursor queda visible: el prompt de PowerShell queda limpio.
+2. Separa color y símbolos en make_console: el color según lo que admita la consola; los símbolos en tres juegos, «completo» (WT_SESSION, TERM_PROGRAM=vscode, terminales no Windows), «consola» (conhost con VT) y «ASCII» (consola sin VT, salida redirigida o `--ascii`, que sigue forzándolo). Ofrece una forma de consultar el juego activo para que las pantallas elijan sus símbolos (marca de fila, barras, tendencia, iconos de fuente, ✔/⚠).
+3. Juego «consola»: solo caracteres verificados en Consolas; sin emoji (sustituidos por texto o símbolos seguros), sin ▶ (por ejemplo ›) y tendencia con █ ░ o similares seguros. Actualiza MARCA y CHISPAS de recorder/cli/pantallas.py y los iconos de la grabación para que usen el juego activo.
+4. tools/capturar_terminal.py: opción para lanzar cada escenario dentro de Windows PowerShell (`powershell.exe -NoProfile -NoExit -Command ...`) además de cmd, quitando NO_COLOR en ambos.
+5. Comprueba que el texto con color real se lea en el fondo negro de una consola nueva y en el azul #012456 del acceso directo de PowerShell; si algún token no llega a AA, anótalo para la especificación (no cambies la paleta en este paso).
+
+Aceptación
+- Pruebas: elección del juego de símbolos según el entorno (WT_SESSION, TERM_PROGRAM, VT disponible o no, salida redirigida, --ascii); restauración del modo de consola tras una excepción; ningún símbolo fuera de la lista segura en el juego «consola».
+- Capturas con tools/capturar_terminal.py dentro de PowerShell del menú y de Opciones a 100 y 60 columnas en docs/capturas-terminal/powershell/ (en color real) y una con --ascii.
+- tests/test_cli_*.py pasan (ajusta las pruebas que daban por hecho ASCII en conhost, explicando por qué). pytest y selftest pasan.
+
+Fuera de alcance: rediseño de pantallas, paleta nueva, PowerShell 7 y Windows Terminal (no están en el equipo; el juego «completo» se prueba con variables de entorno simuladas).
 ```
 
 ---
@@ -241,10 +349,12 @@ Qué hacer
 3. Componentes del §3 de docs/plan-pulido-terminal.md (o de la especificación si ya existe): lista de ajustes, campo de texto con cursor (←→, Inicio/Fin, Retroceso/Supr), interruptor, numérico con paso y rango, lista de selección como subpantalla, vista previa desplazable, confirmación «antes → después», aviso pasajero, estados vacío y error. Cada uno con pruebas de teclas guionizadas.
 4. Opciones pasa a usar los componentes y corrige los hallazgos 9-11: Enter en un ajuste de lista abre la lista de selección; el campo de texto tiene cursor; GPU de whisper.cpp y Flash attention solo con carpeta de whisper.cpp; «Hilos de CPU 0» se lee «automático (4)».
 5. Cabecera de una línea fuera de Inicio y «● cambios sin guardar» junto a la ruta; el pie que no cabe deja las teclas principales y «[?] Más».
+6. Símbolos y fondo: los componentes y el marco usan el juego de símbolos activo (paso 2b: completo, consola o ASCII); si la especificación lo pide, la pantalla completa pinta el fondo de la paleta. La cabecera corta con «…» también en ASCII (hallazgo 27).
+7. Lo que necesitan los pasos 7 y 8: que una pantalla pueda abrirse directamente desde un comando suelto (sin pasar por Inicio; Esc sale a la terminal) y que una pantalla pueda cerrarse devolviendo un aviso para la anterior (la grabación vuelve al Inicio con su resumen).
 
 Aceptación
 - tests/test_cli_pantallas.py y tests/test_cli_teclas.py pasan (ajústalos solo si cambia la estructura, explicando por qué) más las pruebas nuevas de componentes.
-- A 60 columnas y en ASCII nada se sale ni deja restos (prueba como test_ascii_y_60_columnas).
+- A 60 columnas, en ASCII y en el juego «consola» nada se sale ni deja restos (prueba como test_ascii_y_60_columnas). Captura del menú en la consola de PowerShell con tools/capturar_terminal.py.
 - pytest y selftest pasan.
 
 Fuera de alcance: Calibrar, Reagrupar, Recomendación y la grabación (pasos 4-7).
@@ -278,7 +388,7 @@ Qué hacer
 
 Aceptación
 - Pruebas guionizadas: editar un campo con cursor, mover un umbral con ←/→ dentro de su rango, veredicto que cambia al cambiar la lista negra, guardar lo mismo que el modo línea, aviso al salir con cambios.
-- 60 columnas y ASCII sin restos. pytest y selftest pasan.
+- 60 columnas, ASCII y juego «consola» sin restos; captura en la consola de PowerShell con tools/capturar_terminal.py. pytest y selftest pasan.
 ```
 
 ---
@@ -309,7 +419,7 @@ Qué hacer
 
 Aceptación
 - Pruebas guionizadas: cambiar el agrupamiento cambia la vista previa; «Sin agrupar» desactiva hora corta; crear escribe lo mismo que el modo línea con las mismas opciones; el original queda intacto (compara bytes).
-- 60 columnas y ASCII sin restos. pytest y selftest pasan.
+- 60 columnas, ASCII y juego «consola» sin restos; captura en la consola de PowerShell con tools/capturar_terminal.py. pytest y selftest pasan.
 ```
 
 ---
@@ -339,16 +449,46 @@ Qué hacer
 
 Aceptación
 - Pruebas con perfiles de equipo fijos: filas «igual/cambia» correctas, aplicar guarda lo mismo que `daily recomendar --aplicar`, caso «ya coincide».
-- 60 columnas y ASCII sin restos. pytest y selftest pasan.
+- 60 columnas, ASCII y juego «consola» sin restos; captura en la consola de PowerShell con tools/capturar_terminal.py. pytest y selftest pasan.
 ```
 
 ---
 
-### Paso 7. Grabación: panel [o] navegable, [?] y teclas coherentes
+### Paso 6b. Rendimiento rediseñado (menú y vista en vivo reutilizable)
 
 ```text
 Contexto del proyecto
-Recorder es una app en Python 3.14 que transcribe en vivo las dailies de Teams y escribe una nota Markdown. Además de la ventana Tkinter (recorder/ui/) tiene modo terminal con rich (recorder/cli/, comando `daily`). La grabación (`daily`, recorder/cli/live.py, clase PantallaEnVivo) imprime las frases en el historial de la terminal y mantiene un pie vivo con rich.Live (sin pantalla alternativa, a propósito: el historial se puede copiar): estado, medidores, motor y teclas; [o] abre un panel de opciones que hoy se maneja solo con números. Lector de teclas común en recorder/cli/teclas.py; componentes y estilo del menú en el paquete recorder/cli/pantallas/; consola y modo ASCII en recorder/cli/consola.py; textos en recorder/ayuda.py (sección «Terminal»: tecla_*, cierre_*). Hallazgos, evidencia y plan: docs/plan-pulido-terminal.md, docs/capturas-terminal/grabar/ y docs/terminal-especificacion.md. El repositorio tiene índice CodeGraph (.codegraph/): usa las herramientas codegraph_* (context, search, callers, impact, explore) antes de abrir archivos; si no responde, `codegraph init -i`. Pruebas: `python -m pytest` (quita NO_COLOR del entorno si está puesto: rompe una prueba de color de tests/test_cli_live.py) y `python recorder.py --selftest`. Shell: PowerShell 5.1.
+Recorder es una app en Python 3.14 que transcribe en vivo las dailies de Teams y escribe una nota Markdown. Además de la ventana Tkinter (recorder/ui/, que ya tiene un panel de rendimiento en recorder/ui/rendimiento.py) tiene modo terminal con rich (recorder/cli/, comando `daily`). En una terminal real `daily menu` abre pantallas navegables (paquete recorder/cli/pantallas/: bucle y marco, componentes comunes, juego de símbolos activo y una pantalla por módulo). La pantalla Rendimiento actual solo pinta dos barras (CPU y GPU del equipo) y deja dos tercios de la pantalla vacíos; durante la grabación (recorder/cli/live.py) las cifras solo salen en una línea del pie. Las métricas están en recorder/metricas.py (Muestreador, Metricas, MotorEfectivo: motor efectivo y caída a CPU, velocidad por fragmento y media, cola, atraso, CPU del proceso y del sistema, GPU, RAM). Hallazgos, evidencia y plan: docs/plan-pulido-terminal.md (hallazgo 24), docs/capturas-terminal/desde-el-menu/rendimiento/ y la especificación docs/terminal-especificacion.md (vistas «Rendimiento» y «Medir mi equipo»). El repositorio tiene índice CodeGraph (.codegraph/): usa las herramientas codegraph_* (context, search, callers, impact, explore) antes de abrir archivos; si no responde, `codegraph init -i`. Pruebas: `python -m pytest` (quita NO_COLOR del entorno si está puesto) y `python recorder.py --selftest`. Shell: PowerShell 5.1.
+
+Reglas de trabajo
+1. Primero planea: explora con codegraph, escribe un plan breve (archivos, cambios, riesgos, cómo verificarás) y después ejecútalo. Solo detente a preguntar si aparece una decisión que cambie el alcance.
+2. No hagas commits ni push. Deja los cambios en el árbol de trabajo y propón un mensaje de commit en español, en el estilo de los commits del repo («Agrega…», «Corrige…», «Permite…»).
+3. No menciones asistentes, agentes, modelos ni herramientas de IA en código, comentarios, documentación ni en el commit propuesto; sin líneas de coautoría.
+4. Sin dependencias nuevas: rich y la biblioteca estándar.
+5. Código, comentarios y textos en español, tuteo y lenguaje llano. No añadas campos a config.json. Textos de ayuda nuevos solo en la sección «Terminal» de recorder/ayuda.py, con el prefijo rendimiento_.
+6. `python -m pytest` y `python recorder.py --selftest` deben pasar; añade pruebas para la lógica nueva.
+7. Termina con: archivos cambiados, cómo se verificó, qué queda pendiente o sin verificar, y el commit sugerido.
+8. Toca solo recorder/cli/pantallas/rendimiento.py, el registro de pantallas y tus textos: otros pasos trabajan en paralelo en Calibrar, Reagrupar, Recomendación y la grabación.
+
+Tarea: que Rendimiento diga de un vistazo si el equipo da para grabar y cómo va una grabación, aprovechando la pantalla.
+
+Qué hacer
+1. Sin grabación (desde el menú), según la especificación: equipo (núcleos P/E, RAM, GPU integrada o dedicada), motor que se usaría y por qué (caída a CPU incluida), cifras vivas de CPU, GPU y RAM con tendencia de los últimos ~2 min, y el margen dicho en palabras («Hay margen para grabar» / «El equipo va cargado: cierra algo o baja la calidad»). Primer dato en cuanto haya muestra, sin «__» vacíos. Si existe «Medir mi equipo», su acceso desde aquí; si no, no se muestra.
+2. Vista en vivo reutilizable: una función pura que, dadas unas Metricas y sus historias, devuelva las líneas para un ancho y un alto (velocidad frente al tiempo real y si va al día o se atrasa, cola y atraso, CPU del proceso y del sistema, GPU, RAM, último fragmento, motor efectivo y caída). La pantalla del menú y la grabación (paso 7) la usan igual.
+3. Símbolos del juego activo (sin ▁▂▃ en «consola»), colores de la paleta y nada que dependa solo del color.
+
+Aceptación
+- Pruebas de la función pura con métricas fijas: textos de margen, «va al día / se atrasa», caída a CPU, n/d de GPU, a 100 y 60 columnas y en los tres juegos de símbolos.
+- Captura en la consola de PowerShell con tools/capturar_terminal.py. pytest y selftest pasan.
+```
+
+---
+
+### Paso 7. Grabación a pantalla completa
+
+```text
+Contexto del proyecto
+Recorder es una app en Python 3.14 que transcribe en vivo las dailies de Teams y escribe una nota Markdown. Además de la ventana Tkinter (recorder/ui/) tiene modo terminal con rich (recorder/cli/, comando `daily`). La grabación (`daily`, recorder/cli/live.py, clase PantallaEnVivo, sobre recorder/session.py) imprime hoy la cabecera y las frases en el historial de la terminal, mezcladas con lo anterior, y mantiene un pie vivo con rich.Live sin pantalla alternativa: estado, medidores, motor y teclas; [o] abre un panel de opciones que solo se maneja con números. El usuario la usa en Windows PowerShell 5.1 (conhost) y le resulta confusa: pasa a pantalla completa. Lector de teclas común en recorder/cli/teclas.py; marco, componentes, juego de símbolos activo y estilo del menú en el paquete recorder/cli/pantallas/; vista de rendimiento reutilizable en recorder/cli/pantallas/rendimiento.py; consola en recorder/cli/consola.py; textos en recorder/ayuda.py (sección «Terminal»: tecla_*, cierre_*). Hallazgos (1, 14, 22, 26), evidencia y plan: docs/plan-pulido-terminal.md, docs/capturas-terminal/grabar/, docs/capturas-terminal/desde-el-menu/grabar/ y la especificación docs/terminal-especificacion.md (vista «Grabación»). El repositorio tiene índice CodeGraph (.codegraph/): usa las herramientas codegraph_* (context, search, callers, impact, explore) antes de abrir archivos; si no responde, `codegraph init -i`. Pruebas: `python -m pytest` (quita NO_COLOR del entorno si está puesto: rompe una prueba de color de tests/test_cli_live.py) y `python recorder.py --selftest`. Shell: PowerShell 5.1.
 
 Reglas de trabajo
 1. Primero planea: explora con codegraph, escribe un plan breve (archivos, cambios, riesgos, cómo verificarás) y después ejecútalo. Solo detente a preguntar si aparece una decisión que cambie el alcance.
@@ -360,22 +500,28 @@ Reglas de trabajo
 7. Termina con: archivos cambiados, cómo se verificó, qué queda pendiente o sin verificar, y el commit sugerido.
 8. Toca solo recorder/cli/live.py, sus pruebas y tus textos: otros pasos trabajan en paralelo en las pantallas del menú. No reproduzcas audio por los altavoces sin comprobar antes que no suena nada más ni hay una llamada en curso.
 
-Tarea: que la grabación se maneje igual que el resto de pantallas sin perder lo que ya hace bien.
+Tarea: que la grabación sea una pantalla limpia y controlada, como el resto, sin perder nada de lo que ya hace (la nota en disco sigue siendo el registro completo).
 
-Qué hacer
-1. Panel [o]: fila elegida con ▶ y ↑/↓ (los números siguen siendo atajos), Enter elige, Esc vuelve; línea de ayuda de la fila (salida_audio, microfono, que_capturar, capturas_clave); el índice en una lista vertical, no en una línea partida. ←/→ no aplican dispositivos en vivo.
-2. [?] muestra en el pie la leyenda de teclas con su explicación corta (tecla_*), y Esc la cierra.
-3. Pie con el mismo estilo de botones que el menú («[p] Pausar · [c] Captura · … · [?] Teclas · [q] Salir»), recortado con criterio si no cabe en 60 columnas.
-4. Textos que no se entienden en ASCII: «(despierto)», «[Loopback]» en la línea de fuentes; la línea de fuentes y la ruta final con sangría al partirse; «¿no aparece?…» solo en las secciones de dispositivos y más corto.
+Qué hacer (según la vista «Grabación» de la especificación)
+1. Pantalla completa (pantalla alternativa) con regiones fijas: cabecera (nota, calidad y motor, estado ● Escuchando / Pausa / Terminando, tiempo transcurrido), cuerpo con la transcripción, aviso, línea de ayuda y pie de teclas.
+2. Transcripción: se desplaza sola con lo último a la vista; RePág/AvPág (e Inicio) para revisar y Fin para volver a lo último, con «N frases nuevas abajo» mientras se revisa; palabras clave y capturas marcadas; la frase nueva resaltada se apaga en ~1,5 s (respeta «animations»). En memoria, como la ventana, solo las últimas ~2000 líneas.
+3. Arranque en la propia pantalla (spinner mientras carga el modelo y se abren las fuentes; fuentes detectadas en una línea que se parte con sangría), sin escribir en el historial.
+4. Panel [o]: fila elegida con la marca del juego activo y ↑/↓ (los números siguen siendo atajos), Enter elige, Esc vuelve; línea de ayuda de la fila (salida_audio, microfono, que_capturar, capturas_clave); índice en lista vertical. ←/→ no aplican dispositivos en vivo.
+5. [m] abre la vista de rendimiento en vivo (la función de recorder/cli/pantallas/rendimiento.py) y Esc vuelve; [?] muestra la leyenda de teclas (tecla_*). Pie con el mismo estilo de botones que el menú, recortado con criterio a 60 columnas.
+6. Salida: la pregunta con audio pendiente (Esc sigue grabando) y el vaciado de la cola con progreso, dentro de la pantalla. Al salir de la pantalla alternativa se imprime en el historial solo el resumen (nota, duración, frases, capturas, avisos). Deja preparado que, abierta desde el menú, la grabación devuelva ese resumen como aviso para el Inicio (la integración con el menú la hace el paso 8).
+7. `daily --historial` y la salida redirigida conservan el modo actual (frases en el historial con pie vivo).
+8. Coste: repintar solo cuando algo cambia o en el tic (máximo ~5 por segundo); pintar solo las líneas visibles; nada bloquea los hilos de audio ni de transcripción.
+9. Textos que no se entienden: «(despierto)», «[Loopback]», «¿no aparece?…» (solo en las secciones de dispositivos y más corto).
 
 Aceptación
-- Pruebas guionizadas del panel con flechas y con números, de [?] y de que ←/→ no reabren el audio (la sesión de mentira de tests/test_session.py cuenta los reinicios).
-- tests/test_cli_live.py pasa. 60 columnas y ASCII sin restos.
+- Pruebas guionizadas con la sesión de mentira de tests/test_session.py: autodesplazamiento y revisión con RePág/Fin («N frases nuevas»), panel con flechas y números, [m] y [?], que ←/→ no reabren el audio, salida con pendientes (Esc sigue), resumen impreso al salir y `--historial` con el comportamiento anterior.
+- tests/test_cli_live.py pasa (ajústalo solo donde cambie la forma, explicando por qué). 60 columnas, ASCII y juego «consola» sin restos.
+- Prueba a mano en la consola de PowerShell: el prompt queda limpio al salir, también con Ctrl+C. Antes de grabar con audio de prueba, comprueba que no suena nada más ni hay una llamada en curso.
 ```
 
 ---
 
-### Paso 8. Cada comando abre su pantalla en una terminal real
+### Paso 8. Cada comando abre su pantalla; grabar y la ventana vuelven al menú
 
 ```text
 Contexto del proyecto
@@ -395,11 +541,14 @@ Tarea: que no haya dos interfaces para lo mismo en una terminal real.
 
 Qué hacer
 1. En una terminal real y sin argumentos de script, `daily config`, `daily calibrar`, `daily sintesis` y `daily recomendar` abren directamente su pantalla (Opciones, Calibrar, Reagrupar, Recomendación) dentro del mismo marco; Esc en ella sale a la terminal (no al Inicio).
-2. Desde el menú ya no se sale de la pantalla alternativa para ellos: se abren como pantallas. Desaparecen el «[una tecla] volver al menú» y la intro duplicada (hallazgo 20).
-3. La ayuda de `daily -h` y el docstring de recorder/cli/app.py lo cuentan.
+2. Desde el menú ya no se sale de la pantalla alternativa para ellos: se abren como pantallas. Desaparecen el «[una tecla] volver al menú» y la intro duplicada (hallazgos 20 y 21).
+3. Grabar desde el menú abre la pantalla de grabación (paso 7) y, al terminar, vuelve al Inicio con el resumen como aviso, en vez de dejar el prompt (hallazgo 22). `daily` sin argumentos abre la grabación a pantalla completa y al salir deja el resumen en el historial.
+4. Abrir la ventana desde el menú: la terminal muestra «La ventana está abierta; ciérrala para volver aquí» y vuelve al Inicio al cerrarla (hallazgo 28).
+5. La ayuda de `daily -h` y el docstring de recorder/cli/app.py lo cuentan (incluido `--historial`).
 
 Aceptación
-- Pruebas: cada comando elige pantalla con TTY y modo línea sin ella (como test_menu_elige_las_pantallas_en_una_terminal); los argumentos de script nunca abren pantallas.
+- Pruebas: cada comando elige pantalla con TTY y modo línea sin ella (como test_menu_elige_las_pantallas_en_una_terminal); los argumentos de script nunca abren pantallas; grabar y la ventana vuelven al Inicio con su aviso.
+- Recorrido a mano en la consola de PowerShell (función `daily` del perfil, con RECORDER_CONFIG apuntando a una copia): del menú a cada opción y de vuelta, sin que nada aparezca en el historial salvo el resumen de la grabación.
 - tests/test_cli_*.py pasan. pytest y selftest pasan.
 ```
 
@@ -421,10 +570,11 @@ Reglas de trabajo
 Tarea: comprobar que todas las pantallas de terminal quedaron limpias, controladas y coherentes.
 
 Qué hacer
-1. Guarda la evidencia anterior en docs/capturas-terminal/antes/ y regenera con los dos scripts (actualiza sus escenarios a los flujos nuevos: teclas en vez de números). Compara pantalla por pantalla contra los hallazgos de docs/plan-pulido-terminal.md §2 y marca cada uno como resuelto, parcial o pendiente.
-2. A mano: Ctrl+C en cada pantalla y en una pregunta de modo línea (la inyección no equivale al teclado), Windows Terminal si está instalado, conhost, 60 columnas, tema claro y oscuro, y Linux si hay una distribución en WSL (si no, dilo).
-3. Busca en el diff completo menciones a asistentes, agentes o herramientas de IA.
-4. Informe en docs/verificacion-pulido-terminal.md: qué pasó, qué falló (con salida), capturas antes/después y pendientes.
+1. Guarda la evidencia anterior en docs/capturas-terminal/antes/ y regenera con los dos scripts (actualiza sus escenarios a los flujos nuevos: teclas en vez de números, y entrar desde el menú a cada opción como en docs/capturas-terminal/desde-el-menu/), en cmd y dentro de Windows PowerShell. Compara pantalla por pantalla contra los hallazgos 1-28 de docs/plan-pulido-terminal.md §2 y marca cada uno como resuelto, parcial o pendiente.
+2. A mano en la consola del día a día: Windows PowerShell 5.1 con la función `daily` del perfil (RECORDER_CONFIG apuntando a una copia), con el fondo negro de una consola nueva y con el azul #012456 del acceso directo de PowerShell: color real, símbolos sin cuadros ni solapes, prompt limpio al salir de cada vista, también con Ctrl+C (la inyección no equivale al teclado). Además: Ctrl+C en una pregunta de modo línea, cmd, `--ascii`, 60 columnas, tema claro y oscuro, Windows Terminal y PowerShell 7 si están instalados, y Linux si hay una distribución en WSL (si no, dilo).
+3. Recorrido de uso real: abrir el menú, grabar unos minutos (con audio de prueba, comprobando antes que no suena nada más ni hay una llamada en curso), revisar la transcripción con RePág, abrir [m] y [o], salir y comprobar que se vuelve al menú con el resumen y que en el historial de PowerShell no queda nada más que ese resumen.
+4. Busca en el diff completo menciones a asistentes, agentes o herramientas de IA.
+5. Informe en docs/verificacion-pulido-terminal.md: qué pasó, qué falló (con salida), capturas antes/después y pendientes.
 ```
 
 ---
@@ -432,5 +582,6 @@ Qué hacer
 ## 6. Fuera de este plan
 
 * **Grabar en Linux**: necesita otro backend de audio (PulseAudio/PipeWire); sigue fuera, como en el plan anterior.
-* **Pantalla alternativa en la grabación**, ratón, marcos dibujados, explorador de carpetas, editor multilínea y vista previa con Markdown renderizado: no compensan en terminal (§1, decisiones).
+* Ratón, explorador de carpetas, editor multilínea y vista previa con Markdown renderizado: no compensan en terminal (§1, decisiones). La pantalla completa de la grabación **sí** entra (decisión 1, paso 7).
+* **PowerShell 7 y Windows Terminal**: no están instalados en el equipo de desarrollo; el juego de símbolos «completo» se prueba con variables de entorno simuladas y queda por verificar a mano donde los haya.
 * **La ventana Tkinter**: tiene su propio recorrido de capturas en `docs/capturas-ui/`.
