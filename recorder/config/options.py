@@ -12,6 +12,7 @@ pantallas y ventanas abiertas las consulta quien llama y las pasa como datos.
 import dataclasses
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from .. import ayuda
 from ..rutas import citar_documentos
 from .hardware import GpuInfo, HardwareProfile, describe_gpu
 from .schema import (
@@ -19,6 +20,7 @@ from .schema import (
     CAPTURE_QUALITIES,
     CUSTOM_PRESET,
     DEFAULT_CAPTURES,
+    PRIORITIES,
     QUALITY_PRESETS,
     THEMES,
     Recommendation,
@@ -78,6 +80,8 @@ class SettingsForm:
     whispercpp_dir: str
     whispercpp_flash_attn: bool
     whispercpp_device: int  # -1 = automática (ver `gpu_choices`)
+    allow_igpu: bool  # «Permitir GPU integrada»
+    priority: str  # clave de PRIORITIES (la etiqueta, `priority_label`)
     theme: str  # clave de THEME_LABELS (la etiqueta la pone cada interfaz)
 
 
@@ -106,6 +110,8 @@ def settings_form(config: AppConfig, screens: Sequence[str]) -> SettingsForm:
         whispercpp_dir=config.whispercpp_dir,
         whispercpp_flash_attn=config.whispercpp_flash_attn,
         whispercpp_device=config.whispercpp_device,
+        allow_igpu=config.allow_igpu,
+        priority=config.process_priority,
         theme=config.theme,
     )
 
@@ -144,6 +150,8 @@ def apply_settings(config: AppConfig, form: SettingsForm, screens: Sequence[str]
     config.whispercpp_dir = form.whispercpp_dir.strip()
     config.whispercpp_flash_attn = form.whispercpp_flash_attn
     config.whispercpp_device = form.whispercpp_device
+    config.allow_igpu = form.allow_igpu
+    config.process_priority = form.priority if form.priority in PRIORITIES else config.process_priority
     config.theme = form.theme if form.theme in THEMES else config.theme
     return SettingsChanges(notes_changed, devices_changed)
 
@@ -230,6 +238,24 @@ def threads_hint(hardware: Optional[HardwareProfile]) -> str:
     return f"0 = 4 de la biblioteca · recomendado: {recommended_cpu_threads(p)} ({nucleos})"
 
 
+def hybrid_cores_notice(hardware: Optional[HardwareProfile]) -> str:
+    """El aviso de núcleos rápidos y lentos para el campo de hilos; vacío si la CPU no es híbrida o no se sabe."""
+    if hardware is None or not hardware.hybrid:
+        return ""
+    return ayuda.entrada("hilos_hibrida")[1].format(p=hardware.p_cores, e=hardware.e_cores)
+
+
+# ------------------------------------------------------------------ prioridad del proceso
+def priority_label(key: str) -> str:
+    """«Normal» o «Por debajo de lo normal»: lo que se lee de un valor de `process_priority`."""
+    return ayuda.entrada("prioridad_" + (key if key in PRIORITIES else PRIORITIES[0]))[0]
+
+
+def priority_choices() -> Dict[str, str]:
+    """Etiqueta del desplegable -> valor de `process_priority`, en el orden de PRIORITIES."""
+    return {priority_label(k): k for k in PRIORITIES}
+
+
 # ------------------------------------------------------------------ GPU de whisper.cpp
 def gpu_choices(vulkan_devices: Sequence[GpuInfo], current: int) -> Dict[str, int]:
     """Etiqueta del desplegable -> whispercpp_device. La guardada sigue en la lista aunque ya no se detecte."""
@@ -308,3 +334,5 @@ def use_recommendation(form: SettingsForm, rec: Recommendation) -> None:
     form.cpu_threads = str(rec.cpu_threads)
     if rec.engine == "whisper.cpp":
         form.whispercpp_flash_attn = rec.flash_attn
+        if rec.gpu_index >= 0:
+            form.whispercpp_device = rec.gpu_index

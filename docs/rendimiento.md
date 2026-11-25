@@ -126,6 +126,7 @@ La escala de confianza: **alta** = verificado en código/logs o medido limpio; *
 * Con el equipo en reposo no puede cambiar nada: no hay con quién competir.
 * Con Teams y el navegador abiertos (la situación real durante la reunión, y la de la fila 2) sí: subir Recorder a `ABOVE_NORMAL_PRIORITY_CLASS` le daría preferencia frente a Teams. Eso **quita CPU a la llamada** (vídeo y audio de Teams) y puede entrecortarla, que es peor que una cola que crece. Una prioridad *inferior* (`BELOW_NORMAL`) hace lo contrario: Recorder se retrasa durante la reunión y drena después.
 * **Recomendación**: no tocarla por defecto. Si se prueba, `ABOVE_NORMAL` y nunca `HIGH`/`REALTIME`. Se puede medir con dos ejecuciones de la herramienta con carga sintética, pero solo tiene sentido después de las palancas anteriores.
+* **Actualización (paso 6)**: la prioridad ya es un ajuste (`process_priority`, sección 7.3), pero solo con dos valores: `normal` (por defecto) e `inferior` («por debajo de lo normal»), que es lo que protege la videollamada. `ABOVE_NORMAL`, alta y tiempo real **no se ofrecen**: por la razón de arriba, quitarle procesador a Teams es peor que una cola que crece.
 
 ### 3.8. Otras palancas encontradas en la documentación
 
@@ -178,6 +179,11 @@ La condición para que la cola no crezca con salida y micrófono capturando **si
 
 No se ha cambiado ningún valor por defecto de comportamiento: hasta que no haya una medición en reposo, Recorder hace exactamente lo mismo que antes.
 
+Paso 6 (ajuste por hardware, sección 7): `recorder/medicion.py` (la medición y su informe, movida desde `tools/medir_rendimiento.py`,
+que ahora la reutiliza), `recorder/cli/pantallas/medir.py` y `recorder/ui/dialogs/medir_dialog.py` («Medir mi equipo»),
+`recorder/prioridad.py`, y los campos `allow_igpu` y `process_priority` de `config.json` (los configs antiguos cargan con
+`false` y `normal`). Pruebas: `tests/test_medicion.py`, `tests/test_cli_medir.py`, `tests/test_medir_dialog.py`.
+
 ---
 
 ## 5 bis. Un atasco no es lentitud: el hueco de 54 min del 25-SEP-2026
@@ -211,9 +217,150 @@ en `docs/auditoria-daily-2026-09-25.md`; en resumen, desde ese día:
 
 ## 6. Pendiente de medir (en orden de valor esperado)
 
-1. Barrido de `cpu_threads` 4/6/8/10/12 con `large-v3-turbo`, beam 5, vocabulario, equipo en reposo.
+1. Barrido de `cpu_threads` 4/6/8/10/12 con `large-v3-turbo`, beam 5, vocabulario, equipo en reposo. *(Hecho en parte, con muestra
+   corta y el equipo casi en reposo: sección 7.4; falta repetirlo en reposo estricto y con 12 hilos.)*
+   Y, en la sección 7.4, lo que no se pudo medir: whisper.cpp con Vulkan en la Iris Xe frente a la CPU.
 2. Fusión de fragmentos a 30 s con el mejor número de hilos.
 3. `beam_size` 5/2/1 con WER y comparación de textos.
 4. `num_workers` 2 × (hilos/2) si el barrido de hilos escala mal.
 5. `temperature=0` sobre una grabación real con ruido (contar reintentos).
 6. Prioridad `ABOVE_NORMAL` con carga sintética, midiendo también si Teams se resiente.
+
+---
+
+## 7. Ajuste por hardware: «Medir mi equipo», GPU integrada y prioridad (paso 6)
+
+### 7.1. «Medir mi equipo» dentro de la app
+
+Una prueba corta (unos 2 minutos y medio, tope de 3) que dice qué configuración aguanta **este** equipo, sin
+descargar nada ni cambiar nada hasta que el usuario lo confirme.
+
+* **Dónde**: en la ventana, menú «Más» → «Medir mi equipo…» o el botón del panel de rendimiento; en la terminal, `daily menu` →
+  Rendimiento → «Medir mi equipo» (Enter). La lógica es `recorder/medicion.py`, la misma para las dos y para
+  `tools/medir_rendimiento.py`, que ya no duplica nada y va dentro del ejecutable.
+* **Qué prueba**, solo lo que tiene sentido en el equipo: el procesador con los hilos de la biblioteca (4) y los
+  recomendados para su CPU (en una híbrida, los que dejan fuera los núcleos lentos), en las calidades de su gama
+  (Baja, Media y Alta; no se mide Alta en un equipo de gama baja); la tarjeta NVIDIA con CUDA; la tarjeta dedicada
+  de Vulkan si whisper.cpp está instalado; y la **integrada solo si «Permitir GPU integrada» está activado**
+  (con whisper.cpp instalado). Nunca descarga un modelo: si falta, la prueba sale «modelo sin descargar».
+* **Cómo mide**: una muestra de voz sintética de tres turnos (~30 s, con la voz de Windows, escrita a un archivo:
+  no suena) troceada como `capture.py`; el primer fragmento es calentamiento y los demás se cronometran, con el
+  vocabulario y los filtros de verdad. Si una prueba pasa de 30 s se corta (la velocidad vale) y si el tiempo total se
+  acaba, las que faltan salen «sin tiempo». Si una prueba más ligera, con los mismos hilos o más, ya iba más lenta
+  que el habla, las más pesadas se omiten («no hace falta»).
+* **Qué enseña**: velocidad (× tiempo real), procesador usado del equipo entero durante la prueba y si aguanta **dos
+  fuentes a la vez** (>= 2,0×; 1,0 a 2,0× = «va justo»; por debajo, «se atrasa»). También cuenta el WER frente al guion:
+  una prueba que se equivoca en más del 35 % de las palabras no gana aunque sea rápida.
+* **«La mejor»**: la de más calidad entre las que aguantan dos fuentes y, a igual calidad, la más rápida; si ninguna las
+  aguanta, la más rápida, y lo dice. **«Aplicar el mejor»** enseña «antes → después» y solo tras confirmar escribe,
+  y solo las claves de esa prueba: calidad (`model`, `beam_size`, `device`, `compute_type`) y, en el procesador,
+  `cpu_threads`; con whisper.cpp, `whispercpp_flash_attn` y `whispercpp_device`. Vale desde la próxima grabación.
+* **Equipo en reposo**: antes de empezar mira cuánto procesador gastan los demás; con más del 15 % no mide sin
+  preguntar («Medir de todos modos», y el informe lo anota como medida forzada). Cancelar (Esc, o el botón)
+  descarta todo y no guarda nada.
+* **Qué guarda**: la última medición (fecha, huella del equipo, cada prueba y cuál salió mejor) va a `medicion.json`
+  junto al `config.json` (no es configuración: no la toca ni la confirma nadie). **`daily recomendar`, «Usar
+  recomendado», el asistente (`daily config`) y la pantalla «Recomendación del equipo» la tienen en cuenta** mientras
+  sea de este mismo equipo (misma huella: procesador, núcleos y tarjetas Vulkan) y lo que pide siga disponible
+  (whisper.cpp instalado, la integrada permitida): recomiendan la mejor prueba medida, con «Medido en tu equipo el
+  dd/mm/aaaa…», en vez de la estimada por gama.
+
+### 7.2. Ajustes manuales (Opciones y `daily config`)
+
+* **Motor y dispositivo**: la calidad (Baja, Media, Alta, Extra o Personalizado) y la carpeta de whisper.cpp con su GPU,
+  como siempre; el panel de rendimiento y la pantalla Rendimiento muestran el **motor efectivo** (qué cargó de verdad
+  y si cayó a CPU).
+* **Hilos de CPU**, con el aviso de núcleos rápidos y lentos en una CPU híbrida («Tu procesador mezcla 2 núcleos
+  rápidos y 8 lentos: con más hilos que rápidos, parte del trabajo cae en los lentos»).
+* **Permitir GPU integrada** (`allow_igpu`, apagado por defecto): comparte memoria y potencia con el procesador y con
+  Teams. Con él, en automático (`whispercpp_device` = -1) Recorder usa la integrada cuando no hay una dedicada, y
+  «Medir mi equipo» la prueba. Elegir su número a mano sigue valiendo como permiso.
+* **Un cambio que pide recargar el modelo** (calidad, hilos, GPU, prioridad) se aplica en la **siguiente
+  sesión**: el modelo de una grabación en curso no se recarga (el worker no puede cambiar de modelo sin perder la cola
+  con seguridad), y la ventana y la terminal lo dicen al guardar.
+
+### 7.3. Prioridad del proceso
+
+`process_priority`: `normal` (por defecto) o `inferior` (por debajo de lo normal): Teams y los demás programas pasan
+primero y Recorder usa lo que sobre, a costa de atrasarse más cuando se compite. Se pone a todo el proceso (los hilos de
+CTranslate2 y `whisper-server` la heredan) al cargar el modelo. **Nunca alta ni tiempo real**: un valor desconocido,
+como `alta`, cae a `normal` al cargar. No se mide aquí: sin competencia no cambia nada, y con ella hay que mirar a la vez
+cuánto se atrasa Recorder y si Teams se entrecorta.
+
+### 7.4. Medidas en el portátil de desarrollo (i7-1255U, Iris Xe, sin NVIDIA)
+
+Se midieron el 25-11-2026 con `config.json` del usuario sin tocar (solo lectura), el equipo casi en reposo (3 a
+10 % de procesador ajeno al empezar, pero con Teams, el navegador y música abiertos: es el reposo de un portátil de
+uso diario, no el de un equipo recién arrancado), muestras cortas (3 a 4 turnos del guion, 30 a 45 s de voz) y
+modelos ya descargados.
+
+**¿Está whisper.cpp instalado?** No: `whispercpp_dir` está vacío y no hay `whisper-server.exe` en el equipo, así que
+**no se pudo medir la GPU integrada**. Hoy la Iris Xe **no se aprovecha**: en automático nunca se usa una integrada
+sin permiso, y sin whisper.cpp no hay ruta para ninguna GPU en un equipo sin NVIDIA (faster-whisper solo corre en
+CPU o CUDA). Para medirla hay que instalar whisper.cpp con Vulkan, y eso lo hace el usuario: el script
+`tools\instalar_whispercpp.ps1` compila y descarga, pero **no instala** sus requisitos. En este equipo hay Git y
+Visual Studio 2026 Community, pero **faltan CMake y el Vulkan SDK** (`winget install Kitware.CMake KhronosGroup.VulkanSDK`),
+y el disco D: y E: no existen o están llenos (C: tiene unos 28 GB libres; el script pide una carpeta fuera de OneDrive y
+los modelos pesan varios GB: con `-Modelos large-v3-turbo` ~1,6 GB). Pasos:
+
+```powershell
+winget install Kitware.CMake KhronosGroup.VulkanSDK     # y reabrir la consola
+.\tools\instalar_whispercpp.ps1 -Destino C:\whispercpp -Modelos large-v3-turbo
+# Opciones: «Permitir GPU integrada» (o python recorder.py config) y después «Medir mi equipo».
+# O a mano, sin cambiar la configuración:
+python tools\medir_rendimiento.py --motor whispercpp --modelo large-v3-turbo --hilos 4 --flash-attn --dev 0 --turnos 4 --pasadas 1
+python tools\medir_rendimiento.py --turnos 4 --pasadas 1 --hilos 4,6,8,10 --modelo large-v3-turbo --beam 5   # la CPU, para comparar
+```
+
+**La prueba corta de la app** (3 turnos, ~33 s de voz; 140 s en total; procesador ajeno al empezar: 4 %). Es lo que
+mostraría «Medir mi equipo»:
+
+| Prueba | Velocidad | Procesador del equipo | WER | ¿Dos fuentes? |
+| :--- | ---: | ---: | ---: | :--- |
+| Baja · procesador, 9 hilos (`small`, haz 1) | 3,6× | 84 % | 16,7 % | sí |
+| Media · procesador, 4 hilos (`small`, haz 5) | 2,2× | 42 % | 18,2 % | sí |
+| **Media · procesador, 9 hilos** | **2,5×** | 84 % | 18,2 % | **sí: la mejor** |
+| Alta · procesador, 4 hilos (`large-v3-turbo`, haz 5) | 0,7× | 46 % | 3,0 % | no: se atrasa |
+| Alta · procesador, 9 hilos | 1,0× (0,95) | 84 % | 3,0 % | no: se atrasa |
+
+La misma prueba, repetida tres veces más desde la terminal de PowerShell (capturas en
+`docs/capturas-terminal/medir-powershell/`, a otras horas y con distinta carga de fondo) dio siempre el mismo orden y
+la misma mejor: Baja 3,3 a 3,5×, Media con 4 hilos 2,7 a 2,8×, **Media con 9 hilos 3,0 a 3,2×**, Alta 0,7 a 0,8× con 4 hilos y
+0,8 a 0,9× con 9. Cuando otro programa gasta más del 15 % del procesador al empezar, la pantalla se niega a medir sin preguntar
+(`docs/capturas-terminal/medir-powershell-ocupado/`).
+
+**Barrido de hilos con la herramienta** (`tools\medir_rendimiento.py --turnos 4 --pasadas 1 --hilos 4,6,8,10`; 4 turnos, 42 s
+de voz, una pasada; procesador de otros procesos durante la medida: 9 a 21 %, o sea, **no en reposo estricto**):
+
+| `cpu_threads` | `small`, haz 5 | WER | `large-v3-turbo`, haz 5 | WER |
+| ---: | ---: | ---: | ---: | ---: |
+| 4 | 2,01× | 15,4 % | 0,65× | 2,2 % |
+| 6 | 2,28× | 15,4 % | 0,71× | 2,2 % |
+| 8 | 2,24× | 15,4 % | 0,75× | 2,2 % |
+| 10 | 1,91× | 15,4 % | 0,78× | 2,2 % |
+
+Lectura, sin pasarse:
+
+* Las cifras absolutas se mueven un ±15 % con la carga de fondo (Teams, navegador, música: la prueba de la app dio 1,0× para
+  `turbo` con 9 hilos y la herramienta 0,78× con 10): sirven para ordenar configuraciones, no para prometer un número.
+* **`small` no mejora más allá de 6 a 8 hilos y con 10 empeora** (1,91×, por debajo de 4): coincide con la hipótesis de
+  la sección 3.1 (a partir de los 2 núcleos rápidos, los hilos extra caen en los lentos y el más lento marca el paso).
+  **`turbo` sí sube hasta 10**, pero ni así llega a 1,0×: **`large-v3-turbo` con haz 5 no aguanta ni una fuente en
+  este portátil** (0,65× a 0,95×), y mucho menos dos. Su ventaja es la calidad: ~2-3 % de palabras erradas frente a ~15-18 %
+  de `small` en esta muestra con vocabulario técnico (una muestra tan corta es ruidosa; mide la tendencia, no el valor).
+* **La configuración actual del usuario** (`small`, haz 1, 9 hilos = «Baja») va a 3,6×. Subir a **Media** (haz 5) cuesta
+  un tercio de velocidad (2,5×) y sigue por encima de los 2,0× que piden dos fuentes.
+
+**Respuestas**
+
+* **¿Se aprovecha hoy la gráfica integrada en este equipo?** No. Con `whispercpp_dir` vacío no hay motor para ninguna
+  GPU (faster-whisper solo usa CPU o CUDA, y no hay NVIDIA), y aunque lo hubiera, en automático la integrada no se usa sin
+  «Permitir GPU integrada» (apagado). Vulkan sí la ve: «Intel(R) Iris(R) Xe Graphics (integrada)», como la 0.
+* **¿Conviene activarla?** **No se puede decir con datos: no se pudo medir** (whisper.cpp no está instalado y compilarlo
+  pide CMake y el Vulkan SDK, que faltan; no se instaló nada). Lo que sí se sabe: comparte memoria y presupuesto de potencia con el
+  procesador y con Teams, y no hay cifras publicadas de Whisper en una Iris Xe (`hardware-y-modelos.md` §2.5). Para
+  que valga la pena tendría que alcanzar los 2,0× con `large-v3-turbo` (el procesador hace 0,7× a 1,0×): hay que medirla
+  con los pasos de arriba. Hasta entonces, déjala apagada.
+* **Configuración recomendada hoy** (medida, no estimada): **Media** (`small`, haz 5) con **8 a 9 hilos** en el
+  procesador: ~2,2× a 2,5× en esta muestra, aguanta dos fuentes y deja la gráfica y Teams en paz. «Aplicar el mejor» escribe
+  `beam_size` 5 y `cpu_threads` 9. Alta (`turbo`) solo tiene sentido para **drenar la cola después de la reunión**, no en vivo.

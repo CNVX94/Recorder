@@ -1,0 +1,26 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media…
+ ──────────────────────────────────────────────────────────
+ Inicio › Rendimiento › Medir mi equipo
+
+   • Midiendo 1 de 5: Baja · CPU, 9 hilos
+   ██░░░░░░░░░░░░░░░░░░  10 %  ·  queda 1 min 30 s aprox.
+
+      Prueba                Vel.       CPU  ¿Dos fuentes?
+   •  Baja · CPU, 9 hilos   midiendo…
+      Media · CPU, 4 hilos  en espera
+      Media · CPU, 9 hilos  en espera
+      Alta · CPU, 4 hilos   en espera
+      Alta · CPU, 9 hilos   en espera
+
+   No uses el equipo para cosas pesadas mientras se mide:
+   falsearía el resultado.
+
+
+
+
+ Para la medición y descarta lo medido. No cambia nada.
+
+
+
+
+ [Esc] Cancelar

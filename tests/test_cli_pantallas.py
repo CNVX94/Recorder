@@ -43,7 +43,7 @@ ENTORNO = configurar.Entorno(
     ["Altavoces", "Auriculares"], ["Micrófono"], PERFIL,
 )
 # Filas de Opciones (pantallas.opciones.Opciones._componer; sin carpeta de whisper.cpp no hay GPU ni flash attention)
-NOTAS, MIC, TEMA = 0, 4, 12
+NOTAS, MIC, TEMA = 0, 4, 13
 
 
 def limpio(salida: str) -> str:
@@ -337,7 +337,7 @@ class TestOpciones(BaseTerminal):
 
 class TestRendimiento(BaseTerminal):
     def test_veredicto_motor_cifras_y_equipo(self):
-        _codigo, texto = self.correr("7", *[None] * 200, ESC, "q")
+        _codigo, texto = self.correr("7", *[None] * 200, ESC, "q", alto=30)  # con la fila «Medir mi equipo» hacen falta más líneas
         self.assertIn("El equipo va justo. Ya está ocupado", texto, "50 % de media: justo")
         self.assertIn("Se transcribiría con: CPU, 4 hilos · Calidad Media", texto)
         self.assertRegex(texto, r"Procesador\s+50 %\s+█+░+")
@@ -345,12 +345,18 @@ class TestRendimiento(BaseTerminal):
         self.assertIn("pico 50 %", texto)
         self.assertIn("Equipo", texto)
         self.assertIn("6 núcleos", texto)
-        self.assertNotIn("Medir mi equipo", texto, "sin esa función no hay fila")
+        self.assertIn("Medir mi equipo", texto, "«medir» está registrada: Rendimiento la ofrece")
         self.assertTrue(self.muestreo.parado, "al volver se para el muestreo")
+
+    def test_sin_la_pantalla_medir_no_hay_fila(self):
+        with mock.patch.dict(registro.PANTALLAS):
+            registro.PANTALLAS.pop("medir")
+            _codigo, texto = self.correr("7", *[None] * 200, ESC, "q")
+        self.assertNotIn("Medir mi equipo", texto, "sin esa función no hay fila")
 
     def test_memoria_del_equipo(self):
         self.muestreo = MuestreoFalso(cpu=20.0, ram=(8192.0, 16384.0))
-        _codigo, texto = self.correr("7", *[None] * 200, ESC, "q")
+        _codigo, texto = self.correr("7", *[None] * 200, ESC, "q", alto=30)
         self.assertRegex(texto, r"Memoria\s+50 %")
         self.assertIn("8 de 16 GB", texto)
         self.assertIn("Hay margen para grabar", texto)

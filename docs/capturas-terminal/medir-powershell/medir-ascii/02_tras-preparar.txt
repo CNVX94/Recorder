@@ -1,0 +1,30 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media · CPU
+ --------------------------------------------------------------------------------------------------
+ Inicio > Rendimiento > Medir mi equipo
+
+   ! El equipo está ocupado. Va al 19 % de procesador: la medición saldría peor de lo real.
+     Cierra programas y mide otra vez.
+
+ > Medir de todos modos
+   Medir otra vez
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Mide con el equipo ocupado: los resultados serán menos fiables.
+
+
+ [Enter] Medir de todos modos · [^v] Mover · [Esc] Volver · [?] Ayuda · [t] Tema

@@ -62,7 +62,7 @@ def motor_previsto(config: AppConfig, hw: HardwareProfile) -> MotorEfectivo:
     `TranscriberWorker._load_model` con este equipo, antes de cargar nada."""
     vulkan = None
     if config.whispercpp_dir.strip() and (config.device == "vulkan" or (config.device == "gpu" and hw.cuda_devices <= 0)):
-        vulkan = choose_vulkan_device(config.whispercpp_device, hw.vulkan_devices)
+        vulkan = choose_vulkan_device(config.whispercpp_device, hw.vulkan_devices, config.allow_igpu)
     listo = whispercpp_ready(config.whispercpp_dir, vulkan_model_for(config.model, vulkan), config.compute_type)
     modelo, disp, _precision, haz, aviso = resolve_runtime(config, hw.cuda_devices, listo, vulkan)
     if disp == "vulkan":

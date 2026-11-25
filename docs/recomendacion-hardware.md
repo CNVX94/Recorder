@@ -179,8 +179,11 @@ con iGPU y dGPU **gana la que Vulkan enumere primero**, que puede ser la integra
 **Lo que hace Recorder:**
 
 * Campo `whispercpp_device` (`-1` = automático). En automático elige **la dedicada con más
-  VRAM** y la pasa con `-dev N`; **nunca una integrada**. Si solo hay integrada, Vulkan cuenta
-  como no disponible y se usa el preset de CPU, explicándolo en la cabecera.
+  VRAM** y la pasa con `-dev N`; **nunca una integrada sin permiso**. Si solo hay integrada y no
+  está permitida, Vulkan cuenta como no disponible y se usa el preset de CPU, explicándolo en la
+  cabecera. El permiso es el campo `allow_igpu` («Permitir GPU integrada» en Opciones, apagado por
+  defecto): con él, en automático se usa la integrada si no hay dedicada, y «Medir mi equipo» la
+  prueba (con whisper.cpp instalado). Si el automático no puede tomarla, no se cambia nada solo.
 * Un número ≥ 0 fuerza esa GPU, integrada incluida; con una integrada el modelo se limita a
   **large-v3-turbo** (nunca large-v3).
 * El número se calcula reproduciendo en Python el orden de ggml (`ggml_vulkan_order`): GPUs
@@ -199,11 +202,17 @@ banda que ya usa la CPU (~51 GB/s en DDR4 de doble canal) `[estimado]`, y compar
 con Teams, el presupuesto de potencia: lo que gana la GPU lo puede perder la CPU. No hay cifras
 publicadas de Whisper en Iris Xe; whisper.cpp 1.8.3 logró 3-4x sobre CPU en una Radeon 680M y en
 la Arc de un Core Ultra `[autor del PR]`, pero una UHD 730 fue más lenta que la CPU `[terceros]`
-(`hardware-y-modelos.md` §2.5). Es una opción explícita, después de medir:
+(`hardware-y-modelos.md` §2.5). Es una opción explícita, después de medir: activa «Permitir GPU
+integrada» y pulsa «Medir mi equipo» (Rendimiento, en la terminal; menú «Más», en la ventana), o
+a mano:
 
 ```powershell
 python tools\medir_rendimiento.py --motor whispercpp --modelo large-v3-turbo --hilos 4 --flash-attn --dev 0
 ```
+
+«Medir mi equipo» guarda la última medición (`medicion.json`, junto al `config.json`) y, mientras
+valga para este equipo, `daily recomendar`, «Usar recomendado» y el asistente recomiendan la mejor
+prueba medida en vez de la estimada (sección 7 de `rendimiento.md`).
 
 ---
 

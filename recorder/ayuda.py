@@ -884,6 +884,101 @@ COMUN: Textos = {
         "Esa fuente lleva 10 minutos sin voz mientras la otra suena. Si alguien habló por ahí, "
         "quizá es otro dispositivo: cámbialo en las opciones.",
     ),
+    # Ajuste del rendimiento al equipo (ajustes manuales y «Medir mi equipo», de la ventana y de la terminal)
+    "permitir_igpu": (
+        "Permitir GPU integrada",
+        "Deja que Recorder use la tarjeta gráfica integrada. Comparte memoria y potencia con el procesador y "
+        "con Teams: mídela antes de fiarte.",
+    ),
+    "prioridad": (
+        "Prioridad del proceso",
+        "«Por debajo de lo normal» cede el procesador a Teams si hace falta, a costa de atrasarse más. "
+        "Vale desde la próxima grabación.",
+    ),
+    "prioridad_normal": ("Normal", "La prioridad de siempre."),
+    "prioridad_inferior": ("Por debajo de lo normal", "Teams y los demás programas pasan primero; Recorder usa lo que sobre."),
+    "hilos_hibrida": (
+        "Núcleos rápidos y lentos",
+        "Tu procesador mezcla {p} núcleos rápidos y {e} lentos: pasar de los rápidos no siempre acelera. "
+        "«Medir mi equipo» lo comprueba.",
+    ),
+    "medir_abrir": ("Medir mi equipo", "Prueba de 2 o 3 minutos que dice qué calidad aguanta tu equipo de verdad."),
+    "medir_intro": (
+        "Qué aguanta tu equipo",
+        "Prueba unas cuantas configuraciones con una muestra de voz corta y dice cuál usar. No cambia nada hasta que lo confirmes.",
+    ),
+    "medir_preparando": ("Preparando la prueba", "Detecta el equipo y crea una muestra de voz corta; no suena por los altavoces."),
+    "medir_empezar": ("Empezar", "Empieza la prueba, de 2 o 3 minutos. No cambia nada hasta que apliques el mejor."),
+    "medir_progreso": ("Midiendo {i} de {n}", "La prueba que se está midiendo ahora."),
+    "medir_queda": ("queda {tiempo} aprox.", "Lo que falta para terminar todas las pruebas."),
+    "medir_tiempo": ("{m} min {s} s", "Minutos y segundos."),
+    "medir_tiempo_s": ("{s} s", "Segundos."),
+    "medir_consejo": ("Mientras se mide", "No uses el equipo para cosas pesadas mientras se mide: falsearía el resultado."),
+    "medir_col_prueba": ("Prueba", "Calidad y con qué se transcribe."),
+    "medir_col_velocidad": ("Velocidad", "Veces más rápido que el habla."),
+    "medir_col_velocidad_corta": ("Vel.", "Veces más rápido que el habla."),
+    "medir_col_cpu": ("Procesador", "Procesador usado durante la prueba."),
+    "medir_col_cpu_corta": ("CPU", "Procesador usado durante la prueba."),
+    "medir_col_dos": ("¿Dos fuentes?", "Los demás y tu micrófono a la vez: hace falta ir a 2,0× o más."),
+    "medir_en_espera": ("en espera", "Aún no ha empezado."),
+    "medir_midiendo": ("midiendo…", "Se está midiendo ahora."),
+    "medir_si": ("sí", "Aguanta los demás y tu micrófono a la vez."),
+    "medir_no_justo": ("no: va justo", "Sirve con una sola fuente; con dos se atrasaría."),
+    "medir_no_atrasa": ("no: se atrasa", "Va más lento que el habla: no sirve para grabar."),
+    "medir_mejor": ("la mejor", "La de más calidad entre las que aguantan dos fuentes."),
+    "medir_ninguna": (
+        "Ninguna aguanta dos fuentes",
+        "Usa la más rápida y apaga el micrófono, o cierra otros programas y mide otra vez.",
+    ),
+    "medir_aplicar": (
+        "Aplicar el mejor", "Guarda la calidad, los hilos y dónde se transcribe de la mejor prueba. Antes te enseña qué cambia.",
+    ),
+    "medir_aplicar_rapida": (
+        "Aplicar la más rápida", "Ninguna aguanta dos fuentes: guarda la más rápida. Antes te enseña qué cambia.",
+    ),
+    "medir_cancelar": ("Cancelar", "Para la medición y descarta lo medido. No cambia nada."),
+    "medir_cancelada": ("Medición cancelada", "Medición cancelada. No se cambió nada."),
+    "medir_aplicado": ("Aplicado", "Aplicado. Vale desde la próxima grabación."),
+    "medir_otra_vez": ("Medir otra vez", "Repite las pruebas, por ejemplo tras cerrar otros programas."),
+    "medir_ya": ("Ya usas la mejor", "Tu configuración ya es la de la mejor prueba."),
+    "medir_ocupado": (
+        "El equipo está ocupado",
+        "Va al {n} % de procesador: la medición saldría peor de lo real. Cierra programas y mide otra vez.",
+    ),
+    "medir_igual": ("Medir de todos modos", "Mide con el equipo ocupado: los resultados serán menos fiables."),
+    "medir_cerrar": ("Cerrar", "Cierra esta ventana sin cambiar nada. Lo medido queda guardado para la recomendación del equipo."),
+    "medir_error": ("No se pudo medir", "Pasó esto: {motivo}. No se cambió nada."),
+    "medir_sin_voz": (
+        "Sin voz en español",
+        "Windows no tiene ninguna voz en español para crear la muestra de prueba: instálala en Configuración, Hora e idioma, Voz.",
+    ),
+    "medir_sin_pruebas": ("Nada que medir", "Este equipo no tiene ninguna configuración que probar."),
+    "medir_omitida_modelo": ("modelo sin descargar", "Ese modelo no está en el equipo y Recorder no descarga nada sin avisarte."),
+    "medir_omitida_tiempo": ("sin tiempo", "La prueba tiene un tope de tiempo y esta no llegó a medirse."),
+    "medir_omitida_poda": ("no hace falta", "Una más ligera ya iba más lenta que el habla: esta iría peor."),
+    "medir_omitida_cancelada": ("sin medir", "La medición se paró antes de llegar aquí."),
+    "medir_fallo": ("falló", "No se pudo probar: {motivo}."),
+    "medir_mal": ("transcribe mal", "Fue rápida, pero se equivocó demasiado en la muestra: no se recomienda."),
+    "medir_igpu_apagada": (
+        "Gráfica integrada sin probar",
+        "No está permitida. Para probarla, activa «Permitir GPU integrada» en Opciones y mide otra vez.",
+    ),
+    "medir_fecha": ("Medido el {fecha}", "Cuándo se hizo la última medición guardada."),
+    "medir_donde_cpu": ("procesador, {n} hilos", "Se transcribe con el procesador."),
+    "medir_donde_cpu_corto": ("CPU, {n} hilos", "Se transcribe con el procesador."),
+    "medir_donde_gpu": ("tarjeta gráfica", "Se transcribe con la tarjeta gráfica."),
+    "medir_donde_gpu_corto": ("GPU", "Se transcribe con la tarjeta gráfica."),
+    "medir_donde_igpu": ("tarjeta gráfica integrada", "Se transcribe con la tarjeta integrada, que comparte memoria con el procesador."),
+    "medir_donde_igpu_corto": ("GPU integrada", "Se transcribe con la tarjeta integrada."),
+    "recomendacion_fiable_tuyo": ("Fiabilidad", "Medido en este equipo."),
+    "medir_motivo_dos": (
+        "Medido en tu equipo",
+        "Medido en tu equipo el {fecha}: {prueba} fue la mejor, {velocidad} veces más rápido que el habla, y aguanta dos fuentes a la vez.",
+    ),
+    "medir_motivo_una": (
+        "Medido en tu equipo",
+        "Medido en tu equipo el {fecha}: ninguna aguanta dos fuentes a la vez. {prueba} fue la más rápida, {velocidad} veces el habla.",
+    ),
 }
 
 # La jerga que aparece en etiquetas, avisos y documentación, en palabras llanas.

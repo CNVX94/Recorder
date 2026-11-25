@@ -5,6 +5,7 @@ import threading
 import time
 from typing import Callable, Optional, Tuple
 
+from .. import prioridad
 from ..actions.notes import NotesSession, md_ref
 from ..actions.screenshot import capture_name, take_screenshot
 from ..config.hardware import cached_vulkan_devices
@@ -138,10 +139,11 @@ class TranscriberWorker:
         # pesos antes de validar el dispositivo, así que detectar el fallo después ya
         # habría bajado varios GB de un modelo que en CPU no sirve.
         cfg = self.config
+        prioridad.ajustar(cfg.process_priority)  # antes de crear hilos o lanzar whisper-server: la heredan
         cuda = detect_cuda_device_count()
         vulkan = None  # qué GPU de Vulkan tocaría; solo se pregunta si whisper.cpp puede entrar en juego
         if cfg.whispercpp_dir.strip() and (cfg.device == "vulkan" or (cfg.device == "gpu" and cuda <= 0)):
-            vulkan = choose_vulkan_device(cfg.whispercpp_device, cached_vulkan_devices())
+            vulkan = choose_vulkan_device(cfg.whispercpp_device, cached_vulkan_devices(), cfg.allow_igpu)
         model_name, device, compute_type, beam, aviso = resolve_runtime(
             cfg,
             cuda,
@@ -169,14 +171,14 @@ class TranscriberWorker:
                 self.ui_queue.put(("status", f"⚠ La GPU (Vulkan) no pudo cargar {model_name} ({e!r}); usando CPU en su lugar."))
                 return self._load_cpu_fallback(f"la GPU (Vulkan) no pudo cargar {model_name}: {e!r}")
             usada = getattr(model, "vulkan_device", None)
-            if usada is not None and usada.uma and cfg.whispercpp_device < 0:
+            if usada is not None and usada.uma and cfg.whispercpp_device < 0 and not cfg.allow_igpu:
                 # Sin enumeracion previa (o si no coincidio), whisper.cpp toma su dispositivo 0,
-                # que puede ser la integrada. Su registro lo dice: en automatico no se acepta.
+                # que puede ser la integrada. Su registro lo dice: en automatico no se acepta sin permiso.
                 model.close()
                 self.ui_queue.put((
                     "status",
                     f"⚠ whisper.cpp tomó la GPU integrada ({usada.name}), que Recorder no usa sin "
-                    f"pedírsela (whispercpp_device); usando CPU en su lugar.",
+                    f"permiso (opción «Permitir GPU integrada»); usando CPU en su lugar.",
                 ))
                 return self._load_cpu_fallback(f"whisper.cpp tomó la GPU integrada ({usada.name}) sin pedírsela")
             # La GPU que dice el registro de whisper-server manda sobre la enumeración previa.

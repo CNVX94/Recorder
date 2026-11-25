@@ -1,0 +1,30 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media · CPU
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ Inicio › Opciones › Prioridad del proceso
+
+ ► 1  Normal  (actual)
+   2  Por debajo de lo normal
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ «Por debajo de lo normal» cede el procesador a Teams si hace falta, a costa de atrasarse más. Vale
+ desde la próxima grabación.
+
+ [Enter] Elegir · [Esc] Volver sin cambiar · [↑↓] Mover · [1-2] Directo · [?] Ayuda

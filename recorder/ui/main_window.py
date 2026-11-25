@@ -16,6 +16,7 @@ from ..session import (
 )
 from .dialogs.settings_dialog import SettingsDialog
 from .dialogs.digest_dialog import DigestDialog
+from .dialogs.medir_dialog import MedirDialog
 from .dialogs.tuning_dialog import TuningDialog
 from . import animacion, tooltip
 from .rendimiento import COLUMNAS, Historial, PanelRendimiento
@@ -182,7 +183,7 @@ class MainWindow:
 
         # El orden de creación es el orden de Tab: medidores, botones, panel, visor.
         self._build_cabecera()
-        self.panel = PanelRendimiento(self.root, self.historial, self.toggle_rendimiento, ATAJO["rendimiento"])
+        self.panel = PanelRendimiento(self.root, self.historial, self.toggle_rendimiento, ATAJO["rendimiento"], self.open_medir)
 
         # Etiqueta de ruta de archivo
         self.lbl_path = tk.Label(
@@ -296,6 +297,7 @@ class MainWindow:
         m.add_command(label="⚙ Opciones…", accelerator=ATAJO["opciones"], command=self.open_options)
         m.add_command(label="🎯 Calibrar…", command=self.open_tuning)
         m.add_command(label="📑 Reagrupar nota…", command=self.open_digest)
+        m.add_command(label=f"📏 {ayuda.entrada('rendimiento_medir')[0]}…", command=self.open_medir)
         m.add_separator()
         self.v_rendimiento = tk.BooleanVar(master=self.root, value=False)
         m.add_checkbutton(
@@ -417,6 +419,17 @@ class MainWindow:
             self.aviso("✔ Opciones guardadas")
 
         SettingsDialog(self.root, self.session.config, self.session.pa, on_save=handle_save)
+
+    def open_medir(self):
+        """«Medir mi equipo»: prueba corta de qué calidad aguanta este equipo. Aplicar la mejor pide confirmación y
+        la guarda por la sesión, como ⚙ Opciones; si config.json no se pudo leer, se mide pero no se aplica."""
+        def aplicar(new_config: AppConfig):
+            self.session.apply_settings(new_config, False, False)
+            self.aviso("✔ " + ayuda.linea("medir_aplicado"))
+
+        mgr = self.session.config_manager
+        bloqueado = ayuda.linea("recomendacion_no_aplica").format(motivo=mgr.last_error.rstrip(".")) if mgr.last_error else ""
+        MedirDialog(self.root, self.session.config, aplicar, mgr.path, bloqueado)
 
     def open_tuning(self):
         def guardar(new_config: AppConfig):

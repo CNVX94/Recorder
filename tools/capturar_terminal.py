@@ -184,6 +184,31 @@ ESCENARIOS = {
     "base-100": ("menu", 100, 30, BASE),
     "base-60": ("menu", 60, 24, BASE),
     "base-ascii": ("--ascii menu", 100, 30, BASE),
+    # «Medir mi equipo» (paso 6 del plan de rendimiento): de verdad, con los modelos de la caché; dura ~2,5 min y carga la CPU.
+    # Rendimiento → Enter abre la medición; al terminar, Enter pide la confirmación «antes → después» y Esc no guarda nada.
+    # Tras preparar, un Enter: si el equipo estaba ocupado (hay más de un 15 % de procesador ajeno) es «Medir de todos
+    # modos»; si no, la medición ya va y Enter no hace nada (mientras mide solo vale Esc).
+    "medir-100": ("menu", 100, 30, [
+        ("foto", "inicio", 4), ("teclas", ["7"]), ("foto", "rendimiento", 5), ("teclas", [ENT]),
+        ("foto", "preparando", 0.5), ("foto", "tras-preparar", 12), ("teclas", [ENT]),
+        ("foto", "progreso", 10), ("foto", "progreso-avanzado", 60),
+        ("foto", "resultados", 90), ("teclas", [ENT]), ("foto", "confirmar", 1.5), ("teclas", [E]),
+        ("teclas", ["abajo", ENT]), ("foto", "medir-otra-vez", 5), ("teclas", [E, E, E]),
+    ]),
+    "medir-60": ("menu", 60, 26, [
+        ("teclas", ["7"]), ("foto", "rendimiento", 4), ("teclas", [ENT]), ("foto", "tras-preparar", 12), ("teclas", [ENT]),
+        ("foto", "progreso", 15), ("foto", "resultados", 140), ("teclas", [ENT]), ("foto", "confirmar", 1.5), ("teclas", [E, E, E]),
+    ]),
+    "medir-ascii": ("--ascii menu", 100, 30, [
+        ("teclas", ["7"]), ("foto", "rendimiento", 4), ("teclas", [ENT]), ("foto", "tras-preparar", 12), ("teclas", [ENT]),
+        ("foto", "progreso", 15), ("foto", "resultados", 140), ("teclas", [E, E, E]),
+    ]),
+    # Los ajustes de rendimiento en Opciones: hilos (con el aviso de núcleos rápidos y lentos), prioridad y su lista.
+    "ajustes-100": ("menu", 100, 30, [
+        ("teclas", ["2"]), ("foto", "opciones", 4), ("teclas", ["abajo"] * 9), ("foto", "hilos-con-aviso", 1),
+        ("teclas", ["abajo", "abajo"]), ("foto", "prioridad", 1), ("teclas", [ENT]), ("foto", "prioridad-lista", 1),
+        ("teclas", ["2", "g"]), ("foto", "confirmar", 1.5), ("teclas", [E, E, E, E]),
+    ]),
     "recomendar": ("recomendar", 100, 30, [("foto", "salida", 5)]),
     "ayuda": ("-h", 100, 30, [("foto", "daily-h", 2)]),
     "grabar": ("", 100, 30, [

@@ -16,14 +16,17 @@ from ...config.options import (
     capture_choices,
     device_choices,
     gpu_choices,
+    hybrid_cores_notice,
+    priority_choices,
     quality_display,
     recommendation_text,
     settings_form,
     target_choices,
     use_recommendation,
 )
-from ...config.schema import CUSTOM_PRESET, PRESET_ORDER, QUALITY_PRESETS, recommend_config
-from ...engine.whispercpp import vulkan_readiness, whispercpp_ready
+from ...config.schema import CUSTOM_PRESET, PRESET_ORDER, QUALITY_PRESETS
+from ...engine.whispercpp import whispercpp_ready
+from ...medicion import recomendar
 from ...metricas import hilos_efectivos
 from .. import configurar
 from ..teclas import DERECHA, ENTER, ESC, ESPACIO, IZQUIERDA
@@ -120,8 +123,10 @@ class Opciones(Pantalla):
             ajustes += [
                 a("whispercpp_device", "gpu", LISTA, list(gpu_choices(hw.vulkan_devices, self.config.whispercpp_device).items())),
                 a("whispercpp_flash_attn", "flash", INTERRUPTOR),
+                a("allow_igpu", "permitir_igpu", INTERRUPTOR),
             ]
         ajustes += [
+            a("priority", "prioridad", LISTA, [(etiqueta, valor) for etiqueta, valor in priority_choices().items()]),
             a(RECOMENDADA, "opciones_recomendada", ACCION),
             a("theme", "tema", LISTA, [(v, k) for k, v in THEME_LABELS.items()], seccion=apariencia),
         ]
@@ -176,7 +181,11 @@ class Opciones(Pantalla):
             return "", "tenue"
         if self.editando is not None:
             return ayuda.linea("opciones_editar"), "tenue"
-        return ayuda.linea(self.ajuste.clave), "tenue"
+        texto = ayuda.linea(self.ajuste.clave)
+        if self.ajuste.campo == "cpu_threads":  # con núcleos rápidos y lentos, antes que nada el aviso de que más hilos no siempre es mejor
+            aviso = hybrid_cores_notice(self.entorno.hardware)
+            texto = f"{aviso} {texto}" if aviso else texto
+        return texto, "tenue"
 
     def teclas(self):
         if self.form is None:
@@ -254,7 +263,7 @@ class Opciones(Pantalla):
             self._componer()  # de la carpeta dependen la GPU, flash attention y que Extra esté disponible
 
     def _recomendada(self) -> None:
-        rec = recommend_config(self.entorno.hardware, *vulkan_readiness(self.form.whispercpp_dir.strip()))
+        rec = recomendar(self.entorno.hardware, self.config, self.app.mgr.path, self.form.whispercpp_dir.strip())
         use_recommendation(self.form, rec)
         self.app.avisar(recommendation_text(rec), "ok")
         self._componer()  # la recomendada puede cambiar la carpeta de whisper.cpp

@@ -480,7 +480,7 @@ class TestOpcionesConComponentes(BaseTerminal):
         opciones = t.pila[-1]
         esperado = {
             "texto": (0, ("Enter", "Editar")), "interruptor": (4, ("Espacio", "Cambiar")),
-            "lista": (3, ("Enter", "Elegir de la lista")), "accion": (11, ("Enter", "Usar")),
+            "lista": (3, ("Enter", "Elegir de la lista")), "accion": (12, ("Enter", "Usar")),
         }
         for tipo, (fila, principal) in esperado.items():
             opciones.lista.sel = fila

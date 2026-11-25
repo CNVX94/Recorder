@@ -14,9 +14,9 @@ from rich.text import Text
 from ... import ayuda
 from ...config.hardware import cached_hardware, describe_hardware, peek_hardware
 from ...config.schema import (
-    QUALITY_PRESETS, AppConfig, Recommendation, apply_recommendation, preset_key_for_config, recommend_config,
+    QUALITY_PRESETS, AppConfig, Recommendation, apply_recommendation, preset_key_for_config,
 )
-from ...engine.whispercpp import vulkan_readiness
+from ...medicion import TIER_MEDIDO, recomendar
 from ...metricas import hilos_efectivos
 from .. import configurar
 from ..teclas import ABAJO, ARRIBA, ENTER
@@ -46,7 +46,10 @@ def clave_fiabilidad(rec: Recommendation) -> str:
     """La clave de ayuda que dice la confianza de `rec` en palabras. Por el código de recommend_config:
     «medida» (hay una medición en ese modelo de procesador o tarjeta) es «medido»; «estimada» con una
     tarjeta NVIDIA, que solo tiene cifras de terceros, es «aproximado»; el resto de «estimada» (la gama
-    del procesador o Vulkan, deducidas de equipos medidos) es «estimado»."""
+    del procesador o Vulkan, deducidas de equipos medidos) es «estimado»; la que sale de «Medir mi equipo» es
+    la «medida en este equipo»."""
+    if rec.tier == TIER_MEDIDO:
+        return PREFIJO + "fiable_tuyo"
     if rec.confidence == "medida":
         return PREFIJO + "fiable_medido"
     if rec.tier in NIVELES_SIN_MEDIDA:
@@ -113,7 +116,7 @@ class Recomendacion(Pantalla):
             if perfil is None:
                 return False
             self.perfil = perfil
-            self.rec = recommend_config(perfil, *vulkan_readiness(self.app.config.whispercpp_dir))
+            self.rec = recomendar(perfil, self.app.config, self.app.mgr.path)  # con la última medición, si la hay
         return True
 
     def _no_aplica(self) -> str:

@@ -1,0 +1,30 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media · CPU
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ Inicio › Rendimiento › Medir mi equipo
+
+   • Midiendo 2 de 5: Media · procesador, 4 hilos
+   ████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░  30 %  ·  queda 50 s aprox.
+
+      Prueba                       Velocidad  Procesador  ¿Dos fuentes?
+   √  Baja · procesador, 9 hilos   3,5×       89 %        sí
+   •  Media · procesador, 4 hilos  midiendo…
+      Media · procesador, 9 hilos  en espera
+      Alta · procesador, 4 hilos   en espera
+      Alta · procesador, 9 hilos   en espera
+
+   No uses el equipo para cosas pesadas mientras se mide: falsearía el resultado.
+
+
+
+
+
+
+
+
+
+
+
+ Para la medición y descarta lo medido. No cambia nada.
+
+
+ [Esc] Cancelar

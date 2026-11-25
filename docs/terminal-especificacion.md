@@ -1288,7 +1288,11 @@ Es la función pura del paso 6b: las mismas líneas dentro del marco de la graba
 
 ### 7.7 Medir mi equipo
 
-La construye el paso 6 del plan anterior. Mientras mide solo vale Esc. La barra avanza con el total de pruebas; cada fila pasa de «en espera» a «midiendo…» y a su resultado. Al terminar, la mejor queda marcada con `●` y la palabra, y la acción elegida por defecto es «Aplicar el mejor», que abre la confirmación «antes → después».
+La construye el paso 6 del plan anterior (`recorder/cli/pantallas/medir.py`, sobre `recorder/medicion.py`).
+Si el equipo está ocupado al empezar (más del 15 % de procesador ajeno), no mide sin preguntar:
+muestra «El equipo está ocupado» con «Medir de todos modos» y «Medir otra vez». La gráfica integrada
+solo se prueba con «Permitir GPU integrada» en Opciones; si no, una nota lo dice bajo la tabla.
+Mientras mide solo vale Esc. La barra avanza con el total de pruebas; cada fila pasa de «en espera» a «midiendo…» y a su resultado. Al terminar, la mejor queda marcada con `●` y la palabra, y la acción elegida por defecto es «Aplicar el mejor», que abre la confirmación «antes → después».
 
 #### Medir mi equipo · progreso
 

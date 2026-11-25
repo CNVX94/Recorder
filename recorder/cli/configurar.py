@@ -13,6 +13,7 @@ import argparse
 import copy
 import dataclasses
 import os
+import pathlib
 from typing import Callable, List, Optional, Tuple
 
 from rich import box
@@ -21,6 +22,7 @@ from rich.markup import escape
 from rich.table import Table
 from rich.text import Text
 
+from .. import ayuda as textos
 from ..actions.screenshot import screen_labels, window_titles
 from ..config.hardware import HardwareProfile, cached_hardware, peek_hardware
 from ..config.manager import ConfigManager
@@ -38,7 +40,10 @@ from ..config.options import (
     device_choices,
     gpu_choice,
     gpu_choices,
+    hybrid_cores_notice,
     parse_threads,
+    priority_choices,
+    priority_label,
     quality_description,
     quality_display,
     recommendation_text,
@@ -55,10 +60,10 @@ from ..config.schema import (
     describe_runtime,
     preset_availability,
     preset_key_for_config,
-    recommend_config,
 )
-from ..engine.whispercpp import vulkan_readiness, whispercpp_ready, whispercpp_status
+from ..engine.whispercpp import whispercpp_ready, whispercpp_status
 from ..filters.lexicon import format_fixes
+from ..medicion import recomendar as recomendacion_del_equipo
 from .preguntas import Cancelado, confirmar, contar, elegir, imprimir, preguntar_entero, preguntar_texto, texto
 from .recomendar import recomendar as recomendar_equipo
 
@@ -79,6 +84,7 @@ ETIQUETAS = {
     "model": "Modelo", "beam_size": "Alternativas por frase (haz)",
     "device": "Dónde se transcribe", "compute_type": "Precisión del cálculo", "whispercpp_dir": "Carpeta de whisper.cpp",
     "whispercpp_flash_attn": "Flash attention", "whispercpp_device": "GPU de whisper.cpp",
+    "allow_igpu": textos.entrada("permitir_igpu")[0], "process_priority": textos.entrada("prioridad")[0],
     "cpu_threads": "Hilos de CPU", "vocab": "Vocabulario", "echo_filter": "Filtro de eco del vocabulario",
     "ignore": "Frases a ignorar",
     "fixes": "Correcciones", "no_speech_threshold": "Umbral de silencio",
@@ -130,6 +136,7 @@ class Entorno:
     out_devs: List[str]
     mic_devs: List[str]
     hardware: HardwareProfile
+    config_path: Optional[pathlib.Path] = None  # el config.json que se edita: junto a él está la última medición
 
 
 def dispositivos_audio() -> Tuple[List[str], List[str]]:
@@ -169,6 +176,7 @@ def asistente(mgr: ConfigManager, config: AppConfig, consola: Console) -> int:
     imprimir(consola, f"[acento]⚙ Configuración de Recorder[/]  [tenue]{escape(str(mgr.path))}[/]")
     imprimir(consola, "[tenue]Enter conserva el valor actual, «-» vacía un campo y Ctrl+C cancela sin guardar.[/]")
     entorno = detectar_entorno(consola)
+    entorno.config_path = mgr.path
     form = settings_form(config, entorno.screens)
     pasos: List[Callable[[Console, SettingsForm, AppConfig, Entorno], None]] = [
         paso_carpetas, paso_audio, paso_capturas, paso_calidad, paso_apariencia,
@@ -265,7 +273,7 @@ def paso_calidad(consola: Console, form: SettingsForm, config: AppConfig, entorn
     carpeta = form.whispercpp_dir.strip()
     extra = QUALITY_PRESETS["extra"]
     vulkan_ready = whispercpp_ready(carpeta, extra.model, extra.compute_type)
-    rec = recommend_config(hw, *vulkan_readiness(carpeta))
+    rec = recomendacion_del_equipo(hw, config, entorno.config_path, carpeta)  # la misma que `daily recomendar`
 
     imprimir(consola, f"  [ok]{escape(recommendation_text(rec))}[/]")
     if confirmar(consola, "¿Usar la recomendada (calidad, hilos y, con whisper.cpp, flash attention)?", False):
@@ -282,6 +290,9 @@ def paso_calidad(consola: Console, form: SettingsForm, config: AppConfig, entorn
             form.quality, custom_runtime(config, form.custom_values), rec, hw.cuda_devices, vulkan_ready
         )
         imprimir(consola, f"  [{'tenue' if disponible else 'error'}]{escape(descripcion)}[/]")
+        aviso = hybrid_cores_notice(hw)
+        if aviso:
+            imprimir(consola, f"  [tenue]{escape(aviso)}[/]")
         form.cpu_threads = str(preguntar_entero(
             consola, "Hilos de CPU", parse_threads(form.cpu_threads, config.cpu_threads), 0, MAX_THREADS,
             ayuda=threads_hint(hw),
@@ -293,6 +304,16 @@ def paso_calidad(consola: Console, form: SettingsForm, config: AppConfig, entorn
         actual = gpu_choice(gpus, form.whispercpp_device)
         form.whispercpp_device = gpus[etiquetas[elegir(consola, "GPU de whisper.cpp", etiquetas, etiquetas.index(actual))]]
         form.whispercpp_flash_attn = confirmar(consola, "¿Flash attention en whisper.cpp?", form.whispercpp_flash_attn)
+        titulo, explicacion = textos.entrada("permitir_igpu")
+        imprimir(consola, f"  [tenue]{escape(explicacion)}[/]")
+        form.allow_igpu = confirmar(consola, f"¿{titulo}?", form.allow_igpu)
+
+    prioridades = priority_choices()  # etiqueta -> valor
+    etiquetas = list(prioridades)
+    imprimir(consola, f"  [tenue]{escape(textos.linea('prioridad'))}[/]")
+    form.priority = prioridades[etiquetas[elegir(
+        consola, textos.entrada("prioridad")[0], etiquetas, list(prioridades.values()).index(form.priority),
+    )]]
 
 
 def paso_apariencia(consola: Console, form: SettingsForm, config: AppConfig, entorno: Entorno) -> None:
@@ -315,6 +336,8 @@ def formatear(campo: str, valor) -> str:
         return capture_choice(valor)
     if campo == "theme":
         return THEME_LABELS.get(valor, valor)
+    if campo == "process_priority":
+        return priority_label(valor)
     if isinstance(valor, bool):
         return "sí" if valor else "no"
     if isinstance(valor, list):
@@ -369,6 +392,8 @@ def filas_resumen(config: AppConfig) -> List[Tuple[str, str]]:
         ("whisper.cpp", config.whispercpp_dir or "(vacía: sin motor Vulkan)"),
         ("GPU de whisper.cpp", formatear("whispercpp_device", config.whispercpp_device)),
         ("Flash attention", formatear("whispercpp_flash_attn", config.whispercpp_flash_attn)),
+        (textos.entrada("permitir_igpu")[0], formatear("allow_igpu", config.allow_igpu)),
+        (textos.entrada("prioridad")[0], formatear("process_priority", config.process_priority)),
         ("Vocabulario", config.vocab or "(vacío)"),
         ("Frases a ignorar", contar(len(config.ignore), "frase", "frases")),
         ("Correcciones", contar(len(config.fixes), "corrección", "correcciones")),

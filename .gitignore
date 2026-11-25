@@ -5,6 +5,8 @@ venv/
 # Configuracion personal: nunca se sube. Usa config.example.json como plantilla.
 config.json
 !config.example.json
+# La última medición de «Medir mi equipo» (junto al config.json): es de este equipo, no se sube.
+medicion.json
 *.wav
 *.mp3
 # Empaquetado: packaging\build.ps1 construye en %LOCALAPPDATA%\RecorderBuild, pero por si alguien

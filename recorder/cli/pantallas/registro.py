@@ -13,6 +13,7 @@ PANTALLAS: Dict[str, Tuple[str, str]] = {
     "ayuda": ("ayuda", "Ayuda"),
     "calibrar": ("calibrar", "Calibrar"),
     "sintesis": ("reagrupar", "ReagruparNota"),
+    "medir": ("medir", "Medir"),  # no es una fila del Inicio: se abre con Enter desde Rendimiento
 }
 
 

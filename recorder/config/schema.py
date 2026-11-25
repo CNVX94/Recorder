@@ -18,6 +18,12 @@ DEFAULT_CAPTURES = "normal"
 THEMES: Tuple[str, ...] = NOMBRES
 ANIMATIONS: Tuple[str, ...] = ("completas", "reducidas", "ninguna")
 
+# Prioridad de Recorder frente al resto de programas (prioridad.py). «inferior» es «por debajo de lo
+# normal»: cede el procesador a Teams cuando hace falta. No hay «alta» ni «tiempo real» a propósito: le
+# quitarían procesador a la videollamada, que es peor que una cola que crece (docs/rendimiento.md, 3.7).
+PRIORITIES: Tuple[str, ...] = ("normal", "inferior")
+DEFAULT_PRIORITY = PRIORITIES[0]
+
 
 def system_animations() -> str:
     """«reducidas» si Windows tiene apagadas las animaciones (SPI_GETCLIENTAREAANIMATION); si no, «completas»."""
@@ -76,6 +82,11 @@ class AppConfig:
     # con mas VRAM, nunca una integrada. Un numero >= 0 la fuerza, integrada incluida (entonces
     # el modelo se limita a large-v3-turbo). Ver docs/recomendacion-hardware.md.
     whispercpp_device: int = -1
+    # Permitir la GPU integrada (la que comparte RAM y potencia con la CPU y con Teams). Apagado por
+    # defecto: en automático (`whispercpp_device` = -1) solo la usa si está permitido y no hay una
+    # dedicada, y «Medir mi equipo» la prueba únicamente con esto encendido. Un config.json viejo no
+    # trae el campo y carga apagado, que es el comportamiento de siempre.
+    allow_igpu: bool = False
 
     # Hilos de CPU que usa CTranslate2 en la inferencia. 0 = valor por defecto de
     # faster-whisper (4 hilos), que se queda corto en una CPU con mas nucleos. El primer
@@ -121,8 +132,13 @@ class AppConfig:
     # siempre y las animaciones que diga Windows. Un valor desconocido cae a lo mismo.
     theme: str = POR_DEFECTO  # "oscuro", "claro" o "sistema"
     animations: str = dataclasses.field(default_factory=system_animations)  # ANIMATIONS
+    # Prioridad del proceso en Windows (PRIORITIES). Un config.json viejo, o un valor desconocido
+    # (p. ej. «alta», que no se ofrece), cae a «normal».
+    process_priority: str = DEFAULT_PRIORITY
 
     def __post_init__(self):
+        if self.process_priority not in PRIORITIES:
+            self.process_priority = DEFAULT_PRIORITY
         if self.captures not in CAPTURE_QUALITIES:
             self.captures = DEFAULT_CAPTURES
         if self.theme not in THEMES:
@@ -319,15 +335,16 @@ class VulkanChoice:
 INTEGRATED_MAX_MODEL = "large-v3-turbo"
 
 
-def choose_vulkan_device(requested: int, devices: Sequence[GpuInfo]) -> VulkanChoice:
+def choose_vulkan_device(requested: int, devices: Sequence[GpuInfo], allow_integrated: bool = False) -> VulkanChoice:
     """La GPU para whisper.cpp: la pedida (`whispercpp_device` >= 0) o, en automático, la
     dedicada con más VRAM. Función pura sobre la lista de ggml-vulkan (`vulkan_index`).
 
-    En automático **nunca** se elige una integrada: su "VRAM" es RAM del sistema, con el mismo
-    ancho de banda que ya usa la CPU, y comparte con la CPU (y con Teams) el presupuesto de
-    potencia. Si es lo único que hay, no es utilizable sin pedirla a mano. Sin lista (Vulkan no
-    se pudo consultar) no se pasa `-dev`; lo que eligió whisper.cpp se comprueba después en su
-    registro (`engine.whispercpp.parse_vulkan_log`).
+    En automático **nunca** se elige una integrada sin permiso (`allow_integrated`, el campo
+    `allow_igpu`): su "VRAM" es RAM del sistema, con el mismo ancho de banda que ya usa la CPU, y
+    comparte con la CPU (y con Teams) el presupuesto de potencia. Con permiso, solo si no hay una
+    dedicada. Si es lo único que hay y no está permitida, no es utilizable. Pedirla por su número es
+    permitirla. Sin lista (Vulkan no se pudo consultar) no se pasa `-dev`; lo que eligió whisper.cpp
+    se comprueba después en su registro (`engine.whispercpp.parse_vulkan_log`).
     """
     if requested >= 0:
         dev = next((d for d in devices if d.vulkan_index == requested), None)
@@ -340,12 +357,15 @@ def choose_vulkan_device(requested: int, devices: Sequence[GpuInfo]) -> VulkanCh
     if not devices:
         return VulkanChoice()
     dedicadas = [d for d in devices if not d.integrated]
+    if not dedicadas and allow_integrated:
+        integrada = max(devices, key=lambda d: (d.shared_mb, -d.vulkan_index))
+        return VulkanChoice(integrada.vulkan_index, integrada.name, True)
     if not dedicadas:
         nombres = ", ".join(d.name for d in devices)
         return VulkanChoice(-1, nombres, True, usable=False, reason=(
             f"Vulkan solo ve una GPU integrada ({nombres}): comparte la memoria y la potencia con "
-            f"la CPU y Recorder no la usa sin pedírsela. Para probarla tras medir, elige su número "
-            f"en ⚙ Opciones (whispercpp_device)."
+            f"la CPU y Recorder no la usa sin permiso. Para probarla, activa «Permitir GPU integrada» "
+            f"en las opciones y mide tu equipo."
         ))
     best = max(dedicadas, key=lambda d: (d.vram_mb, -d.vulkan_index))
     return VulkanChoice(best.vulkan_index, best.name, False)
@@ -454,6 +474,7 @@ class Recommendation:
     reason: str  # legible, para la interfaz
     confidence: str  # "medida" (hay medicion en este modelo de CPU/GPU) o "estimada"
     flash_attn: bool = False  # whispercpp_flash_attn; solo cuenta con el motor whisper.cpp
+    gpu_index: int = -1  # whispercpp_device; >= 0 solo cuando la recomendación sale de una medición en esa GPU
 
     @property
     def label(self) -> str:
@@ -643,6 +664,8 @@ def apply_recommendation(config: AppConfig, rec: Recommendation) -> None:
     config.cpu_threads = rec.cpu_threads
     if rec.engine == "whisper.cpp":
         config.whispercpp_flash_attn = rec.flash_attn
+        if rec.gpu_index >= 0:
+            config.whispercpp_device = rec.gpu_index
 
 
 def recommendation_matches(config: AppConfig, rec: Recommendation) -> bool:

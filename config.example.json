@@ -20,6 +20,8 @@
   "whispercpp_dir": "",
   "whispercpp_flash_attn": false,
   "whispercpp_device": -1,
+  "allow_igpu": false,
+  "process_priority": "normal",
   "vocab": "Daily de desarrollo de software sobre backend, frontend, endpoint, despliegue, sprint, incidencia, base de datos, entorno de pruebas e integración continua, con Ana, Luis y Marta.",
   "echo_filter": true,
   "ignore": [

@@ -12,7 +12,7 @@ import time
 import tkinter as tk
 from typing import Callable, Deque, Dict, List, Optional, Sequence
 
-from .. import metricas
+from .. import ayuda as textos_ayuda, metricas
 from ..metricas import Metricas, factor, na
 from .theme import BTN_STYLE, P, boton_vivo, con_anillo
 from .tooltip import con_ayuda
@@ -105,7 +105,10 @@ def puntos(valores: Sequence[Optional[float]], ancho: int, alto: int, techo: Opt
 class PanelRendimiento(tk.Frame):
     """El panel plegable. `actualizar` lo llama la ventana en cada sondeo mientras se ve."""
 
-    def __init__(self, master, historial: Historial, al_cerrar: Callable[[], None], atajo: str = ""):
+    def __init__(
+        self, master, historial: Historial, al_cerrar: Callable[[], None], atajo: str = "",
+        al_medir: Optional[Callable[[], None]] = None,
+    ):
         super().__init__(master, bg=P.fondo, highlightthickness=1, highlightbackground=P.borde)
         self.historial = historial
         k = self.tk.call("tk", "scaling") / (96 / 72)
@@ -121,6 +124,12 @@ class PanelRendimiento(tk.Frame):
         cerrar = con_anillo(cabecera, lambda marco: tk.Button(marco, text="✕", command=al_cerrar, **{**BTN_STYLE, "padx": 6}))
         con_ayuda(boton_vivo(cerrar), "rendimiento", atajo=atajo)
         cerrar.master.pack(side="right")
+        if al_medir is not None:  # «Medir mi equipo»: prueba corta de lo que aguanta este equipo
+            medir = con_anillo(cabecera, lambda marco: tk.Button(
+                marco, text="📏 " + textos_ayuda.entrada("medir_abrir")[0], command=al_medir, **{**BTN_STYLE, "padx": 6},
+            ))
+            con_ayuda(boton_vivo(medir), "medir_abrir")
+            medir.master.pack(side="right", padx=(0, 6))
 
         self.valores: Dict[str, tk.Label] = {}
         self.lineas: Dict[str, tuple] = {}  # dato -> (lienzo, línea)

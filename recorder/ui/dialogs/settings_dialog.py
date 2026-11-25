@@ -4,6 +4,7 @@ from tkinter import filedialog
 from typing import Callable, List, Optional, Tuple
 import pyaudiowpatch as pa
 
+from ... import ayuda
 from ...actions.screenshot import screen_labels, window_titles
 from ...audio.devices import wasapi_devices
 from ...config.hardware import HardwareProfile, cached_hardware, peek_hardware
@@ -20,6 +21,9 @@ from ...config.options import (
     device_choices,
     gpu_choice,
     gpu_choices,
+    hybrid_cores_notice,
+    priority_choices,
+    priority_label,
     quality_description,
     quality_display,
     recommendation_text,
@@ -37,9 +41,9 @@ from ...config.schema import (
     detect_cuda_device_count,
     preset_availability,
     preset_key_for_config,
-    recommend_config,
 )
-from ...engine.whispercpp import vulkan_readiness, whispercpp_ready, whispercpp_status
+from ...engine.whispercpp import whispercpp_ready, whispercpp_status
+from ...medicion import recomendar
 from ..animacion import cerrar
 from ..theme import BTN_STYLE, ENTRY_STYLE, LABEL_STYLE, P, fit_window
 from ..tooltip import con_ayuda
@@ -103,6 +107,8 @@ class SettingsDialog(tk.Toplevel):
         self.v_wcpp_dir = tk.StringVar(value=f.whispercpp_dir)
         self.v_flash = tk.BooleanVar(value=f.whispercpp_flash_attn)
         self.v_gpu = tk.StringVar()
+        self.v_igpu = tk.BooleanVar(value=f.allow_igpu)
+        self.v_priority = tk.StringVar(value=priority_label(f.priority))
         self.v_theme = tk.StringVar(value=THEME_LABELS[f.theme])
 
     def _form(self) -> SettingsForm:
@@ -122,6 +128,8 @@ class SettingsDialog(tk.Toplevel):
             whispercpp_dir=self.v_wcpp_dir.get(),
             whispercpp_flash_attn=self.v_flash.get(),
             whispercpp_device=self._gpu_choices_map.get(self.v_gpu.get(), -1),
+            allow_igpu=self.v_igpu.get(),
+            priority=priority_choices().get(self.v_priority.get(), self.config.process_priority),
             theme=next((k for k, v in THEME_LABELS.items() if v == self.v_theme.get()), self.config.theme),
         )
 
@@ -143,11 +151,12 @@ class SettingsDialog(tk.Toplevel):
         self._row_choice(6, "Capturas por palabra clave:", self.v_captures, capture_choices(), "capturas_clave")
         self._build_quality_row(7)  # fila 7 = selector, fila 8 = descripción (se aplica al reiniciar)
         self._build_recommendation_row(9)
-        self._build_engine_rows(10)  # filas 10 a 13: hilos, whisper.cpp, su estado y la GPU de Vulkan
-        self._row_choice(14, "Tema (se aplica al guardar):", self.v_theme, list(THEME_LABELS.values()), "tema")
+        self._build_engine_rows(10)  # filas 10 a 14: hilos, whisper.cpp, su estado, la GPU de Vulkan y el aviso de núcleos
+        self._row_choice(15, ayuda.entrada("prioridad")[0] + ":", self.v_priority, list(priority_choices()), "prioridad")
+        self._row_choice(16, "Tema (se aplica al guardar):", self.v_theme, list(THEME_LABELS.values()), "tema")
 
         bottom = tk.Frame(self, bg=P.fondo)
-        bottom.grid(row=15, column=0, columnspan=3, sticky="ew", padx=16, pady=(8, 4))
+        bottom.grid(row=17, column=0, columnspan=3, sticky="ew", padx=16, pady=(8, 4))
         con_ayuda(tk.Checkbutton(
             bottom,
             text="Transcribir también mi micrófono 🎤",
@@ -175,7 +184,7 @@ class SettingsDialog(tk.Toplevel):
 
         # Botonera inferior
         btn_box = tk.Frame(self, bg=P.fondo)
-        btn_box.grid(row=16, column=1, columnspan=2, sticky="e", padx=16, pady=10)
+        btn_box.grid(row=18, column=1, columnspan=2, sticky="e", padx=16, pady=10)
 
         con_ayuda(tk.Button(
             btn_box,
@@ -315,7 +324,7 @@ class SettingsDialog(tk.Toplevel):
         if self.hardware is None:
             self.rec = None
         else:
-            self.rec = recommend_config(self.hardware, *vulkan_readiness(self.v_wcpp_dir.get().strip()))
+            self.rec = recomendar(self.hardware, self.config, whispercpp_dir=self.v_wcpp_dir.get().strip())
         self.v_rec.set(recommendation_text(self.rec))
         self.btn_rec.config(state="disabled" if self.rec is None else "normal")
 
@@ -329,6 +338,8 @@ class SettingsDialog(tk.Toplevel):
         self.v_quality.set(self._quality_label_by_key[form.quality])
         self.v_threads.set(form.cpu_threads)
         self.v_flash.set(form.whispercpp_flash_attn)
+        if form.whispercpp_device != self._gpu_choices_map.get(self.v_gpu.get(), -1):  # una recomendación medida en una GPU
+            self.v_gpu.set(gpu_choice(self._gpu_choices_map, form.whispercpp_device))
 
     # ------------------------------------------------------------------ motor
     def _build_engine_rows(self, r: int):
@@ -381,6 +392,16 @@ class SettingsDialog(tk.Toplevel):
             fila, text="Flash attention", variable=self.v_flash, bg=P.fondo, fg=P.texto, selectcolor=P.superficie,
             activebackground=P.fondo, activeforeground=P.texto, font=("Segoe UI", 10),
         ), "flash").pack(side="left", padx=(10, 0))
+        con_ayuda(tk.Checkbutton(
+            fila, text=ayuda.entrada("permitir_igpu")[0], variable=self.v_igpu, bg=P.fondo, fg=P.texto, selectcolor=P.superficie,
+            activebackground=P.fondo, activeforeground=P.texto, font=("Segoe UI", 10),
+        ), "permitir_igpu").pack(side="left", padx=(10, 0))
+        self.v_cores_notice = tk.StringVar()
+        self.lbl_cores_notice = con_ayuda(tk.Label(
+            self, textvariable=self.v_cores_notice, bg=P.fondo, fg=P.texto_tenue, font=("Segoe UI", 9),
+            wraplength=620, justify="left", anchor="w",
+        ), "hilos")
+        self.lbl_cores_notice.grid(row=r + 4, column=0, columnspan=3, sticky="ew", padx=16)
         self._rebuild_gpu_menu()
         self.v_wcpp_dir.trace_add("write", lambda *_: self._refresh_engine())
 
@@ -407,6 +428,7 @@ class SettingsDialog(tk.Toplevel):
         self._refresh_recommendation()
         self._on_quality_change()
         self.v_threads_hint.set(threads_hint(self.hardware))
+        self.v_cores_notice.set(hybrid_cores_notice(self.hardware))
         self._grow_to_fit()
 
     def _grow_to_fit(self):

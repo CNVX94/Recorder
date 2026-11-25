@@ -118,8 +118,8 @@ class TestAsistente(CasoConfig):
 
     def test_calidad_con_la_recomendacion(self):
         self.guardar(AppConfig(model="medium", beam_size=3, cpu_threads=0))
-        with respuestas(CALIDAD, "", "s", "s"):
-            # carpeta de whisper.cpp: Enter (vacía); usar recomendado: sí; guardar: sí
+        with respuestas(CALIDAD, "", "s", "", "s"):
+            # carpeta de whisper.cpp: Enter (vacía); usar recomendado: sí; prioridad: Enter; guardar: sí
             codigo, salida = self.correr()
         self.assertEqual(codigo, 0)
         g = self.guardado()
@@ -129,8 +129,8 @@ class TestAsistente(CasoConfig):
 
     def test_calidad_a_mano(self):
         self.guardar(AppConfig())
-        with respuestas(CALIDAD, "", "n", "3", "7", "s"):
-            # sin whisper.cpp; no usar recomendado; Alta; 7 hilos; guardar
+        with respuestas(CALIDAD, "", "n", "3", "7", "", "s"):
+            # sin whisper.cpp; no usar recomendado; Alta; 7 hilos; prioridad: Enter; guardar
             codigo, salida = self.correr()
         self.assertEqual(codigo, 0)
         g = self.guardado()
@@ -144,7 +144,7 @@ class TestAsistente(CasoConfig):
     def test_con_whispercpp_pregunta_gpu_y_flash_attention(self):
         self.guardar(AppConfig())
         carpeta = str(self.raiz / "wcpp")
-        with respuestas(CALIDAD, carpeta, "n", "", "", "", "s", "s"):
+        with respuestas(CALIDAD, carpeta, "n", "", "", "", "s", "", "", "s"):  # …flash: sí; GPU integrada: no; prioridad: Enter
             codigo, salida = self.correr()
         self.assertEqual(codigo, 0)
         g = self.guardado()
@@ -168,8 +168,8 @@ class TestAsistente(CasoConfig):
 
     def test_todo_sin_cambios_no_escribe(self):
         antes = self.guardar(AppConfig())
-        # carpetas (3), audio (3), capturas (2), whisper.cpp (1), recomendado: no, calidad e hilos (2), tema (1)
-        with respuestas(TODO, "", "", "", "", "", "", "", "", "", "n", "", "", "", SALIR):
+        # carpetas (3), audio (3), capturas (2), whisper.cpp (1), recomendado: no, calidad e hilos (2), prioridad (1), tema (1)
+        with respuestas(TODO, "", "", "", "", "", "", "", "", "", "n", "", "", "", "", SALIR):
             codigo, salida = self.correr()
         self.assertEqual(codigo, 0)
         self.assertIn("Sin cambios.", salida)

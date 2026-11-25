@@ -28,8 +28,8 @@ def recomendar(
 ) -> int:
     """Imprime el equipo detectado y la configuración recomendada; con `aplicar`, la guarda."""
     from ..config.hardware import cached_hardware, describe_hardware
-    from ..config.schema import apply_recommendation, describe_recommendation, recommend_config
-    from ..engine.whispercpp import vulkan_readiness
+    from ..config.schema import apply_recommendation, describe_recommendation
+    from ..medicion import recomendar as recomendacion_del_equipo
 
     consola = consola or make_console()
 
@@ -40,7 +40,7 @@ def recomendar(
     mgr = config_manager or ConfigManager()
     cfg = mgr.load()
     perfil = cached_hardware()  # en un proceso nuevo detecta; si ya se detectó, no repite
-    rec = recommend_config(perfil, *vulkan_readiness(cfg.whispercpp_dir))
+    rec = recomendacion_del_equipo(perfil, cfg, mgr.path)  # con la última medición de este equipo, si la hay
     decir(f"Equipo:      {describe_hardware(perfil)}")
     for err in perfil.detection_errors:
         decir(f"             (sin detectar) {err}")

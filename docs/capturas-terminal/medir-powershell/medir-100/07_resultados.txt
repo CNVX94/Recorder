@@ -1,0 +1,30 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media · CPU
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ Inicio › Rendimiento › Medir mi equipo
+
+      Prueba                       Velocidad  Procesador  ¿Dos fuentes?
+   √  Baja · procesador, 9 hilos   3,5×       89 %        sí
+   √  Media · procesador, 4 hilos  2,8×       45 %        sí
+   ●  Media · procesador, 9 hilos  3,2×       85 %        sí  la mejor
+   √  Alta · procesador, 4 hilos   0,8×       46 %        no: se atrasa
+   √  Alta · procesador, 9 hilos   0,9×       89 %        no: se atrasa
+
+   ¿Dos fuentes? Los demás y tu micrófono a la vez: hace falta ir a 2,0× o más.
+   Medido el 25/11/2026
+
+ ► Aplicar el mejor: Media · procesador, 9 hilos
+   Medir otra vez
+
+
+
+
+
+
+
+
+
+
+ Guarda la calidad, los hilos y dónde se transcribe de la mejor prueba. Antes te enseña qué cambia.
+
+
+ [Enter] Aplicar el mejor · [↑↓] Mover · [Esc] Volver · [?] Ayuda · [t] Tema
