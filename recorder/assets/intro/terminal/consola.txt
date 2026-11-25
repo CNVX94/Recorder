@@ -1,0 +1,9 @@
+
+    [capsula]███[/]   [punto]●[/]
+    [capsula]███[/]
+  [soporte]█[/] [capsula]███[/] [soporte]█[/]     [nombre]Recorder[/]
+  [soporte]█[/]     [soporte]█[/]     [lema]{lema}[/]
+   [soporte]█████[/]
+     [soporte]█[/]
+   [soporte]─────[/]
+

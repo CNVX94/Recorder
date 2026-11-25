@@ -1,0 +1,176 @@
+{
+  "_": "Contrato de la introducción (docs/intro/especificacion.md). Colores: tokens de recorder/paleta.py. Medidas: unidades de diseño (se escalan como el resto de la ventana). Tiempos: milisegundos; los inicios de cada paso son relativos al inicio de su escena.",
+
+  "lienzo": {"ancho": 760, "alto": 400, "color": "fondo"},
+
+  "duraciones_ms": {
+    "total": 7500,
+    "entrada_rotulo": 400,
+    "cruce_escena": 250,
+    "fundido_texto": 300,
+    "escalonado_texto": 120,
+    "desplazamiento_logo": 450,
+    "fundido_forma": 300,
+    "onda_periodo": 800,
+    "onda_a_texto": 450,
+    "escalonado_trazo": 20,
+    "escalonado_linea": 150,
+    "reordenar_nota": 400,
+    "boton_cambio": 300
+  },
+
+  "curvas": {
+    "ease_out": "1 - (1 - t)^3  (recorder/ui/animacion.py: ease_out)",
+    "ease_in_out": "t < 0.5 ? 4 t^3 : 1 - (-2 t + 2)^3 / 2",
+    "lineal": "t"
+  },
+
+  "movimiento": {
+    "completas": "todo lo descrito en «escenas»",
+    "reducidas": "solo fundidos, cada uno con el techo de animacion.CORTO_MS: el logotipo es el fotograma estático, ya en «centro_final» desde el principio; sin desplazamientos, sin onda en movimiento, sin escalonado (cada grupo entra a la vez); las formas pasan de un estado al siguiente por fundido",
+    "ninguna": "no hay introducción animada"
+  },
+
+  "logotipo": {
+    "patron": "logo/logo_{n:03d}.png",
+    "estatico": "logo_estatico.png",
+    "fotogramas": 36,
+    "fps": 24,
+    "lado_px": 480,
+    "lado": 240,
+    "centro_inicial": [380, 168],
+    "centro_final": [170, 190]
+  },
+
+  "tipografia": {
+    "familias": ["Segoe UI Variable", "Segoe UI"],
+    "rotulo": {"puntos": 24, "peso": "semibold", "color": "texto"},
+    "titulo": {"puntos": 16, "peso": "semibold", "color": "texto"},
+    "subtitulo": {"puntos": 11, "peso": "normal", "color": "texto_tenue"},
+    "boton": {"puntos": 10, "peso": "semibold"},
+    "pista": {"puntos": 9, "peso": "normal", "color": "texto_tenue"}
+  },
+
+  "disposicion": {
+    "rotulo": {"centro": [380, 334]},
+    "titulo": {"origen": [330, 92], "ancho": 400},
+    "subtitulo": {"origen": [330, 130], "ancho": 400},
+    "ilustracion": {"origen": [330, 180], "ancho": 300, "alto": 124},
+    "boton": {"caja": [624, 346, 736, 380]},
+    "pista": {"origen": [24, 363]}
+  },
+
+  "boton": {
+    "secundario": {"fondo": "superficie", "texto": "texto", "borde": "borde", "rotulo": "intro.saltar"},
+    "principal": {"fondo": "acento", "texto": "texto_sobre_acento", "borde": "acento", "rotulo": "intro.comenzar"},
+    "anillo_foco": "foco"
+  },
+
+  "ilustracion": {
+    "_": "Doce trazos (rectángulos de Canvas) con tres estados: barra de la onda, tramo de línea transcrita y tramo de la nota. Coordenadas relativas al origen de la ilustración.",
+    "onda": {
+      "color": "mic", "ancho": 10, "paso": 24, "x_primera": 13, "centro_y": 56,
+      "alto_min": 12, "alto_max": 84, "desfase_rad": 0.6,
+      "envolvente": [0.35, 0.6, 0.85, 1.0, 0.7, 0.45, 0.65, 0.95, 0.8, 0.55, 0.4, 0.25]
+    },
+    "grosor_trazo": 8,
+    "lineas": {
+      "_": "[x, y del centro, ancho] de cada trazo, por orden de barra",
+      "color": "texto_tenue", "color_clave": "acento", "trazo_clave": 5,
+      "trazos": [[22, 30, 58], [90, 30, 34], [134, 30, 72], [216, 30, 46],
+                 [22, 56, 40], [72, 56, 66], [148, 56, 30], [188, 56, 52],
+                 [22, 82, 70], [102, 82, 28], [140, 82, 48], [198, 82, 36]]
+    },
+    "nota": {
+      "color": "texto_tenue", "color_titulo": "texto", "color_marca": "acento", "trazo_marca": 0, "trazo_titulo": 1,
+      "trazos": [[22, 24, 14], [44, 24, 112], [22, 48, 40], [70, 48, 30],
+                 [108, 48, 36], [152, 48, 28], [22, 68, 50], [80, 68, 44],
+                 [132, 68, 48], [22, 88, 36], [66, 88, 58], [132, 88, 30]]
+    },
+    "equipo": {
+      "_": "Contorno de pantalla y base: «en tu equipo». En la escena de notas la base se va y el contorno pasa a ser la hoja.",
+      "color": "borde", "grosor": 2, "pantalla": [0, 6, 300, 106], "base": [-16, 116, 316, 116], "grosor_base": 3
+    },
+    "captura": {
+      "_": "Miniatura de la captura de pantalla dentro de la nota",
+      "caja": [198, 40, 282, 94], "fondo": "superficie", "borde": "borde", "franja": [198, 40, 282, 50], "color_franja": "seleccion"
+    }
+  },
+
+  "escenas": [
+    {
+      "id": "logotipo", "inicio_ms": 0, "duracion_ms": 1700,
+      "pasos": [
+        {"elemento": "logotipo", "accion": "reproducir", "inicio_ms": 0},
+        {"elemento": "rotulo", "accion": "fundido_entrada", "inicio_ms": 900, "duracion": "entrada_rotulo", "curva": "ease_out", "texto": "intro.nombre"}
+      ]
+    },
+    {
+      "id": "graba", "inicio_ms": 1700, "duracion_ms": 1500,
+      "pasos": [
+        {"elemento": "rotulo", "accion": "fundido_salida", "inicio_ms": 0, "duracion": "cruce_escena", "curva": "ease_out"},
+        {"elemento": "logotipo", "accion": "desplazar", "inicio_ms": 0, "duracion": "desplazamiento_logo", "curva": "ease_in_out"},
+        {"elemento": "titulo", "accion": "fundido_entrada", "inicio_ms": 250, "duracion": "fundido_texto", "curva": "ease_out", "texto": "intro.graba.titulo"},
+        {"elemento": "subtitulo", "accion": "fundido_entrada", "inicio_ms": 370, "duracion": "fundido_texto", "curva": "ease_out", "texto": "intro.graba.subtitulo"},
+        {"elemento": "onda", "accion": "fundido_entrada", "inicio_ms": 300, "duracion": "fundido_forma", "curva": "ease_out"},
+        {"elemento": "onda", "accion": "convertir_en_lineas", "inicio_ms": 820, "duracion": "onda_a_texto", "curva": "ease_in_out", "escalonado": "escalonado_trazo"}
+      ]
+    },
+    {
+      "id": "transcribe", "inicio_ms": 3200, "duracion_ms": 1450,
+      "pasos": [
+        {"elemento": "titulo", "accion": "fundido_cruzado", "inicio_ms": 0, "duracion": "cruce_escena", "curva": "ease_out", "texto": "intro.transcribe.titulo"},
+        {"elemento": "subtitulo", "accion": "fundido_cruzado", "inicio_ms": 120, "duracion": "cruce_escena", "curva": "ease_out", "texto": "intro.transcribe.subtitulo"},
+        {"elemento": "equipo", "accion": "fundido_entrada", "inicio_ms": 250, "duracion": "fundido_forma", "curva": "ease_out"},
+        {"elemento": "lineas", "accion": "teñir", "inicio_ms": 250, "duracion": "fundido_forma", "curva": "ease_out", "escalonado": "escalonado_linea"}
+      ]
+    },
+    {
+      "id": "notas", "inicio_ms": 4650, "duracion_ms": 1450,
+      "pasos": [
+        {"elemento": "titulo", "accion": "fundido_cruzado", "inicio_ms": 0, "duracion": "cruce_escena", "curva": "ease_out", "texto": "intro.notas.titulo"},
+        {"elemento": "subtitulo", "accion": "fundido_cruzado", "inicio_ms": 120, "duracion": "cruce_escena", "curva": "ease_out", "texto": "intro.notas.subtitulo"},
+        {"elemento": "equipo_base", "accion": "fundido_salida", "inicio_ms": 250, "duracion": "fundido_forma", "curva": "ease_out"},
+        {"elemento": "lineas", "accion": "reordenar_en_nota", "inicio_ms": 300, "duracion": "reordenar_nota", "curva": "ease_in_out"},
+        {"elemento": "captura", "accion": "fundido_entrada", "inicio_ms": 650, "duracion": "fundido_forma", "curva": "ease_out"}
+      ]
+    },
+    {
+      "id": "comenzar", "inicio_ms": 6100, "duracion_ms": 1400,
+      "pasos": [
+        {"elemento": "titulo", "accion": "fundido_cruzado", "inicio_ms": 0, "duracion": "cruce_escena", "curva": "ease_out", "texto": "intro.comenzar.titulo"},
+        {"elemento": "subtitulo", "accion": "fundido_cruzado", "inicio_ms": 120, "duracion": "cruce_escena", "curva": "ease_out", "texto": "intro.comenzar.subtitulo"},
+        {"elemento": "boton", "accion": "pasar_a_principal", "inicio_ms": 250, "duracion": "boton_cambio", "curva": "ease_out"}
+      ]
+    }
+  ],
+
+  "textos": {
+    "_": "Texto exacto de cada clave. En la aplicación viven en recorder/ayuda.py con estas mismas claves.",
+    "intro.nombre": "Recorder",
+    "intro.graba.titulo": "Graba tu daily",
+    "intro.graba.subtitulo": "Tu micrófono y la reunión, a la vez.",
+    "intro.transcribe.titulo": "Transcribe en tu equipo, sin nube",
+    "intro.transcribe.subtitulo": "El texto aparece mientras hablan.",
+    "intro.notas.titulo": "Notas en Markdown con capturas",
+    "intro.notas.subtitulo": "Cada frase, con su hora.",
+    "intro.comenzar.titulo": "Listo para tu próxima daily",
+    "intro.comenzar.subtitulo": "Está también en el menú «Más».",
+    "intro.saltar": "Saltar",
+    "intro.comenzar": "Comenzar",
+    "intro.pista": "Esc, Enter, Espacio o clic para saltar",
+    "intro.terminal.lema": "Transcribe tu daily en tu equipo, sin nube."
+  },
+
+  "terminal": {
+    "_": "Logotipo de terminal: un archivo por juego de símbolos, con marcado de rich por papeles. Cada paso dice con qué estilo de recorder/cli/consola.py se pinta cada papel («oculto» = espacios).",
+    "juegos": {"completo": "terminal/completo.txt", "consola": "terminal/consola.txt", "ascii": "terminal/ascii.txt"},
+    "duracion_ms": 900,
+    "pasos": [
+      {"inicio_ms": 0, "estilos": {"capsula": "mic", "soporte": "acento", "punto": "tenue", "nombre": "oculto", "lema": "oculto"}},
+      {"inicio_ms": 250, "estilos": {"capsula": "mic", "soporte": "acento", "punto": "tenue", "nombre": "bold acento", "lema": "tenue"}},
+      {"inicio_ms": 500, "estilos": {"capsula": "mic", "soporte": "acento", "punto": "bold error", "nombre": "bold acento", "lema": "tenue"}}
+    ],
+    "reducido": "se imprime una sola vez el último paso"
+  }
+}
