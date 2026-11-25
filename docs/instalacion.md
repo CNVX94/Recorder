@@ -155,7 +155,7 @@ cada uno.
    & "<ruta-destino>\.venv\Scripts\python.exe" "<ruta-destino>\recorder.py" --selftest
    ```
 
-   Salida esperada: la ultima linea es `selftest ok (Fase 2 Modular)` y el codigo de
+   Salida esperada: la ultima linea es `selftest ok (Recorder <version>)` y el codigo de
    salida es `0`. Si falla, el problema esta en el entorno (audio/pantalla no disponibles
    en la maquina, por ejemplo en una VM sin dispositivos WASAPI) y no en la instalacion en
    si; revisa el mensaje de la asercion que fallo.

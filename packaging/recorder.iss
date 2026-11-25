@@ -1,7 +1,7 @@
 ﻿; Instalador de Recorder para Windows (Inno Setup 6.3 o superior, también 7).
 ;
 ; Lo compila packaging\build.ps1 con tres definiciones:
-;     ISCC /DMyAppVersion=2.0.0 /DSourceDir=<carpeta onedir> /DOutputDir=<carpeta de salida> recorder.iss
+;     ISCC /DMyAppVersion=<versión> /DSourceDir=<carpeta onedir> /DOutputDir=<carpeta de salida> recorder.iss
 ; Sin ellas (p. ej. abriendo este archivo en el IDE de Inno Setup tras un build.ps1 -SinInstalador),
 ; toma la carpeta onedir de %LOCALAPPDATA%\RecorderBuild\dist\Recorder, deja el instalador en
 ; %LOCALAPPDATA%\RecorderBuild\installer y lee la versión del recurso de Recorder.exe.

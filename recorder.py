@@ -118,7 +118,9 @@ def selftest():
     assert all(isinstance(h, int) and t for h, t in windows())
     assert pick_window("Chat | Equipo | Microsoft Teams", ["x - Bloc de notas", "Reunión | Microsoft Teams"]) == "Reunión | Microsoft Teams"
     assert pick_window("Chat | Microsoft Teams", ["x - Bloc de notas"]) is None and find_window("") is None
-    print("selftest ok (Fase 2 Modular)")
+    from recorder import __version__
+
+    print(f"selftest ok (Recorder {__version__})")
 
 
 def recomendar(aplicar: bool) -> int:

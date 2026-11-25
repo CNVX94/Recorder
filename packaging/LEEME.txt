@@ -15,8 +15,8 @@ ANTES DE EMPEZAR
 
 * Tarjeta gráfica. Con una NVIDIA, la transcripción en GPU necesita CUDA y cuDNN
   instalados aparte; sin ellos funciona en CPU. Con una AMD o Intel se usa
-  whisper.cpp con Vulkan: el script tools\instalar_whispercpp.ps1 va dentro de la
-  carpeta de instalación y la guía en docs\gpu-amd-vulkan.md.
+  whisper.cpp con Vulkan: el script _internal\tools\instalar_whispercpp.ps1 va
+  dentro de la carpeta de instalación y la guía en _internal\docs\gpu-amd-vulkan.md.
 
 DÓNDE QUEDA CADA COSA
 

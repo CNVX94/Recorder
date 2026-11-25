@@ -163,7 +163,7 @@ junto con la versión para que quien quiera pueda comprobarlo.
 3. Hacer el zip de la carpeta y los hashes:
 
    ```powershell
-   $v = "2.0.0"
+   $v = (Select-String recorder\__init__.py '^__version__\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
    $b = "$env:LOCALAPPDATA\RecorderBuild"
    Compress-Archive -Path "$b\dist\Recorder" -DestinationPath "$b\installer\Recorder-$v-win64.zip"
    Get-FileHash "$b\installer\*" -Algorithm SHA256 | Format-Table Hash, Path -AutoSize

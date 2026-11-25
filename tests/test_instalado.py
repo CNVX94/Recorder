@@ -22,7 +22,7 @@ import threading
 import unittest
 from unittest import mock
 
-from recorder import registro, rutas
+from recorder import __version__, registro, rutas
 from recorder.cli import app
 from recorder.config import hardware as hw
 from recorder.config.manager import ConfigManager
@@ -250,7 +250,7 @@ class TestRegistroDeFallos(CasoInstalado):
             info = sys.exc_info()
         sys.excepthook(*info)
         texto = self.leer()
-        self.assertIn("Recorder 2.0.0 (desde el código): excepción sin atrapar en el hilo principal", texto)
+        self.assertIn(f"Recorder {__version__} (desde el código): excepción sin atrapar en el hilo principal", texto)
         self.assertIn("RuntimeError: boom", texto)
         self.assertIn("Traceback (most recent call last)", texto)
         self.sys_previo.assert_called_once_with(*info)
@@ -273,7 +273,7 @@ class TestRegistroDeFallos(CasoInstalado):
         self.congelar()
         registro.instalar()
         self.assertEqual(self.leer().count("\n"), 1)
-        self.assertIn("Recorder 2.0.0 (instalado) arranca: Recorder.exe", self.leer())
+        self.assertIn(f"Recorder {__version__} (instalado) arranca: Recorder.exe", self.leer())
         self.assertEqual((registro._manejador.maxBytes, registro._manejador.backupCount), (1_000_000, 3))
 
     def test_instalar_dos_veces_no_duplica_y_desinstalar_devuelve_los_ganchos(self):
