@@ -91,8 +91,15 @@ class TestInteractivo(CasoSintesis):
     def test_opciones_elegidas_a_mano(self):
         with respuestas("1", "1", "n", "n", "n", "n", "s"):
             # sin agrupar (no se pregunta por las horas); no unir; con imágenes; no descartar cortas; conservar ecos; generar
-            codigo, _ = self.correr()
+            codigo, salida = self.correr()
         self.assertEqual(codigo, 0)
+        # la pregunta y la ayuda de la ventana dicen lo mismo de las frases cortas (y con el mismo número)
+        from recorder import ayuda
+        from recorder.digest import MIN_WORDS
+
+        self.assertIn(f"¿Quitar las frases de menos de {MIN_WORDS} palabras? (también respuestas como «Sí, va.»)", salida)
+        self.assertIn(f"menos de {MIN_WORDS} palabras", ayuda.linea("descartar_cortas"))
+        self.assertIn("«Sí, va.»", ayuda.linea("descartar_cortas"))
         destino = self.notas / "daily_2026-09-08_10-20_reagrupada.md"
         contenido = destino.read_text(encoding="utf-8")
         self.assertIn("sin agrupar", contenido)

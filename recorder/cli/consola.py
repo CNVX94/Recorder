@@ -1,4 +1,5 @@
 """La consola que comparten todos los comandos de terminal: mismos colores y mismo modo ASCII."""
+import re
 import sys
 from typing import List, Optional, Sequence, Tuple
 
@@ -28,6 +29,8 @@ ASCII = {
     "🎯": "", "🧪": "", "🧹": "", "📝": "", "📑": "", "█": "#", "░": ".", "→": "->", "➔": "->", "…": "...",
     "↑": "^", "↓": "v", "←": "<", "‹": "<", "›": ">", "─": "-",
 }
+# Desde U+2000 (salvo las rayas – y —) y el espacio que lo siga.
+FUERA_DE_ASCII = re.compile("[^\\x00-\\u1fff–—] ?")
 
 # Símbolos con presentación de texto (✔ ⚙ 🖥: Emoji_Presentation=No) que rich mide a una celda
 # pero Windows Terminal dibuja con un glifo de dos (el de Segoe UI Symbol/Emoji), pisando el
@@ -37,11 +40,15 @@ EMOJI_SEGURO = {"✔": "✅", "⚙": "🔧", "🖥": "💻"}
 
 
 def asciify(texto: str) -> str:
-    """El texto con los símbolos de Recorder en ASCII y sin emoji; los acentos se quedan."""
+    """El texto con los símbolos de Recorder en ASCII y sin emoji; los acentos se quedan. Un símbolo
+    que desaparece se lleva el espacio que lo seguía: «🎯 Calibrar» queda «Calibrar», no « Calibrar»."""
+    texto = texto.replace("️", "")  # selector de presentación emoji: no ocupa nada
     for simbolo, sustituto in ASCII.items():
+        if not sustituto:
+            texto = texto.replace(simbolo + " ", "")
         texto = texto.replace(simbolo, sustituto)
     # Lo que quede fuera de los alfabetos latinos (emoji, flechas, bloques) no se ve en conhost.
-    return "".join(c for c in texto if ord(c) < 0x2000 or c in "–—·").replace("️", "")
+    return FUERA_DE_ASCII.sub("", texto)
 
 
 def emoji_seguro(texto: str) -> str:

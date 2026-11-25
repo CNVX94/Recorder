@@ -3,7 +3,8 @@
 Un menú corto edita el vocabulario, la lista negra, las correcciones y los umbrales de un
 `TuningForm`, y el sandbox prueba frases contra lo escrito AHORA, antes de guardar (también el
 eco del vocabulario: un renglón que solo es rótulo o lista del vocab sale «DESCARTADA: es eco»).
-Se guarda solo con «Guardar y salir». `--probar "frase"` es la versión para scripts: imprime el
+Se guarda solo con «Guardar y salir»; «Salir sin guardar» con cambios pide confirmación (Enter vuelve
+al menú). `--probar "frase"` es la versión para scripts: imprime el
 veredicto con los filtros guardados y sale con 0 si se acepta y 1 si se descarta. No importa tkinter.
 """
 
@@ -134,6 +135,8 @@ def menu(mgr: ConfigManager, config: AppConfig, consola: Console) -> int:
             return 0
         else:
             if form != original:
+                if not confirmar(consola, "¿Salir y perder los cambios?", False):
+                    continue  # Enter (o «n») vuelve al menú con todo lo escrito
                 imprimir(consola, "[tenue]No se guardó nada.[/]")
                 return 1
             return 0

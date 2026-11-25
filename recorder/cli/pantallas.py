@@ -408,6 +408,8 @@ class Opciones(Pantalla):
             elif k in (ESC, "q"):
                 self.confirmando = False
             return True
+        if k not in (ESC, "q"):
+            self.avisado = False  # tras el aviso se siguió trabajando: el próximo Esc vuelve a avisar
         a = self.ajustes[self.sel]
         movida = _mover(self.sel, len(self.ajustes), k)
         if movida is not None:

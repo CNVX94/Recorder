@@ -194,7 +194,7 @@ def preguntar_opciones(consola: Console, args: argparse.Namespace, vocab: str = 
     # sin agrupar, la hora completa es lo único que ordena y se conserva siempre: no se pregunta
     strip_stamps = confirmar(consola, "¿Hora corta [HH:MM] por párrafo, en vez de HH:MM:SS por línea?", not args.con_horas) if cada else True
     sin_imagenes = confirmar(consola, "¿Quitar las referencias de imagen (texto puro)?", not args.con_imagenes)
-    drop_short = confirmar(consola, f"¿Descartar las líneas de menos de {MIN_WORDS} palabras? (se lleva respuestas como «Sí, va.»)", args.sin_cortas)
+    drop_short = confirmar(consola, f"¿Quitar las frases de menos de {MIN_WORDS} palabras? (también respuestas como «Sí, va.»)", args.sin_cortas)
     drop_echo = confirmar(consola, "¿Quitar el eco del vocabulario («Términos.», listas del vocab)?", not args.con_ecos)
     return digest_options(
         cada, merge=merge, strip_stamps=strip_stamps, keep_captures=not sin_imagenes,

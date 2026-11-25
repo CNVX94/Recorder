@@ -155,7 +155,13 @@ class TestSimbolos(unittest.TestCase):
 
     def test_presentar_segun_la_consola(self):
         self.assertEqual(presentar("✔ ok ⚙", make_console(ascii_mode=False, file=io.StringIO())), "✅ ok 🔧")
-        self.assertEqual(presentar("✔ ok ⚙ 🔧", make_console(ascii_mode=True, file=io.StringIO())), "OK ok  ")
+        ascii_ = make_console(ascii_mode=True, file=io.StringIO())
+        self.assertEqual(presentar("✔ ok ⚙ 🔧", ascii_), "OK ok ", "sin espacios de más donde había símbolos")
+        # Un símbolo que desaparece se lleva su espacio: sin espacio al principio ni dobles
+        self.assertEqual(presentar("🎯 Calibración", ascii_), "Calibración")
+        self.assertEqual(presentar("⚙️ Opciones   ahora: x", ascii_), "Opciones   ahora: x", "con selector emoji incluido")
+        self.assertEqual(presentar("hoy 🌟 sale", ascii_), "hoy sale", "también lo que no está en la tabla")
+        self.assertEqual(presentar("Opciones → Calidad · 09:30 – 09:45", ascii_), "Opciones -> Calidad · 09:30 – 09:45")
 
 
 class TestLineas(BasePantalla):
@@ -321,14 +327,22 @@ class TestCierreConCola(BasePantalla):
         self.encolar(20)
 
     def test_pregunta_cancela_y_al_final_sale_perdiendo(self):
-        salida = limpio(self.correr("q", None, "c", None, "q", "s"))
+        salida = limpio(self.correr("q", None, ESC, None, "q", "s"))
         pregunta = "Quedan 1 fragmento (~20 s de audio) sin transcribir."
         self.assertIn(pregunta, salida)
-        self.assertIn("[e] esperar", salida)
-        self.assertLess(salida.index("[c] cancelar"), salida.rindex("[p] pausar"), "tras cancelar vuelven las teclas normales")
+        self.assertIn("[e] esperar y salir · [s] salir sin esperar · [Esc] seguir grabando", salida)
+        self.assertLess(salida.index("[Esc] seguir grabando"), salida.rindex("[p] pausar"), "con Esc vuelven las teclas normales")
         self.assertIn("⚠ se perdieron 1 fragmento (~20 s de audio) sin transcribir", salida)
         self.assertEqual(self.session.chunk_queue.qsize(), 1)
         self.assertFalse(self.session.draining)
+        self.assertTrue(self.session.stop_event.is_set())
+
+    def test_mientras_pregunta_la_c_no_cancela_ni_captura(self):
+        capturas = []
+        self.session.manual_screenshot = lambda: capturas.append(1)
+        salida = limpio(self.correr("q", None, "c", None, "s"))
+        self.assertEqual(capturas, [], "la c es «captura» en el pie normal, no aquí")
+        self.assertNotIn("[p] pausar", salida[salida.index("Quedan 1 fragmento"):], "la pregunta sigue en pie hasta la s")
         self.assertTrue(self.session.stop_event.is_set())
 
     def test_esperar_hasta_vaciar_la_cola(self):
@@ -503,7 +517,7 @@ class TestPanelOpciones(BasePantalla):
 
     def test_ctrl_c_con_el_panel_abierto_pregunta_por_la_cola(self):
         self.encolar(20)
-        texto = limpio(self.correr("o", "1", None, CTRL_C, None, "c", None, "q", "s"))
+        texto = limpio(self.correr("o", "1", None, CTRL_C, None, ESC, None, "q", "s"))
         self.assertIn("Quedan 1 fragmento (~20 s de audio) sin transcribir. [e] esperar", texto)
         self.assertLess(texto.rindex("[1-3] elegir"), texto.index("Quedan 1 fragmento"), "el panel se cierra al preguntar")
         self.assertNotIn("restart", [c[0] for c in self.audio.llamadas])
@@ -613,7 +627,7 @@ class TestSinTerminal(BasePantalla):
         self.assertIn("     ● Escuchando\n", salida, "sin pie, los cambios de cabecera quedan como líneas")
         self.assertIn("10:00:01  🎤 Hola equipo\n", salida)
         self.assertIn("10:00:05  🔊 Hay un bloqueo\n             📸 captura: bloqueo\n", salida)
-        self.assertIn("Quedan 1 fragmento (~20 s de audio) sin transcribir. [e] esperar · [s] salir perdiéndolos · [c] cancelar\n", salida)
+        self.assertIn("Quedan 1 fragmento (~20 s de audio) sin transcribir. [e] esperar y salir · [s] salir sin esperar · [Esc] seguir grabando\n", salida)
         self.assertIn("⚠ se perdieron 1 fragmento", salida)
         self.assertTrue(self.session.stop_event.is_set())
 

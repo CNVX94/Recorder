@@ -193,7 +193,8 @@ class TestWriter(unittest.TestCase):
         out = write_digest(self.src, DigestOptions(30))
         texto = out.read_text(encoding="utf-8")
         self.assertIn(f"origen: {self.src.name}", texto)
-        self.assertIn("perdida", texto)  # el aviso de que es derivada
+        self.assertIn("con pérdida de detalle", texto)  # el aviso de que es derivada
+        self.assertIn("opciones: tramos de 30 min, líneas seguidas unidas", texto)
 
     def test_refuses_to_derive_from_a_digest(self):
         out = write_digest(self.src, DigestOptions(60))
@@ -328,7 +329,10 @@ class TestReagrupadaHonesta(unittest.TestCase):
         self.assertIn("No es un resumen", md)
         titulo = next(l for l in md.splitlines() if l.startswith("# "))
         self.assertIn("reagrupada", titulo)
-        self.assertRegex(md, r"\d+ palabras en el original, \d+ aqui \(\d+ % menos\)")
+        self.assertRegex(md, r"\d+ palabras en el original, \d+ aquí \(\d+ % menos\)")
+        self.assertIn("Es la misma transcripción", md)
+        self.assertIn("sacarlas leyéndola", md)
+        self.assertIn("aviso: Transcripción reagrupada", md, "la cabecera YAML también con tildes")
 
     def test_texto_puro_sin_imagenes_ni_indicadores(self):
         nota = NOTA_COLA + (

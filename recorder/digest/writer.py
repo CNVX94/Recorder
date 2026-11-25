@@ -17,8 +17,8 @@ from .transforms import DigestOptions, apply_all, group_by_interval, merge_conse
 SEP = "_reagrupada"  # marca en el nombre que el archivo es derivado
 SEPS = (SEP, "_sintesis")  # "_sintesis" es el nombre de antes: se sigue reconociendo como derivado
 AVISO = (
-    "Transcripcion reagrupada, NO un resumen: es el mismo texto que el original, ordenado por hora "
-    "y agrupado, con perdida de detalle. Para otro agrupamiento, regenera desde el origen; no desde este archivo."
+    "Transcripción reagrupada, NO un resumen: es el mismo texto que el original, ordenado por hora "
+    "y agrupado, con pérdida de detalle. Para otro agrupamiento, regenera desde el origen; no desde este archivo."
 )
 
 
@@ -69,13 +69,13 @@ def unique_digest_path(source_path, opts: DigestOptions, limit: int = 99) -> pat
 def _describe(opts: DigestOptions) -> str:
     partes = ["sin agrupar" if not opts.interval_min else f"tramos de {opts.interval_min} min"]
     if opts.merge:
-        partes.append("lineas seguidas unidas")
+        partes.append("líneas seguidas unidas")
     if opts.drop_short_words:
-        partes.append(f"descartadas lineas de menos de {opts.drop_short_words} palabras")
+        partes.append(f"descartadas líneas de menos de {opts.drop_short_words} palabras")
     if not opts.keep_captures:
         partes.append("sin referencias de imagen ni indicadores de captura (texto puro)")
     if opts.inline_stamps:
-        partes.append("con marca de tiempo por linea")
+        partes.append("con marca de tiempo por línea")
     if opts.drop_echo:
         partes.append("quitado el eco del vocabulario")
     return ", ".join(partes)
@@ -107,9 +107,9 @@ def render(note: Note, opts: DigestOptions, source_name: str, now: Optional[dt.d
         "",
         f"# {note.title or source_name} - reagrupada {agrupada}",
         "",
-        f"> **No es un resumen.** Es la misma transcripcion, ordenada por hora y agrupada: "
-        f"{antes} palabras en el original, {despues} aqui ({reduccion:.0f} % menos). "
-        f"Las decisiones, tareas y fechas hay que sacarlas leyendola.",
+        f"> **No es un resumen.** Es la misma transcripción, ordenada por hora y agrupada: "
+        f"{antes} palabras en el original, {despues} aquí ({reduccion:.0f} % menos). "
+        f"Las decisiones, tareas y fechas hay que sacarlas leyéndola.",
         "",
     ]
 

@@ -14,7 +14,8 @@ terminal a su ancho real, así que cambiar el tamaño de la ventana no deja fras
 
 Teclas: [p] pausar/continuar · [c] captura · [r] reconectar audio · [a] abrir la nota ·
 [o] opciones · [q] salir (Ctrl+C también sale). Al salir con cola pendiente se pregunta en el
-pie, como en la ventana: [e] esperar a que se transcriba · [s] salir perdiéndola · [c] cancelar.
+pie, como en la ventana: [e] esperar a que se transcriba y salir · [s] salir sin esperar, perdiéndola ·
+[Esc] seguir grabando (la c de captura no hace nada mientras pregunta).
 
 [o] abre en el pie un panel de opciones sin parar la grabación (el bucle sigue sondeando la
 sesión e imprimiendo frases mientras tanto): salida de audio, micrófono (apagado o cuál), qué
@@ -77,7 +78,7 @@ INTERVALO = 0.2  # segundos entre sondeos, como la ventana (POLL_MS)
 # La barra de teclas cabe en 80 columnas (79 con «seguir» en pausa): un pie de dos líneas.
 TECLAS = (("p", "pausar"), ("c", "captura"), ("r", "reconectar"), ("a", "nota"), ("o", "opciones"), ("q", "salir"))
 TECLAS_PAUSA = (("p", "seguir"),) + TECLAS[1:]
-TECLAS_CIERRE = (("e", "esperar"), ("s", "salir perdiéndolos"), ("c", "cancelar"))
+TECLAS_CIERRE = (("e", "esperar y salir"), ("s", "salir sin esperar"), ("Esc", "seguir grabando"))
 TECLAS_TERMINANDO = (("s", "salir sin esperar, perdiendo lo pendiente"),)
 
 ICONOS = {"out": "🔊", "mic": "🎤"}  # la columna de icono de cada frase; los hechos de la sesión van sin él
@@ -428,9 +429,9 @@ class PantallaEnVivo:
                 self._esperar()
             elif k in ("s", CTRL_C):
                 return False
-            elif k == "c":
+            elif k == ESC:  # como en todas las pantallas: un paso atrás, aquí seguir grabando
                 self._preguntando = False
-            return True
+            return True  # el resto (también la c de captura) no hace nada mientras pregunta
         if self.session.draining:
             if k in ("s", CTRL_C):
                 return False

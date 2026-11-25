@@ -102,10 +102,10 @@ class TestVistaPrevia(unittest.TestCase):
         self.assertEqual(
             vista.stats(), f"{vista.source_lines} líneas → 2 bloques · {vista.lines} líneas · ~0 KB · 24 → 24 palabras"
         )
-        self.assertIn("24 palabras en el original, 24 aqui", vista.markdown)  # las mismas cifras que la cabecera
+        self.assertIn("24 palabras en el original, 24 aquí", vista.markdown)  # las mismas cifras que la cabecera
         descartando = preview_digest(self.src, digest_options(30, drop_short=True))
         self.assertEqual(descartando.words, 22)  # «A ver.» (2) fuera
-        self.assertIn("24 palabras en el original, 22 aqui", descartando.markdown)
+        self.assertIn("24 palabras en el original, 22 aquí", descartando.markdown)
 
     def test_sin_agrupar_no_hay_bloques(self):
         self.assertEqual(preview_digest(self.src, digest_options(0)).blocks, 0)

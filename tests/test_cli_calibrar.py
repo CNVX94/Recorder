@@ -75,7 +75,7 @@ class TestMenu(CasoCalibrar):
         apply_tuning(esperado, form)
         self.assertEqual(self.guardado(), esperado.to_dict())
         # con el filtro apagado el sandbox deja pasar el eco
-        with respuestas(VOCAB, "Daily. Términos: QA.", PROBAR, "Términos.", "", SALIR):
+        with respuestas(VOCAB, "Daily. Términos: QA.", PROBAR, "Términos.", "", SALIR, "s"):
             _, salida = self.correr()
         self.assertIn('✅ ACEPTADA: "Términos."', salida)
 
@@ -103,13 +103,23 @@ class TestMenu(CasoCalibrar):
         self.assertEqual(self.mgr.path.read_bytes(), self.antes)
 
     def test_salir_sin_guardar(self):
-        with respuestas(VOCAB, "QA", SALIR):
+        with respuestas(VOCAB, "QA", SALIR, "s"):
             codigo, salida = self.correr()
         self.assertEqual(codigo, 1)
+        self.assertIn("¿Salir y perder los cambios?", salida)
         self.assertIn("No se guardó nada.", salida)
         self.assertEqual(self.mgr.path.read_bytes(), self.antes)
         with respuestas(SALIR):
-            self.assertEqual(self.correr()[0], 0)  # sin cambios, salir es normal
+            codigo, salida = self.correr()
+        self.assertEqual(codigo, 0)  # sin cambios, salir es normal y no pregunta
+        self.assertNotIn("¿Salir y perder", salida)
+
+    def test_salir_con_cambios_por_defecto_no_sale(self):
+        with respuestas(VOCAB, "QA", SALIR, "", GUARDAR):  # Enter en la confirmación = no: vuelve al menú
+            codigo, salida = self.correr()
+        self.assertEqual(codigo, 0)
+        self.assertEqual(salida.count("¿Qué quieres hacer?"), 3, "volvió al menú con lo escrito")
+        self.assertEqual(self.guardado()["vocab"], "QA", "y lo escrito se pudo guardar después")
 
     def test_cancelar_no_guarda(self):
         with respuestas(VOCAB, "QA", UMBRALES):  # y la entrada se cierra en el primer umbral
@@ -136,14 +146,14 @@ class TestSandbox(CasoCalibrar):
 
     def test_prueba_lo_escrito_ahora_sin_guardar(self):
         # sin lista negra en el formulario, «Suscríbete» pasa; pero al salir sin guardar el archivo no cambia
-        with respuestas(IGNORAR, "-", "n", PROBAR, "¡Suscríbete!", "", SALIR):
+        with respuestas(IGNORAR, "-", "n", PROBAR, "¡Suscríbete!", "", SALIR, "s"):
             codigo, salida = self.correr()
         self.assertEqual(codigo, 1)
         self.assertIn('✅ ACEPTADA: "¡Suscríbete!"', salida)
         self.assertEqual(self.mgr.path.read_bytes(), self.antes)
 
     def test_el_eco_del_vocabulario_escrito_ahora_se_marca(self):
-        with respuestas(VOCAB, "Daily. Términos: QA, IIS.", PROBAR, "Términos.", "QA, IIS.", "Términos de pago.", "", SALIR):
+        with respuestas(VOCAB, "Daily. Términos: QA, IIS.", PROBAR, "Términos.", "QA, IIS.", "Términos de pago.", "", SALIR, "s"):
             codigo, salida = self.correr()
         self.assertEqual(codigo, 1)  # se salió sin guardar
         self.assertEqual(salida.count("⛔ DESCARTADA: es eco del vocabulario"), 2)

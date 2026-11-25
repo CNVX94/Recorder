@@ -166,7 +166,8 @@ VENTANA: Textos = {
     ),
     "descartar_cortas": (
         "Descartar frases cortas",
-        "Quita las frases muy cortas, como «sí», «ok» o «vale», que casi siempre son relleno.",
+        "Quita las frases de menos de 4 palabras, como «sí» u «ok». Ojo: también se van respuestas "
+        "con contenido, como «Sí, va.».",
     ),
     "quitar_eco": (
         "Quitar eco",
@@ -280,18 +281,18 @@ TERMINAL: Textos = {
         "Termina la grabación. Si queda audio sin transcribir, te pregunta si esperar o salir "
         "perdiéndolo. Ctrl+C hace lo mismo.",
     ),
-    # Al salir con audio pendiente: «cierre_» + la tecla
+    # Al salir con audio pendiente: «cierre_» + la tecla, en minúsculas
     "cierre_e": (
-        "Esperar",
+        "Esperar y salir",
         "Termina de transcribir lo pendiente sin escuchar audio nuevo y sale sola al acabar.",
     ),
     "cierre_s": (
-        "Salir perdiéndolos",
+        "Salir sin esperar",
         "Sale ya. Lo que faltaba por transcribir no llega a la nota.",
     ),
-    "cierre_c": (
-        "Cancelar",
-        "No sale: la grabación sigue como estaba.",
+    "cierre_esc": (
+        "Seguir grabando",
+        "No sale: la grabación sigue como estaba. Mientras se pregunta, las demás teclas no hacen nada.",
     ),
     "pie_motor": (
         "Motor y velocidad",

@@ -71,7 +71,7 @@ class TestTerminal(unittest.TestCase):
         for tecla, _ in live.TECLAS + live.TECLAS_PAUSA:
             ayuda.linea(f"tecla_{tecla}")
         for tecla, _ in live.TECLAS_CIERRE + live.TECLAS_TERMINANDO:
-            ayuda.linea(f"cierre_{tecla}")
+            ayuda.linea(f"cierre_{tecla.lower()}")
         panel = {"out": "salida_audio", "mic": "microfono", "target": "que_capturar", "captures": "capturas_clave"}
         self.assertEqual([s for _t, s, _titulo in live.SECCIONES], list(panel))
         for clave in panel.values():

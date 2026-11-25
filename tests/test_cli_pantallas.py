@@ -293,6 +293,14 @@ class TestOpciones(BaseTerminal):
         self.assertIn("⚠ Hay cambios sin guardar", texto)
         self.assertEqual(self.ruta.read_bytes(), guardado)
 
+    def test_el_aviso_vuelve_si_se_sigue_editando(self):
+        guardado = self.ruta.read_bytes()
+        guion = ["2", self.opciones_listas, *["j"] * MIC, DERECHA, ESC, "j", DERECHA, ESC, ESC, "q"]
+        _codigo, texto = self.correr(*guion)
+        self.assertEqual(texto.count("⚠ Hay cambios sin guardar"), 2, "avisa otra vez tras volver a editar")
+        self.assertRegex(texto[texto.rindex("⚠ Hay cambios sin guardar"):], r"\nInicio +\n", "y el Esc siguiente sí sale")
+        self.assertEqual(self.ruta.read_bytes(), guardado)
+
     def test_usar_la_recomendada(self):
         _codigo, texto = self.correr("2", self.opciones_listas, ARRIBA, ENTER, "g", ENTER, "q", "q")
         self.assertIn("Recomendado para este equipo:", texto)
