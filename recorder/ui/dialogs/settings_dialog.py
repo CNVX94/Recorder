@@ -40,6 +40,7 @@ from ...config.schema import (
     recommend_config,
 )
 from ...engine.whispercpp import vulkan_readiness, whispercpp_ready, whispercpp_status
+from ..animacion import cerrar
 from ..theme import BTN_STYLE, ENTRY_STYLE, LABEL_STYLE, P, fit_window
 from ..tooltip import con_ayuda
 from .tuning_dialog import TuningDialog
@@ -67,6 +68,7 @@ class SettingsDialog(tk.Toplevel):
         self.configure(bg=P.fondo)
         self.transient(parent)
         self.grab_set()
+        self.protocol("WM_DELETE_WINDOW", lambda: cerrar(self))  # con fundido de salida
 
         self.screens = screen_labels()
         # El perfil lo detecta la sesión al arrancar en otro hilo (~1 s); si aún no está, el
@@ -178,7 +180,7 @@ class SettingsDialog(tk.Toplevel):
         con_ayuda(tk.Button(
             btn_box,
             text="Cancelar",
-            command=self.destroy,
+            command=lambda: cerrar(self),
             bg=P.superficie,
             fg=P.texto_tenue,
             relief="flat",
@@ -451,4 +453,4 @@ class SettingsDialog(tk.Toplevel):
     def _save(self):
         cambios = apply_settings(self.config, self._form(), self.screens)
         self.on_save(self.config, cambios.notes_changed, cambios.devices_changed)
-        self.destroy()
+        cerrar(self)

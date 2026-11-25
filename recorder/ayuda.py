@@ -59,6 +59,56 @@ VENTANA: Textos = {
         "Reagrupar",
         "Crea una copia ordenada de una nota, agrupada en tramos de tiempo. No resume y nunca toca el original.",
     ),
+    "abrir_nota": (
+        "Abrir nota",
+        "Abre la nota de hoy con el programa que usa tu PC para los .md, para leerla o copiar algo mientras se escribe.",
+    ),
+    "mas": (
+        "Más",
+        "Opciones, Calibrar, Reagrupar nota, el panel de rendimiento, el tema y la ayuda. "
+        "Cada opción muestra su atajo de teclado si lo tiene.",
+    ),
+    "rendimiento": (
+        "Rendimiento",
+        "Muestra u oculta el panel con el motor, la velocidad y lo que gasta Recorder en los "
+        "últimos 2 minutos. Plegado no se redibuja.",
+    ),
+    "tema_alternar": (
+        "Cambiar tema",
+        "Pasa del tema oscuro al claro o al revés y lo guarda. Para seguir el modo de Windows, "
+        "elige «Sistema» en Más → Tema.",
+    ),
+    "ayuda": (
+        "Ayuda",
+        "Lista los atajos de teclado de la ventana. Además, cada control explica qué hace al "
+        "pasar el ratón o al llegar a él con Tab.",
+    ),
+    # Panel de rendimiento
+    "rend_motor": (
+        "Motor efectivo",
+        "Con qué se transcribe de verdad: programa, procesador o tarjeta gráfica, calidad y haz. "
+        "«Caída a CPU» quiere decir que la tarjeta gráfica falló.",
+    ),
+    "rend_velocidad": (
+        "Velocidad",
+        "Cuántas veces más rápido que el habla se transcribe, con los últimos fragmentos. "
+        "Por debajo de 1× se acumula atraso y sale en rojo: baja la calidad.",
+    ),
+    "rend_cpu": (
+        "CPU",
+        "Procesador que usa Recorder (con whisper.cpp si lo usa); entre paréntesis, el del equipo "
+        "entero, como en el Administrador de tareas.",
+    ),
+    "rend_gpu": (
+        "GPU",
+        "Tarjeta gráfica que usa Recorder y, entre paréntesis, la del equipo entero. «n/d» si "
+        "Windows no da el dato.",
+    ),
+    "rend_ram": (
+        "RAM",
+        "Memoria que ocupa Recorder con el modelo cargado (y whisper.cpp si lo usa). Sube al "
+        "cargar el modelo y después se mantiene.",
+    ),
     # ⚙ Opciones
     "examinar": (
         "Elegir carpeta",

@@ -16,6 +16,7 @@ from ...filters.tuning import (
     tuning_form,
     with_common_ignore,
 )
+from ..animacion import cerrar
 from ..theme import BTN_STYLE, ENTRY_STYLE, LABEL_STYLE, P, fit_window
 from ..tooltip import con_ayuda
 
@@ -37,6 +38,7 @@ class TuningDialog(tk.Toplevel):
         self.configure(bg=P.fondo)
         self.transient(parent)
         self.grab_set()
+        self.protocol("WM_DELETE_WINDOW", lambda: cerrar(self))  # con fundido de salida
 
         self._init_variables()
         self._build_ui()
@@ -306,7 +308,7 @@ class TuningDialog(tk.Toplevel):
         con_ayuda(tk.Button(
             actions,
             text="Cancelar",
-            command=self.destroy,
+            command=lambda: cerrar(self),
             bg=P.superficie,
             fg=P.texto_tenue,
             relief="flat",
@@ -341,4 +343,4 @@ class TuningDialog(tk.Toplevel):
     def _save_changes(self):
         apply_tuning(self.config, self._form())
         self.on_save(self.config)
-        self.destroy()
+        cerrar(self)

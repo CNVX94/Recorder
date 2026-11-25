@@ -28,6 +28,7 @@ from ...digest import (
     unique_digest_path,
     write_digest,
 )
+from ..animacion import cerrar
 from ..theme import BTN_STYLE, LABEL_STYLE, P, fit_window
 from ..tooltip import con_ayuda
 
@@ -53,6 +54,7 @@ class DigestDialog(tk.Toplevel):
         self.configure(bg=P.fondo)
         self.transient(parent)
         self.grab_set()
+        self.protocol("WM_DELETE_WINDOW", lambda: cerrar(self))  # con fundido de salida
 
         self._init_vars()
         self._build_ui()
@@ -114,7 +116,7 @@ class DigestDialog(tk.Toplevel):
             tk.Label(cont, text=f"No hay notas originales en {self.config.notes_dir}",
                      bg=P.fondo, fg=P.error, font=("Segoe UI", 10), wraplength=720,
                      justify="left").pack(anchor="w", pady=20)
-            con_ayuda(tk.Button(self, text="Cerrar", command=self.destroy, **BTN_STYLE), "cancelar").pack(pady=16)
+            con_ayuda(tk.Button(self, text="Cerrar", command=lambda: cerrar(self), **BTN_STYLE), "cancelar").pack(pady=16)
             return
 
         self._seccion_origen(cont)
@@ -267,7 +269,7 @@ class DigestDialog(tk.Toplevel):
     def _botonera(self):
         acciones = tk.Frame(self, bg=P.fondo)
         acciones.pack(side="bottom", fill="x", padx=16, pady=(8, 16))
-        con_ayuda(tk.Button(acciones, text="Cancelar", command=self.destroy, bg=P.superficie, fg=P.texto_tenue,
+        con_ayuda(tk.Button(acciones, text="Cancelar", command=lambda: cerrar(self), bg=P.superficie, fg=P.texto_tenue,
                             relief="flat", padx=12, font=("Segoe UI", 9)), "cancelar").pack(side="right", padx=(8, 0))
         self.btn_generar = con_ayuda(tk.Button(
             acciones, text="📑 Generar copia", command=self._generar,

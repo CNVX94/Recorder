@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 from .. import paleta
 from ..rutas import recurso
+from . import animacion
 
 ICONO = "recorder/assets/recorder.ico"  # lo añade el empaquetado; desde el código puede no estar
 
@@ -46,8 +47,13 @@ def fit_window(win, w: int, h: int):
     125 % o en pantallas pequeñas (monitores virtuales de streaming de 1366×768). Se escala el
     tamaño, se usa el que pide el contenido si es mayor, se limita al área útil del monitor de la
     ventana padre y se centra ahí. Queda redimensionable por si aun así no cabe. Como toda ventana
-    pasa por aquí al abrirse, aquí recibe también la barra de título del tema.
+    pasa por aquí al abrirse, aquí recibe también la barra de título del tema y, la primera vez,
+    el fundido de entrada (reajustarla después, como «Ampliar» de Reagrupar, no la vuelve a fundir).
     """
+    primera = not getattr(win, "_ajustada", False)
+    if primera:
+        win._ajustada = True
+        animacion.preparar_entrada(win)  # antes de update_idletasks, que es lo que la muestra
     win.update_idletasks()
     k = win.tk.call("tk", "scaling") / (96 / 72)  # 1.0 a 100 %, 1.25 a 125 %...
     l, t, r, b = work_area(win.master or win)
@@ -58,6 +64,9 @@ def fit_window(win, w: int, h: int):
     win.geometry(f"{w}x{h}+{x}+{y}")
     win.resizable(True, True)
     barra_titulo(win)
+    if primera:
+        animacion.entrar(win)
+    return w, h  # el tamaño puesto: hasta el próximo sondeo de Tk, winfo_width aún da el de antes
 
 
 # La paleta activa (tokens de recorder/paleta.py). Los widgets leen `P.fondo`, `P.texto`... al
@@ -96,14 +105,19 @@ OPCIONES_COLOR = (
 ESTILOS_TTK = ("Digest.Vertical.TScrollbar",)  # estilos ttk con colores de la paleta
 
 
-def aplicar_tema(raiz, nombre: str) -> str:
+def aplicar_tema(raiz, nombre: str, transicion_ms: int = 0) -> str:
     """Pone el tema `nombre` (de config «theme») en caliente y devuelve el que se pinta.
 
     Es el único punto que cambia el tema: cambia la paleta y los estilos y repinta `raiz` con todo
     lo que cuelga de ella, diálogos abiertos incluidos, sustituyendo cada color del tema anterior
     por el del mismo token (los tokens con el mismo color coinciden en todos los temas, ver
     paleta.py). Los diálogos que se abran después ya leen la paleta nueva.
+
+    Con `transicion_ms`, cada color va del viejo al nuevo en un fundido cruzado (si «animations»
+    lo permite); la paleta, los estilos y la barra de título cambian ya. Un fundido a medias se
+    completa antes de empezar otro: un color intermedio no se reconocería al sustituir.
     """
+    animacion.cancelar(raiz, "tema", completar=True)
     resuelto = paleta.resolver(nombre)
     nuevo = paleta.TEMAS[resuelto]
     cambio = {color: nuevo[token] for token, color in vars(P).items()}
@@ -115,33 +129,83 @@ def aplicar_tema(raiz, nombre: str) -> str:
         nuevos = {op: cambio[str(v)] for op, v in viejos.items() if str(v) in cambio}
         if nuevos:
             estilo.configure(nombre_estilo, **nuevos)
-    _repintar(raiz, cambio)
+    pendientes = []  # (configurar, {opción: (color viejo, color nuevo)})
+    _repintar(raiz, cambio, pendientes)
+
+    def paso(v):
+        for configurar, opciones in pendientes:
+            try:
+                configurar(**{op: animacion.mezclar(a, b, v) for op, (a, b) in opciones.items()})
+            except tk.TclError:
+                pass  # un diálogo que se cerró a mitad del fundido
+
+    animacion.animar(raiz, "tema", transicion_ms, paso)
     return resuelto
 
 
-def _repintar(w, cambio: dict):
+def _repintar(w, cambio: dict, pendientes: list):
     opciones = {}
     for op in OPCIONES_COLOR:
         try:
             valor = str(w.cget(op))
         except tk.TclError:
             continue  # este widget no tiene esa opción
-        if valor in cambio:
-            opciones[op] = cambio[valor]
+        if valor in cambio and cambio[valor] != valor:
+            opciones[op] = (valor, cambio[valor])
     if opciones:
-        w.configure(**opciones)
+        pendientes.append((w.configure, opciones))
     if isinstance(w, tk.Text):
         for tag in w.tag_names():
+            tag_opciones = {}
             for op in ("foreground", "background"):
                 valor = str(w.tag_cget(tag, op))
-                if valor in cambio:
-                    w.tag_configure(tag, **{op: cambio[valor]})
+                if valor in cambio and cambio[valor] != valor:
+                    tag_opciones[op] = (valor, cambio[valor])
+            if tag_opciones:
+                pendientes.append((lambda _t=tag, _w=w, **o: _w.tag_configure(_t, **o), tag_opciones))
     if isinstance(w, (tk.Tk, tk.Toplevel)):
         barra_titulo(w)
     elif isinstance(w, tk.Scrollbar):
         scroll_nativo(w)
     for hijo in w.winfo_children():
-        _repintar(hijo, cambio)
+        _repintar(hijo, cambio, pendientes)
+
+
+HOVER_MS = 120
+
+
+def con_anillo(padre, crear):
+    """`crear(marco)` dentro de un marco de 2 px que toma el color de foco (>= 3:1 sobre el fondo)
+    mientras el control tiene el foco del teclado; devuelve el control (el marco es su `master`).
+
+    Tk en Windows marca el foco de botones y etiquetas solo con el punteado nativo: no pinta
+    `highlightcolor` (Entry y Text sí). El anillo es, por eso, el fondo de este marco.
+    """
+    marco = tk.Frame(padre, bg=P.fondo, padx=2, pady=2)
+    control = crear(marco)
+    control.pack(fill="both", expand=True)
+    control.bind("<FocusIn>", lambda _e: marco.configure(bg=P.foco), add="+")
+    control.bind("<FocusOut>", lambda _e: marco.configure(bg=P.fondo), add="+")
+    return control
+
+
+def boton_vivo(boton: tk.Button, reposo: str = "superficie", encima: str = "superficie_elevada") -> tk.Button:
+    """Transición de color al pasar el ratón y al soltar el clic (los tokens de la paleta en
+    reposo y encima). Mientras se pulsa, Windows pinta `activebackground` (el acento); al soltar,
+    el color vuelve de medio acento al de encima en vez de saltar."""
+    def ir(desde: str, token: str):
+        hasta = getattr(P, token)
+        animacion.animar(boton, "color", HOVER_MS, lambda v: boton.configure(bg=animacion.mezclar(desde, hasta, v)))
+
+    def soltar(_e):
+        # Soltado fuera (se arrastró el ratón): vuelve al reposo, no se queda resaltado
+        dentro = boton.winfo_containing(*boton.winfo_pointerxy()) is boton
+        ir(animacion.mezclar(getattr(P, encima), P.acento, 0.5), encima if dentro else reposo)
+
+    boton.bind("<Enter>", lambda _e: ir(str(boton.cget("bg")), encima), add="+")
+    boton.bind("<Leave>", lambda _e: ir(str(boton.cget("bg")), reposo), add="+")
+    boton.bind("<ButtonRelease-1>", soltar, add="+")
+    return boton
 
 
 DWMWA_USE_IMMERSIVE_DARK_MODE = 20  # Windows 10 20H1 en adelante
