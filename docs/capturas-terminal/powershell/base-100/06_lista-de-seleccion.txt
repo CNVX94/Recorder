@@ -1,0 +1,30 @@
+ Recorder · daily_2026-11-24_09-30.md · Calidad Media · CPU
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ Inicio › Opciones › Salida a capturar
+
+ ► 1  (predeterminado de Windows)  (actual)
+   2  Auriculares (Oculus Virtual Audio Device)
+   3  H27T27 (HD Audio Driver for Display Audio)
+   4  Auriculares (Realtek(R) Audio)
+   5  Altavoces (Realtek(R) Audio)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ El altavoz o los auriculares por los que oyes la reunión: de ahí sale la voz de los demás.
+ Cámbialo si OUT no se mueve cuando alguien habla.
+
+ [Enter] Elegir · [Esc] Volver sin cambiar · [↑↓] Mover · [1-5] Directo · [?] Ayuda

@@ -1,0 +1,30 @@
+ Recorder · daily_2026-11-24_09-30.md · Calidad Media · CPU
+ --------------------------------------------------------------------------------------------------
+ Inicio > Opciones
+
+   Carpetas
+     Carpeta de notas            C:\Users\DESARR~1\AppData\Local\Temp\eviddtzvlm5g\notas
+     Carpeta de capturas         C:\Users\DESARR~1\AppData\Local\Temp\eviddtzvlm5g\notas\capturas
+     Palabras clave              pendiente, bloqueo, capturaerror
+   Audio
+     Salida a capturar           (predeterminado de Windows)
+ >   Transcribir mi micrófono    [ ] no
+     Micrófono                   (predeterminado de Windows)
+   Capturas
+     Qué capturar                (todas las pantallas)
+     Capturas por palabra clave  Normales: JPEG 85 a tamaño real, texto nítido (~470 MB/h)
+   Calidad
+     Calidad                     Media
+     Hilos de CPU                automático (4)
+     Carpeta de whisper.cpp      (vacío)
+     Usar la recomendada
+   Apariencia
+     Tema                        Oscuro
+
+
+
+ Actívalo para que tu voz también quede en la nota, marcada con MIC. Apágalo si solo te interesa lo
+ que dicen los demás.
+ OK Guardado en C:\Users\DESARR~1\AppData\Local\Temp\eviddtzvlm5g\config.json. Los cambios valen
+ desde el próximo arranque: una grabación ya abierta sigue con lo anterior.
+ [Espacio] Cambiar · [g] Guardar · [Esc] Volver · [<>] Cambiar · [^v] Mover · [?] Ayuda · [t] Tema

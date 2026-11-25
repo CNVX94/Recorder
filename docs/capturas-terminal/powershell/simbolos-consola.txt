@@ -1,0 +1,19 @@
+marca de fila   ►
+flechas         ↑ ↓ ← →
+recorte         abc…
+cursor          a▌b
+interruptor     ● sí  ○ no
+pausa           ‖
+terminando      …
+correcto        √
+aviso           ▲
+error           ×
+captura         ■
+tendencia       · ░ ▄ █
+separador       a │ b
+spinner         ∙ • ● •
+barras          ████░░░░
+ruta y valor    › ‹ › ─── « »
+
+juego «consola»: ► √ ▲ × ‖ … ■ √ Calibrar
+seguros: ─█░‹›●·«»►↑↓←→…▲○■▌▄│√‖•∙

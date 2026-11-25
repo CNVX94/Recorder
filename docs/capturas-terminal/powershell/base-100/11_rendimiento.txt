@@ -1,0 +1,30 @@
+ Recorder · daily_2026-11-24_09-30.md · Calidad Media · CPU
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ Inicio › Rendimiento
+
+ No hay ninguna grabación en curso: las cifras son del equipo entero.
+ Motor que se usaría: faster-whisper · CPU, 4 hilos · small · haz 5
+
+ CPU del equipo  ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░   7 %  ··
+ GPU del equipo  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   1 %  ··
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Con qué motor se transcribiría y cuánto procesador y tarjeta gráfica usa ahora el equipo, con su
+ tendencia. Sirve para ver si hay margen antes de grabar.
+
+ [Esc] Volver · [?] Ayuda · [t] Tema

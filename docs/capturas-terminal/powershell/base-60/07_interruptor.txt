@@ -1,0 +1,24 @@
+ Recorder · daily_2026-11-24_09-30.md · Calidad Media · CPU
+ ──────────────────────────────────────────────────────────
+ Inicio › Opciones                    ● cambios sin guardar
+   Carpetas
+     Carpeta de notas            C:\Users…vidr9su1mm_\notas
+     Carpeta de capturas         C:\Users…m_\notas\capturas
+     Palabras clave              pendiente, bloqueo, captu…
+   Audio
+     Salida a capturar           (predeterminado de Window…
+ ►   Transcribir mi micrófono    ○ no
+     Micrófono                   (predeterminado de Window…
+   Capturas
+     Qué capturar                (todas las pantallas)
+     Capturas por palabra clave  Normales: JPEG 85 a tamañ…
+   Calidad
+     Calidad                     Media
+     ↓ 5 más abajo
+
+ Actívalo para que tu voz también quede en la nota, marcada
+ con MIC. Apágalo si solo te interesa lo que dicen los
+ demás.
+
+
+ [Espacio] Cambiar · [g] Guardar · [Esc] Volver · [?] Más
