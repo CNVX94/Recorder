@@ -12,6 +12,7 @@ MARGEN = 1  # columnas en blanco a cada lado
 ANCHO_MINIMO, ALTO_MINIMO = 60, 24  # por debajo no se pinta ninguna pantalla
 ANCHO_AYUDA_DOS, ANCHO_AYUDA_TRES = 92, 74  # desde aquí la ayuda ocupa 2 líneas, desde aquí 3, y por debajo 4
 RESPIRO_ABAJO, RESPIRO_ARRIBA = 12, 15  # el espacio libre desde el que sale cada línea de respiro
+ANCHO_DOS_COLUMNAS = 96  # desde aquí el Inicio enseña su ficha a la derecha de la lista
 ALTO_AVISO = 1  # la región de aviso se reserva siempre
 ALTO_PIE = 1
 SANGRIA_LISTA = 4  # las marcas «↑ N más arriba» / «↓ N más abajo» van sangradas
@@ -46,6 +47,20 @@ def pie_que_cabe(teclas: Teclas, cabe, mas: Tuple[str, str]) -> List[Tuple[str, 
     while resto and not cabe(resto + ([mas] if con_ayuda else [])):
         resto.pop()
     return resto + ([mas] if con_ayuda else [])
+
+
+def desde(n: int, arriba: int, sitio: int) -> Tuple[range, int, int]:
+    """Como `ventana`, pero para un texto que se recorre desde una línea (`arriba`) en vez de seguir una fila
+    elegida: (líneas visibles, cuántas quedan arriba, cuántas abajo). `arriba` se ajusta para no pasar del
+    final; lo que queda arriba es la primera línea que vale. Las líneas de «↑ N más arriba» y
+    «↓ N más abajo» salen de `sitio` cuando hay algo oculto por ese lado."""
+    if n <= sitio:
+        return range(n), 0, 0
+    arriba = max(0, min(arriba, n - (sitio - 1)))  # en el final solo hace falta el marcador de arriba
+    filas = max(1, sitio - (1 if arriba else 0))
+    if arriba + filas < n:
+        filas = max(1, filas - 1)
+    return range(arriba, min(n, arriba + filas)), arriba, max(0, n - arriba - filas)
 
 
 def ventana(n: int, foco: int, sitio: int) -> Tuple[range, int, int]:

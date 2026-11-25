@@ -319,11 +319,11 @@ class TestTerminalComoBase(BaseTerminal):
         self.assertIsNone(registro.clase_de("grabar"), "lo que no es una pantalla se ejecuta fuera")
         self.assertIsNotNone(t)
 
-    def test_la_cabecera_es_de_una_linea_fuera_de_inicio_y_hay_margen(self):
+    def test_la_cabecera_es_de_una_linea_en_todas_las_pantallas_y_hay_margen(self):
         t = self.terminal(ancho=100, alto=30)
         t._refrescar_cabecera()
         inicio = [l.plain for l in t.marco()]
-        self.assertTrue(inicio[0].startswith(" Recorder · nota de hoy:") and inicio[2].startswith(" Equipo:"), inicio[:3])
+        self.assertTrue(inicio[0].startswith(" Recorder · aún no hay") and inicio[2].strip() == "Inicio", inicio[:3])
         t.abrir(Ayuda(t))
         ayuda_ = [l.plain for l in t.marco()]
         self.assertTrue(ayuda_[0].startswith(" Recorder · aún no hay"), ayuda_[0])

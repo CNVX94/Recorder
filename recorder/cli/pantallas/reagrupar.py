@@ -6,7 +6,6 @@ original y `write_digest` escribe una copia nueva, nunca encima.
 Con 80 columnas o más la vista previa va a la derecha de las opciones; con menos, debajo. RePág y AvPág la
 desplazan. «Crear la copia» ([g] o Enter en su fila) dice cómo se llamará y pide confirmar antes de escribir.
 """
-import contextlib
 import dataclasses
 import datetime as dt
 import pathlib
@@ -288,18 +287,9 @@ class ReagruparOpciones(Pantalla):
             return [(s, "tenue") for s, _e in Interruptor(False).partes(self.app.juego)]
         return partes
 
-    @contextlib.contextmanager
-    def _ancho(self, ancho: int):
-        """Las líneas de `app.t` y `app.t_fila` miden `ancho` mientras se componen las opciones."""
-        anterior, self.app._ancho = self.app._ancho, ancho
-        try:
-            yield
-        finally:
-            self.app._ancho = anterior
-
     def _opciones(self, ancho: int, sitio: int, con_regla: bool) -> Tuple[List[Text], int]:
         """La lista de opciones, con una regla antes de «Crear la copia» si `con_regla`."""
-        with self._ancho(ancho):
+        with self.app.con_ancho(ancho):
             lineas, foco = self.lista.lineas(self.app, self._valor, ancho, sitio)
             regla = self.app.t(("─" * ancho, "borde"))
         if con_regla:
@@ -312,7 +302,7 @@ class ReagruparOpciones(Pantalla):
             return estado_error(self.app, self._error)
         self._alto_previa = max(1, alto)
         visibles, posicion = self.previa.ventana(self._alto_previa)
-        with self._ancho(ancho):
+        with self.app.con_ancho(ancho):
             cabecera = self.app.t((titulo("reagrupar_previa"), "bold"))
             hueco = max(1, ancho - cell_len(cabecera.plain) - len(posicion))
             cabecera = self.app.t((titulo("reagrupar_previa"), "bold"), (" " * hueco + posicion, "tenue"))
@@ -344,7 +334,7 @@ class ReagruparOpciones(Pantalla):
         if not dos:
             self._calcular(ancho)
             lista, foco = self._opciones(ancho, sitio, False)
-            with self._ancho(ancho):
+            with self.app.con_ancho(ancho):
                 regla = self.app.t(("─" * ancho, "borde"))
             restante = sitio - len(lista) - 1 - LINEAS_FIJAS_PREVIA
             return lista + [regla] + self._lineas_previa(ancho, max(1, restante)), foco

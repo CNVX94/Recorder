@@ -1,4 +1,4 @@
-﻿"""Los textos de ayuda de Recorder, sin tkinter ni rich: los tooltips de la ventana (ui/tooltip.py)
+"""Los textos de ayuda de Recorder, sin tkinter ni rich: los tooltips de la ventana (ui/tooltip.py)
 y las líneas de ayuda de la terminal (cli/menu.py, cli/pantallas.py) salen de aquí.
 
 Cada clave da (título corto, explicación). Reglas de redacción: tuteo, lenguaje llano, una o dos
@@ -196,8 +196,8 @@ TERMINAL: Textos = {
     # `daily menu`: «menu_» + la acción de cada opción
     "menu_grabar": (
         "Grabar",
-        "Empieza a transcribir la reunión aquí, en la terminal, y la guarda en la nota de hoy. "
-        "Las teclas para pausar, capturar o salir se ven al pie.",
+        "Empieza a transcribir la reunión a pantalla completa y la guarda en la nota de hoy. "
+        "Al terminar vuelves a este menú.",
     ),
     "menu_config": (
         "Opciones",
@@ -221,7 +221,8 @@ TERMINAL: Textos = {
     ),
     "menu_ventana": (
         "Abrir la ventana",
-        "Abre Recorder con ventana y botones en vez de en la terminal: mismos ajustes y misma nota.",
+        "Abre Recorder con ventana y botones: mismos ajustes y misma nota. "
+        "Mientras esté abierta, esta terminal espera.",
     ),
     "menu_salir": (
         "Salir",
@@ -280,6 +281,29 @@ TERMINAL: Textos = {
         "Ayuda",
         "Las teclas de este menú y de la grabación, y la jerga de Recorder en palabras llanas.",
     ),
+    # Inicio: la ficha de lo que usará la próxima grabación («inicio_» + cada dato)
+    "inicio_proxima": ("Próxima grabación", "Lo que usará la próxima grabación. Se cambia en Opciones."),
+    "inicio_nota": ("Nota de hoy", "El archivo donde se guardará la transcripción de hoy."),
+    "inicio_carpeta": ("Carpeta", "La carpeta de notas."),
+    "inicio_calidad": ("Calidad", "La calidad de transcripción elegida."),
+    "inicio_motor": ("Se usará", "Con qué se transcribirá: el procesador o la tarjeta gráfica."),
+    "inicio_escucha": ("Escucha", "La salida de audio de la que se transcribe a los demás."),
+    "inicio_micro": ("Micrófono", "El micrófono que se transcribe, o «apagado»."),
+    "inicio_capturas": ("Capturas", "Qué se fotografía y con qué palabras clave."),
+    "inicio_equipo": ("Equipo", "El equipo detectado."),
+    "inicio_predeterminado": ("predeterminado", "El que Windows tiene como principal."),
+    "inicio_apagado": ("apagado", "No se transcribe."),
+    "inicio_todas_pantallas": ("todas las pantallas", "Se captura todo el escritorio."),
+    "inicio_pantalla": ("pantalla {n}", "Se captura solo esa pantalla."),
+    "inicio_al_oir": ("al oír {palabras}", "Las palabras clave que disparan una captura."),
+    "inicio_sin_capturas": ("sin capturas automáticas", "Solo la captura manual con la tecla c."),
+    # La ventana gráfica abierta desde el menú
+    "ventana_abierta": (
+        "La ventana de Recorder está abierta",
+        "Ciérrala para volver a este menú. Mientras esté abierta, esta terminal no atiende el teclado.",
+    ),
+    "ventana_cerrada": ("Ventana cerrada", "Ventana cerrada: has vuelto al menú."),
+    "ventana_no_abre": ("No se pudo abrir la ventana", "No se pudo abrir la ventana: {motivo}."),
     "solo_windows": (
         "Solo en Windows",
         "Necesita la captura de audio de Windows (WASAPI): en Linux y macOS todavía no se puede grabar "
@@ -397,6 +421,7 @@ TERMINAL: Textos = {
     "pie_cancelar": ("Cancelar", "Deja el valor como estaba."),
     "pie_seguir_editando": ("Seguir editando", "Vuelve a la lista sin guardar para seguir cambiando cosas."),
     "pie_volver_sin_cambiar": ("Volver sin cambiar", "Vuelve a la lista sin cambiar nada."),
+    "pie_abrir_directo": ("Abrir directo", "Abre la opción con su número."),
     "pie_directo": ("Directo", "Elige la fila con su número."),
     "pie_desplazar": ("Desplazar", "Sube y baja el texto con ↑ ↓."),
     "pie_pagina": ("Página", "Avanza o retrocede una página con RePág y AvPág."),

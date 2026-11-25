@@ -2,18 +2,19 @@
 de la pila y las globales, y pinta el cuadro si cambió.
 
 Se pinta con rich.Live en la pantalla alternativa: al salir, la terminal queda como estaba. Cada INTERVALO s
-se lee una tecla; el cuadro se recompone al pulsar algo, en el tic de TIC s (la cabecera: nota de hoy,
-calidad, motor que se usaría y equipo), al cambiar el tamaño de la ventana o mientras gira un spinner, y
+se lee una tecla; el cuadro se recompone al pulsar algo, en el tic de TIC s (la cabecera y la ficha del
+Inicio: nota de hoy, calidad, motor que se usaría y equipo), al cambiar el tamaño de la ventana o mientras gira un spinner, y
 solo se redibuja si cambió: quieto no escribe nada. El cuadro ocupa la altura entera (ver marco.py):
 cabecera, regla y ruta arriba; el cuerpo en medio (recortado alrededor de lo elegido si no cabe, con
 «↑ N más arriba» y «↓ N más abajo»); abajo la línea de ayuda de lo elegido, el aviso y el pie de teclas.
 Con color real se pinta el fondo de la paleta y la fila elegida con el de la superficie; en ASCII y en
 16 colores, no.
 
-Lo que usa la terminal entera (Calibrar, Reagrupar, Recomendación) se ejecuta fuera de la pantalla
-alternativa, como en el menú numerado, y se vuelve al pulsar una tecla. Grabar y la ventana terminan el
-menú. Una pantalla puede abrirse directamente (`inicial`, sin pasar por Inicio: Esc sale a la terminal) y
-cerrarse dejando un aviso a la anterior (`volver(aviso)`).
+Todo son pantallas de este marco: nada se ejecuta fuera de él salvo la grabación, que abre su propia pantalla
+completa (live.py) y devuelve a Inicio con su resumen como aviso. La ventana gráfica bloquea el hilo: se
+pinta un cuadro fijo («La ventana está abierta…») y al cerrarla se vuelve con otro aviso (`esperar`). Una
+pantalla puede abrirse directamente (`inicial`, sin pasar por Inicio: Esc sale a la terminal) y cerrarse
+dejando un aviso a la anterior (`volver(aviso)`).
 
 Las pruebas inyectan el lector de teclas, la espera, el reloj, la plataforma, la detección de Opciones y el
 muestreo de Rendimiento (tests/test_cli_pantallas.py).
@@ -31,11 +32,11 @@ from rich.style import Style
 from rich.text import Text
 
 from ... import ayuda, paleta
-from ...config.hardware import cached_hardware, describe_hardware, peek_hardware
+from ...config.hardware import cached_hardware, peek_hardware
 from ...config.manager import ConfigManager
 from ...config.schema import describe_quality
 from ...metricas import Muestreador
-from .. import app as despacho, configurar, teclas
+from .. import configurar, teclas
 from ..consola import (
     ELIDIDO, ELIDIDO_ASCII, JUEGO_ASCII, fotograma, juego_de, partes_teclas, presentar, tema_de,
 )
@@ -88,6 +89,8 @@ class Terminal:
         self._tema = self.config.theme  # el pintado: entra en la firma del cuadro
         self._tema_puesto = False
         self._cabecera: Tuple = ()
+        self.nota, self.equipo, self.motor = "", None, None  # lo de la cabecera, para quien lo pinte (Inicio)
+        self._espera: Optional[Tuple[Pantalla, Callable[[], Tuple[str, str]]]] = None
         self._ultimo_tic: Optional[float] = None
         self._firma = None
         self._animando = False  # el último cuadro tenía un spinner: se recompone en cada vuelta
@@ -136,6 +139,16 @@ class Terminal:
         texto = self._recortar(self._texto([(s, f"{e} fila") for s, e in partes]), self._ancho)
         texto.append(" " * max(0, self._ancho - cell_len(texto.plain)), self._estilo("fila"))
         return texto
+
+    @contextlib.contextmanager
+    def con_ancho(self, ancho: int):
+        """Mientras dure, `t` y `t_fila` recortan (y rellenan) a `ancho` columnas en vez de al ancho útil del
+        cuadro: para componer una columna. Al salir vuelve el ancho de antes."""
+        anterior, self._ancho = self._ancho, max(1, ancho)
+        try:
+            yield
+        finally:
+            self._ancho = anterior
 
     def parrafo(self, partes: Partes, ancho: int, sangria: int = 4) -> List[Text]:
         """Trozos → líneas partidas al ancho, con las de continuación sangradas."""
@@ -222,28 +235,14 @@ class Terminal:
     def _refrescar_cabecera(self) -> None:
         self.config = self.mgr.load()  # se relee: otra ventana u Opciones pueden haberla cambiado
         hw = peek_hardware()
-        self._cabecera = (
-            nota_de_hoy(self.config.notes_dir),
-            describe_quality(self.config),
-            motor_previsto(self.config, hw).texto if hw else "",
-            describe_hardware(hw) if hw else "",
-            self.mgr.last_error,
-        )
-
-    def _lineas_cabecera(self) -> List[Text]:
-        """La cabecera de tres líneas del inicio: nota, calidad y motor, y el equipo."""
-        nota, calidad, motor, equipo, error = self._cabecera
-        uno = self.t(("Recorder", "bold"), (" · nota de hoy: ", "tenue"), (nota, "texto"))
-        if error:
-            dos = self.t((f"⚠ {error}", "error"))
-        else:
-            dos = self.t((calidad, "tenue"), (" · se usaría " if motor else "", "tenue"), (motor, "texto"))
-        tres = self.t(("Equipo: ", "tenue"), (equipo, "tenue")) if equipo else self.spinner(ayuda.linea("terminal_detectando_equipo").rstrip(".") + "…")
-        return [uno, dos, tres]
+        self.equipo = hw
+        self.motor = motor_previsto(self.config, hw) if hw else None
+        self.nota = nota_de_hoy(self.config.notes_dir)
+        self._cabecera = (self.nota, describe_quality(self.config), self.mgr.last_error)
 
     def _linea_cabecera(self) -> Text:
-        """La cabecera de una línea de las demás pantallas: «Recorder · nota · calidad»."""
-        nota, calidad, _motor, _equipo, error = self._cabecera
+        """La cabecera de una línea: «Recorder · nota · calidad y dónde se transcribe»."""
+        nota, calidad, error = self._cabecera
         if error:
             return self.t(("Recorder", "bold"), (" · ", "tenue"), (f"⚠ {error}", "error"))
         return self.t(("Recorder", "bold"), (" · ", "tenue"), (nota, "texto"), (" · ", "tenue"), (calidad, "tenue"))
@@ -271,7 +270,8 @@ class Terminal:
         mas = (TECLA_AYUDA, ayuda.entrada("pie_mas")[0])
         return self.t(*partes_teclas(pie_que_cabe(pantalla.teclas(), cabe, mas)))
 
-    def _con_marcador(self, clave: str, n: int) -> Text:
+    def marcador(self, clave: str, n: int) -> Text:
+        """«↑ N más arriba» o «↓ N más abajo» (`clave` termina en «arriba» o «abajo»), sangrado como la lista."""
         titulo = ayuda.entrada(clave)[0].format(n=n)
         flecha = "↑" if clave.endswith("arriba") else "↓"
         return self.t((" " * SANGRIA_LISTA + f"{flecha} {titulo}", "tenue"))
@@ -303,8 +303,7 @@ class Terminal:
         util = ancho - 2 * MARGEN
         self._ancho = util
         pantalla = self.pila[-1]
-        cabecera = self._lineas_cabecera() if pantalla.cabecera_completa else [self._linea_cabecera()]
-        arriba = cabecera + [self.t(("─" * util, "borde")), self._linea_ruta(util)]
+        arriba = [self._linea_cabecera(), self.t(("─" * util, "borde")), self._linea_ruta(util)]
         texto, estilo = pantalla.ayuda()
         alto_ay = alto_ayuda(ancho)
         explicacion = self._partida([(texto, estilo)], util)
@@ -321,9 +320,9 @@ class Terminal:
         filas, ocultas_arriba, ocultas_abajo = ventana(len(cuerpo), foco, sitio)
         visibles = [cuerpo[i] for i in filas]
         if ocultas_arriba:
-            visibles.insert(0, self._con_marcador("terminal_mas_arriba", ocultas_arriba))
+            visibles.insert(0, self.marcador("terminal_mas_arriba", ocultas_arriba))
         if ocultas_abajo:
-            visibles.append(self._con_marcador("terminal_mas_abajo", ocultas_abajo))
+            visibles.append(self.marcador("terminal_mas_abajo", ocultas_abajo))
         lineas = (
             arriba + [Text()] * r_arriba + visibles + [Text()] * (sitio - len(visibles)) + [Text()] * r_abajo + abajo
         )
@@ -347,8 +346,28 @@ class Terminal:
     def _teclado(self):
         return contextlib.nullcontext(self._leer_tecla) if self._leer_tecla else teclas.teclado()
 
+    def esperar(self, pantalla: Pantalla, tarea: Callable[[], Tuple[str, str]]) -> None:
+        """Pide, desde `Pantalla.tecla`, que se pinte `pantalla` encima y se ejecute `tarea`, que bloquea
+        (la ventana gráfica ocupa el hilo principal). Al volver se cierra `pantalla` y su resultado
+        (texto, estilo) es el aviso de quien queda debajo."""
+        self._espera = (pantalla, tarea)
+
+    def _esperar(self, live: Live) -> None:
+        pantalla, tarea = self._espera
+        self._espera = None
+        self.pila.append(pantalla)
+        self._firma = None
+        self._pintar(live, forzar=True)  # el último cuadro queda a la vista mientras la tarea bloquea
+        try:
+            aviso = tarea()
+        finally:
+            self.pila.remove(pantalla)
+        self._ultimo_tic = None  # al volver se relee la cabecera
+        self.avisar(*aviso)
+
     def _navegar(self) -> Optional[str]:
-        """Las pantallas, hasta salir o hasta elegir algo que se ejecuta fuera (su acción)."""
+        """Las pantallas, hasta salir o hasta elegir algo que se ejecuta fuera de la pantalla alternativa (su
+        acción: solo la grabación, que abre la suya)."""
         self._fin, self._salida, self._firma = False, None, None
         tam, tecla = None, None
         with self._teclado() as leer, Live(console=self.consola, screen=True, auto_refresh=False) as live:
@@ -360,27 +379,20 @@ class Terminal:
                     self._dormir(INTERVALO)
                     continue
                 self._tecla(tecla)
+                if self._espera:
+                    self._esperar(live)
                 if self._fin:
                     return self._salida  # tras una tecla se repinta sin esperar
 
-    def _ejecutar(self, accion: str) -> Optional[int]:
-        """Lo elegido que usa la terminal entera. Grabar y la ventana terminan el menú (su código);
-        un comando vuelve a las pantallas tras pulsar una tecla (None)."""
+    def _grabar(self) -> None:
+        """La grabación a pantalla completa (la suya, fuera de este bucle) y la vuelta al Inicio con su resumen."""
         if self._hilo_entorno is not None:
             self._hilo_entorno.join()  # su PyAudio debe estar cerrado antes de abrir otro
-        if accion == "grabar":
-            from ..live import grabar
+        from ..live import grabar_en_menu
 
-            return grabar(consola=self.consola)
-        if accion == "ventana":
-            return despacho.abrir_ventana()
-        self.consola.print(*self._partida([(ayuda.linea("menu_" + accion), "tenue")], self.consola.width), sep="\n")
-        despacho.ejecutar_comando(accion, (), self.consola, self.comandos)
-        self.consola.print(self.t(*partes_teclas((("una tecla", "volver al menú"),))))
-        with self._teclado() as leer:
-            while leer() is None:
-                self._dormir(INTERVALO)
-        return None
+        codigo, resumen = grabar_en_menu(consola=self.consola)
+        self._ultimo_tic = None  # la nota de hoy pudo cambiar
+        self.avisar(("✔ " if codigo == 0 else "⚠ ") + resumen, "ok" if codigo == 0 else "error")
 
     def run(self) -> int:
         if peek_hardware() is None:
@@ -390,9 +402,7 @@ class Terminal:
                 accion = self._navegar()
                 if accion is None:
                     return 0
-                codigo = self._ejecutar(accion)
-                if codigo is not None:
-                    return codigo
+                self._grabar()
         except KeyboardInterrupt:
             return 0
         finally:

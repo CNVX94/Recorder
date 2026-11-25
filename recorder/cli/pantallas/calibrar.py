@@ -249,9 +249,9 @@ class Calibrar(Pantalla):
         filas, arriba, abajo = ventana(len(lista), foco, sitio_lista)
         visibles = [lista[i] for i in filas]
         if arriba:
-            visibles.insert(0, self.app._con_marcador("terminal_mas_arriba", arriba))
+            visibles.insert(0, self.app.marcador("terminal_mas_arriba", arriba))
         if abajo:
-            visibles.append(self.app._con_marcador("terminal_mas_abajo", abajo))
+            visibles.append(self.app.marcador("terminal_mas_abajo", abajo))
         return visibles + blanco + fijo + veredicto_lineas, 0  # el resto lo rellena el marco: la prueba va pegada a la lista y, si esta no cabe, fija abajo
 
     def teclas(self):

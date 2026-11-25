@@ -25,7 +25,8 @@ from recorder.cli import app, configurar, pantallas
 from recorder.cli.consola import JUEGO_ASCII, JUEGO_CONSOLA, make_console
 from recorder.cli.menu import menu
 from recorder.cli.pantallas import Terminal, barra, nota_de_hoy, recorte, registro, tendencia
-from recorder.cli.teclas import ABAJO, ARRIBA, DERECHA, ENTER, ESC, RETROCESO
+from recorder.cli.pantallas.marco import desde
+from recorder.cli.teclas import ABAJO, ARRIBA, DERECHA, ENTER, ESC, FIN, RETROCESO
 from recorder.config import hardware
 from recorder.config.hardware import HardwareProfile
 from recorder.config.manager import ConfigManager
@@ -170,6 +171,12 @@ class TestLogica(unittest.TestCase):
         self.assertEqual(tendencia([0, 50, 100], 3, JUEGO_CONSOLA), "·▄█")
         self.assertEqual(tendencia([10], 0), "")
 
+    def test_desde_reserva_las_lineas_de_los_marcadores(self):
+        self.assertEqual(desde(5, 3, 10), (range(5), 0, 0), "si cabe, todo y sin marcadores")
+        self.assertEqual(desde(30, 0, 10), (range(0, 9), 0, 21), "arriba: solo «↓ N más abajo»")
+        self.assertEqual(desde(30, 5, 10), (range(5, 13), 5, 17), "en medio: los dos")
+        self.assertEqual(desde(30, 500, 10), (range(21, 30), 21, 0), "en el final: solo «↑ N más arriba», sin pasarse")
+
     def test_nota_de_hoy_es_la_ultima_y_no_una_copia(self):
         with tempfile.TemporaryDirectory() as d:
             hoy = datetime.date(2026, 11, 24)
@@ -180,17 +187,42 @@ class TestLogica(unittest.TestCase):
 
 
 class TestInicio(BaseTerminal):
-    def test_flechas_mueven_y_enter_abre_un_comando(self):
-        with mock.patch.dict(registro.PANTALLAS):
-            registro.PANTALLAS.pop("recomendar")  # aquí «recomendar» hace de comando que usa la terminal entera
-            codigo, texto = self.correr(ABAJO, ABAJO, ENTER, "x", "q")
+    def test_flechas_mueven_y_enter_abre_la_pantalla(self):
+        codigo, texto = self.correr(ABAJO, ABAJO, ENTER, ESC, "q")
         self.assertEqual(codigo, 0)
-        self.assertEqual(self.ejecutados, ["recomendar"])
+        self.assertEqual(self.ejecutados, [], "una pantalla del menú no ejecuta el comando en línea")
         self.assertIn("▶ 5  Recomendación del equipo", texto, "lo elegido lleva la marca")
         self.assertIn(ayuda.linea("menu_recomendar")[:60], texto, "y su línea de ayuda debajo")
-        self.assertIn("[Enter] Abrir · [Esc] Salir · [?] Ayuda · [t] Tema", texto)
-        self.assertIn("[una tecla] volver al menú", texto)
-        self.assertEqual(texto.count("▶ 5  Recomendación del equipo"), 2, "se vuelve a las pantallas, con lo elegido")
+        self.assertIn("[↑↓] Mover · [Enter] Abrir · [Esc] Salir · [1-8] Abrir directo · [?] Más", texto)
+        self.assertIn("Inicio › Recomendación del equipo", texto)
+        self.assertNotIn("volver al menú", texto, "sin «[una tecla] volver al menú»: la pantalla se cierra con Esc")
+        self.assertEqual(texto.count("▶ 5  Recomendación del equipo"), 2, "se vuelve a Inicio, con lo elegido")
+
+    def test_las_filas_no_llevan_descripcion_y_la_ficha_dice_la_proxima_grabacion(self):
+        _codigo, texto = self.correr("q", ancho=100, alto=30)
+        self.assertNotIn("carpetas, audio, capturas, calidad y motor", texto, "la descripción es la línea de ayuda")
+        for linea in ("Próxima grabación", "Nota de hoy", "Carpeta", "Calidad      Media", "Se usará     CPU, 4 hilos", "Escucha",
+                      "Micrófono", "Capturas     todas las pantallas · al oír pendiente", "Equipo", "Intel Core i5-9500"):
+            self.assertIn(linea, texto)
+        self.assertIn("▶ 1  Grabar ", texto)
+        self.assertIn(" │ Próxima grabación", texto, "a la derecha de la lista")
+        self.assertEqual(texto.count("Recorder · "), 1, "cabecera de una línea")
+
+    def test_a_menos_de_96_columnas_la_ficha_va_debajo_y_resumida(self):
+        _codigo, texto = self.correr("q", ancho=60, alto=24)
+        self.assertIn("Próxima grabación", texto)
+        self.assertIn("Calidad      Media · CPU, 4 hilos", texto)
+        self.assertIn("Escucha      predeterminado · Mic: predeterminado", texto)
+        self.assertNotIn("Capturas", texto)
+        self.assertNotIn("Intel Core i5-9500", texto, "el equipo solo va en la ficha ancha")
+        self.assertIn("[↑↓] Mover · [Enter] Abrir · [Esc] Salir · [?] Más", texto)
+
+    def test_si_la_ficha_no_cabe_debajo_no_se_enseña(self):
+        inicio = self.terminal(ancho=60, alto=24).pila[0]
+        lista, _foco = inicio.cuerpo(58, len(inicio.filas) + 2)
+        self.assertEqual(len(lista), len(inicio.filas), "con sitio justo para la lista, la ficha desaparece")
+        con_ficha, _foco = inicio.cuerpo(58, 40)
+        self.assertGreater(len(con_ficha), len(inicio.filas))
 
     def test_lo_elegido_cambia_de_color_al_moverse(self):
         self.correr(ABAJO, "q")
@@ -210,21 +242,63 @@ class TestInicio(BaseTerminal):
         self.assertIn("  Markdown (.md): ", texto, "y a su final")
         self.assertEqual(self.ejecutados, [])
 
-    def test_grabar_y_ventana_terminan_el_menu(self):
-        with mock.patch("recorder.cli.live.grabar", return_value=4) as grabar:
-            self.assertEqual(self.correr(ENTER)[0], 4)
+    def test_ayuda_dice_cuanto_queda_abajo_y_arriba(self):
+        _codigo, texto = self.correr("8", ESC, "q")
+        self.assertRegex(texto, r"    ↓ \d+ más abajo")
+        self.assertNotIn("más arriba", texto)
+        _codigo, texto = self.correr("8", FIN, ESC, "q")
+        self.assertRegex(texto[texto.rindex("Markdown")-3000:], r"    ↑ \d+ más arriba")
+        self.assertIn("  Markdown (.md): ", texto, "y lo último de la ayuda queda a la vista")
+
+    def test_con_ancho_recorta_a_una_columna_y_lo_devuelve(self):
+        t = self.terminal()
+        normal = t._ancho
+        with t.con_ancho(10):
+            self.assertEqual(t.t(("x" * 30, "texto")).plain, "x" * 9 + "…")
+        self.assertEqual(t._ancho, normal)
+
+    def test_grabar_vuelve_al_inicio_con_el_resumen(self):
+        with mock.patch("recorder.cli.live.grabar_en_menu", return_value=(0, "Grabación terminada: 5 min · 12 frases")) as grabar:
+            codigo, texto = self.correr(ENTER, None, "q")
+        self.assertEqual(codigo, 0, "no termina el menú: se vuelve a las pantallas")
         grabar.assert_called_once_with(consola=self.consola)
-        with mock.patch.object(app, "abrir_ventana", return_value=0) as ventana:
-            self.assertEqual(self.correr("6")[0], 0)
+        self.assertIn("Grabación terminada: 5 min · 12 frases", texto, "el resumen es el aviso de Inicio")
+        self.assertTrue(texto.rstrip().count("▶ 1  Grabar") >= 2, "y Inicio se pinta otra vez")
+
+    def test_grabar_con_error_avisa_en_rojo(self):
+        with mock.patch("recorder.cli.live.grabar_en_menu", return_value=(1, "no pudo")):
+            _codigo, texto = self.correr(ENTER, None, "q")
+        self.assertIn("⚠ no pudo", texto)
+
+    def test_la_ventana_enseña_su_mensaje_y_vuelve_al_inicio(self):
+        enseñado = []
+
+        def abrir():
+            enseñado.append(limpio(self.salida.getvalue()))
+            return 0
+
+        with mock.patch.object(app, "abrir_ventana", side_effect=abrir) as ventana:
+            codigo, texto = self.correr("6", None, "q")
+        self.assertEqual(codigo, 0)
         ventana.assert_called_once()
+        self.assertIn("Inicio › Ventana", enseñado[0], "mientras bloquea se ve la pantalla fija")
+        self.assertIn("La ventana de Recorder está abierta", enseñado[0])
+        self.assertIn("Ventana cerrada: has vuelto al menú.", texto)
+        self.assertNotIn("Inicio › Ventana", texto[len(enseñado[0]):], "al cerrarla, Inicio otra vez")
+
+    def test_si_la_ventana_no_abre_lo_dice(self):
+        with mock.patch.object(app, "abrir_ventana", side_effect=RuntimeError("sin pantalla")):
+            codigo, texto = self.correr("6", None, "q")
+        self.assertEqual(codigo, 0)
+        self.assertIn("⚠ No se pudo abrir la ventana: RuntimeError: sin pantalla.", texto)
 
     def test_fuera_de_windows_grabar_y_ventana_desactivadas(self):
-        with mock.patch("recorder.cli.live.grabar") as grabar, mock.patch.object(app, "abrir_ventana") as ventana:
+        with mock.patch("recorder.cli.live.grabar_en_menu") as grabar, mock.patch.object(app, "abrir_ventana") as ventana:
             codigo, texto = self.correr(ENTER, "6", "q", windows=False)
         self.assertEqual(codigo, 0)
         grabar.assert_not_called()
         ventana.assert_not_called()
-        self.assertIn("1  Grabar                    (solo Windows)", texto)
+        self.assertIn("1  Grabar  (solo Windows)", texto)
         self.assertIn("Necesita la captura de audio de Windows (WASAPI)", texto)
         self.assertIn("⚠ Solo en Windows: no se puede aquí.", texto)
 
@@ -237,10 +311,9 @@ class TestInicio(BaseTerminal):
             return True
 
         _codigo, texto = self.correr(None, crear_nota, *[None] * 25, "q")
-        self.assertIn("Recorder · nota de hoy: aún no hay (se crea al grabar)", texto)
-        self.assertIn(f"Recorder · nota de hoy: {hoy}", texto)
-        self.assertIn("Calidad Media · CPU · se usaría faster-whisper · CPU, 4 hilos · small · haz 5", texto)
-        self.assertIn("Equipo: Intel Core i5-9500", texto)
+        self.assertIn("Recorder · aún no hay (se crea al grabar) · Calidad Media · CPU", texto)
+        self.assertIn(f"Recorder · {hoy} · Calidad Media · CPU", texto)
+        self.assertIn(f"Nota de hoy  {hoy}", texto, "y la ficha, la misma nota")
 
     def test_quieto_no_redibuja(self):
         self.correr(*[None] * 70, "q")  # 3,5 s de mentira: tres tics de la cabecera
@@ -394,7 +467,7 @@ class TestTerminal(BaseTerminal):
         texto = limpio(self.salida.getvalue().replace("\x1b[H", "\n"))  # cada cuadro empieza arriba del todo
         self.assertTrue(solo_ascii(texto), [c for c in texto if ord(c) >= 0x2000 and c not in "–—·"][:10])
         self.assertIn("> 1  Grabar", texto)
-        self.assertIn("[Enter] Abrir · [Esc] Salir · [?] Ayuda · [t] Tema", texto)
+        self.assertIn("[Enter] Abrir · [Esc] Salir · [?] Más", texto)
         self.assertIn("Inicio > Ayuda", texto)
         largas = [l for l in texto.split("\n") if cell_len(l) > 60]
         self.assertFalse(largas, largas[:3])

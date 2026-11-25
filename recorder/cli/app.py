@@ -1,10 +1,14 @@
 """`daily` en la terminal: decide qué arrancar y reparte los subcomandos.
 
-    daily                       graba: la pantalla en vivo (live.py)
+    daily                       graba a pantalla completa (live.py); al salir deja el resumen en el historial
+    daily --historial           graba como antes: las frases en el historial de la terminal
     daily menu                  menú con todo lo que se puede hacer: pantallas navegables con el
-                                teclado (pantallas.py); numerado con la entrada redirigida (menu.py)
+                                teclado (pantallas/); numerado con la entrada redirigida (menu.py)
     daily ventana | --gui       la ventana de siempre
     daily config | calibrar | sintesis | recomendar [--aplicar]
+                                en una terminal abren su pantalla, la misma del menú (Esc sale a la
+                                terminal); con argumentos de script (--ver, --probar, la nota, --si…)
+                                o con la entrada o la salida redirigidas, preguntan en línea
     daily --ascii …             símbolos ASCII (en la consola clásica se detecta solo; esto lo fuerza)
 
 Los subcomandos viven en módulos aparte con un contrato mínimo:
@@ -111,6 +115,39 @@ def ejecutar_comando(
     return modulo.ejecutar(parser.parse_args(list(argv)), consola or make_console())
 
 
+def hay_pantalla(consola: Console) -> bool:
+    """Si hay una terminal de verdad (teclado y pantalla, sin redirigir): ahí van las pantallas; si no, el modo línea."""
+    return bool(consola.is_terminal and sys.stdin is not None and sys.stdin.isatty())
+
+
+def _es_de_script(nombre: str, args: argparse.Namespace, comandos: Dict[str, ModuleType]) -> bool:
+    """Si `args` trae algo distinto de lo que da el comando sin argumentos (`--ver`, `--probar`, la nota, `--si`…):
+    eso es de un script y se contesta en línea, sin abrir ninguna pantalla."""
+    parser = _nuevo_parser(prog=f"daily {nombre}")
+    comandos[nombre].agregar_argumentos(parser)
+    return any(getattr(args, clave, valor) != valor for clave, valor in vars(parser.parse_args([])).items())
+
+
+def pantalla_del_comando(
+    nombre: str, args: argparse.Namespace, consola: Console, comandos: Dict[str, ModuleType]
+) -> Optional[type]:
+    """La pantalla que abre `daily <nombre>` aquí y ahora, o None si va en línea: sin terminal de verdad, con
+    argumentos de script o si el comando no es una pantalla (Opciones, Calibrar, Reagrupar, Recomendación)."""
+    if not hay_pantalla(consola) or _es_de_script(nombre, args, comandos):
+        return None
+    from .pantallas.registro import clase_de
+
+    return clase_de(nombre)
+
+
+def abrir_pantalla(clase: type, consola: Console, comandos: Dict[str, ModuleType]) -> int:
+    """Esa pantalla sola, en el mismo marco del menú: Esc sale a la terminal, no al Inicio."""
+    from ..config.manager import ConfigManager
+    from .pantallas import Terminal
+
+    return Terminal(consola, comandos, ConfigManager(), inicial=clase).run()
+
+
 def abrir_ventana() -> int:
     """La ventana de siempre. Se importa aquí y no arriba: la terminal no carga tkinter.
 
@@ -158,6 +195,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         from .menu import menu
 
         return menu(consola=consola, comandos=comandos)
+    clase = pantalla_del_comando(args.comando, args, consola, comandos)
+    if clase is not None:
+        return abrir_pantalla(clase, consola, comandos)
     return comandos[args.comando].ejecutar(args, consola)
 
 

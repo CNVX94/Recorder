@@ -4,6 +4,7 @@ from rich.text import Text
 from ... import ayuda as textos
 from ..teclas import ABAJO, ARRIBA, AVPAG, FIN, INICIO, REPAG
 from .base import Pantalla
+from .marco import desde
 
 # Las teclas de las pantallas, en el orden en que se enseñan (su texto sale de recorder/ayuda.py).
 ATAJOS = (
@@ -56,6 +57,11 @@ class Ayuda(Pantalla):
         lineas += [Text(), t((textos.entrada("ayuda_glosario")[0], "bold"))]
         for titulo, texto in textos.GLOSARIO.values():
             lineas += parrafo([(f"  {titulo}: ", "acento"), (texto, "tenue")], ancho)
-        self.arriba = min(self.arriba, max(0, len(lineas) - sitio))
-        return lineas[self.arriba:self.arriba + sitio], 0
+        filas, self.arriba, abajo = desde(len(lineas), self.arriba, sitio)
+        visibles = [lineas[i] for i in filas]
+        if self.arriba:
+            visibles.insert(0, self.app.marcador("terminal_mas_arriba", self.arriba))
+        if abajo:
+            visibles.append(self.app.marcador("terminal_mas_abajo", abajo))
+        return visibles, 0
 

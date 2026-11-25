@@ -139,6 +139,63 @@ class TestEleccionDeFrontal(unittest.TestCase):
         self.assertIn("recomendar", self.menu.call_args.kwargs["comandos"])
 
 
+class TestComandosConPantalla(unittest.TestCase):
+    """`daily config|calibrar|sintesis|recomendar`: su pantalla en una terminal; en línea sin ella o con argumentos de script."""
+
+    PANTALLAS = {"config": "Opciones", "calibrar": "Calibrar", "sintesis": "ReagruparNota", "recomendar": "Recomendacion"}
+
+    def setUp(self):
+        self.addCleanup(patch.stopall)
+        self.comandos = app.cargar_comandos()
+        self.consola = make_console(ascii_mode=False, file=io.StringIO())
+        self.terminal = patch.object(app, "hay_pantalla", return_value=True).start()
+        self.abrir = patch.object(app, "abrir_pantalla", return_value=0).start()
+        self.en_linea = {n: patch.object(m, "ejecutar", return_value=3).start() for n, m in self.comandos.items()}
+
+    def main(self, *argv):
+        with patch.object(app, "make_console", return_value=self.consola):
+            return app.main(list(argv))
+
+    def test_cada_comando_abre_su_pantalla_en_una_terminal(self):
+        for nombre, clase in self.PANTALLAS.items():
+            with self.subTest(nombre):
+                self.abrir.reset_mock()
+                self.assertEqual(self.main(nombre), 0)
+                self.assertEqual(self.abrir.call_args.args[0].__name__, clase)
+                self.en_linea[nombre].assert_not_called()
+
+    def test_sin_terminal_se_pregunta_en_linea(self):
+        self.terminal.return_value = False
+        for nombre in self.PANTALLAS:
+            with self.subTest(nombre):
+                self.assertEqual(self.main(nombre), 3)
+        self.abrir.assert_not_called()
+
+    def test_los_argumentos_de_script_nunca_abren_pantallas(self):
+        casos = (
+            ("config", "--ver"), ("config", "--editor"), ("config", "--recomendado"), ("calibrar", "--probar", "hola"),
+            ("sintesis", "nota.md"), ("sintesis", "--si"), ("sintesis", "--cada", "5"), ("sintesis", "--con-horas"),
+            ("recomendar", "--aplicar"),
+        )
+        for caso in casos:
+            with self.subTest(caso):
+                self.assertEqual(self.main(*caso), 3)
+        self.abrir.assert_not_called()
+
+    def test_ascii_solo_no_es_un_argumento_de_script(self):
+        self.main("config", "--ascii")
+        self.abrir.assert_called_once()
+
+    def test_la_pantalla_se_abre_sola_y_esc_sale_a_la_terminal(self):
+        patch.stopall()
+        with patch.object(app, "hay_pantalla", return_value=True), patch("recorder.cli.pantallas.Terminal") as terminal:
+            terminal.return_value.run.return_value = 0
+            from recorder.cli.pantallas import Opciones
+
+            app.abrir_pantalla(Opciones, self.consola, self.comandos)
+        self.assertIs(terminal.call_args.kwargs["inicial"], Opciones, "sin pasar por Inicio")
+
+
 class TestRecorderPy(unittest.TestCase):
     """recorder.py como script: --recomendar sigue igual y la terminal no carga tkinter."""
 

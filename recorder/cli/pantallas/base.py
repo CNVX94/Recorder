@@ -109,7 +109,6 @@ class Pantalla:
     titulo = ""
     TECLAS: Sequence[Tuple[str, str]] = (("Esc", "volver"), ("?", "ayuda"), ("t", "tema"))  # (tecla, clave de pie_)
     escribiendo = False  # True mientras se teclea un texto: las letras llegan tal cual, sin atajos
-    cabecera_completa = False  # True: la cabecera de tres líneas (el inicio); si no, una sola
     abre_ayuda = True  # False en la propia Ayuda: ahí «?» no hace nada
 
     def __init__(self, terminal: "Terminal"):  # noqa: F821

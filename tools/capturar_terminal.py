@@ -66,7 +66,7 @@ def pythons():
 
 
 ESPECIALES = {"abajo": (0x28, 0x50, "\0", 0x100), "arriba": (0x26, 0x48, "\0", 0x100), "izquierda": (0x25, 0x4B, "\0", 0x100),
-              "derecha": (0x27, 0x4D, "\0", 0x100), "enter": (0x0D, 0x1C, "\r", 0), "esc": (0x1B, 0x01, "\x1b", 0),
+              "derecha": (0x27, 0x4D, "\0", 0x100), "fin": (0x23, 0x4F, "\0", 0x100), "enter": (0x0D, 0x1C, "\r", 0), "esc": (0x1B, 0x01, "\x1b", 0),
               "retroceso": (0x08, 0x0E, "\x08", 0), "ctrl+c": (0x43, 0x2E, "\x03", 0x0008)}
 
 
@@ -148,33 +148,21 @@ BASE = [
     ("teclas", [E, "8"]), ("foto", "ayuda", 1.5), ("teclas", ["abajo"] * 6), ("foto", "ayuda-bajando", 1),
 ]
 ESCENARIOS = {
+    # Paso 8: del Inicio a cada pantalla y de vuelta (nada debe quedar en el historial) y cada comando suelto abriendo su pantalla.
+    # No se toca grabar ni la ventana: grabar capta el audio del equipo y la ventana abre una ventana gráfica.
     "menu": ("menu", 100, 30, [
-        ("foto", "inicio", 5), ("teclas", ["3"]), ("foto", "calibrar-desde-el-menu", 3),
-        ("texto", "8"), ("foto", "vuelta-pulsa-una-tecla", 2), ("teclas", ["x"]), ("foto", "de-vuelta-en-inicio", 2), ("ctrlc",),
+        ("foto", "inicio", 5), ("teclas", ["3"]), ("foto", "calibrar", 3), ("teclas", [E]), ("foto", "de-vuelta-en-inicio", 1.5),
+        ("teclas", ["4"]), ("foto", "reagrupar", 2), ("teclas", [E]), ("teclas", ["5"]), ("foto", "recomendacion", 3), ("teclas", [E]),
+        ("teclas", ["2"]), ("foto", "opciones", 3), ("teclas", [E]), ("teclas", ["7"]), ("foto", "rendimiento", 4), ("teclas", [E]),
+        ("teclas", ["8"]), ("foto", "ayuda", 1.5), ("teclas", ["abajo"] * 3), ("foto", "ayuda-bajando", 1), ("teclas", ["fin"]),
+        ("foto", "ayuda-al-final", 1), ("teclas", [E]), ("teclas", [E]), ("foto", "historial-limpio", 2),
     ]),
-    "config": ("config", 100, 30, [
-        ("foto", "secciones", 6), ("texto", "2"), ("foto", "audio-salida", 1.5), ("texto", ""), ("foto", "audio-transcribir-micro", 1),
-        ("texto", ""), ("foto", "audio-micro", 1), ("texto", ""), ("foto", "audio-sin-cambios", 1.5),
-        ("texto", "4"), ("foto", "calidad-carpeta-whispercpp", 1.5),
-        ("texto", ""), ("foto", "calidad-recomendada", 1.5), ("texto", ""), ("foto", "calidad-lista", 1.5),
-        ("texto", ""), ("foto", "calidad-hilos", 1.5), ("texto", ""), ("foto", "calidad-fin", 1.5),
-        ("texto", "1"), ("texto", ""), ("texto", ""), ("texto", "bloqueo, demo"), ("foto", "tabla-de-cambios", 1.5),
-        ("texto", "n"), ("foto", "no-guardado", 1), ("texto", "8"), ("foto", "salir-sin-guardar", 1.5),
-    ]),
+    "config": ("config", 100, 30, [("foto", "opciones", 5), ("teclas", ["abajo", "abajo"]), ("foto", "bajando", 1), ("teclas", [E]), ("foto", "prompt", 2)]),
     "config-ver": ("config --ver", 100, 30, [("foto", "ver", 3)]),
-    "calibrar": ("calibrar", 100, 30, [
-        ("foto", "menu", 3), ("texto", "6"), ("foto", "sandbox", 1), ("texto", "?"), ("foto", "sandbox-ejemplo", 1.5),
-        ("texto", "gracias por ver"), ("foto", "sandbox-descartada", 1.5), ("texto", ""), ("foto", "vuelta-al-menu", 1),
-        ("texto", "4"), ("foto", "umbrales", 1), ("texto", ""), ("texto", ""), ("texto", ""), ("foto", "umbrales-fin", 1.5),
-        ("texto", "8"), ("foto", "salir", 1.5),
-    ]),
-    "calibrar-60": ("calibrar", 60, 26, [("foto", "menu", 3), ("texto", "6"), ("texto", "?"), ("foto", "sandbox", 1.5), ("teclas", ["ctrl+c"]), ("foto", "ctrl-c", 5)]),
-    "sintesis": ("sintesis", 100, 30, [
-        ("foto", "lista-de-notas", 3), ("texto", ""), ("foto", "agrupamiento", 1.5), ("texto", ""), ("foto", "preguntas", 1.5),
-        ("texto", ""), ("texto", ""), ("texto", ""), ("texto", ""), ("texto", ""), ("foto", "vista-previa", 2),
-        ("texto", "n"), ("foto", "no-creada", 1.5),
-    ]),
-    "sintesis-60": ("sintesis", 60, 26, [("foto", "lista", 3), ("texto", ""), ("texto", ""), *[("texto", "")] * 5, ("foto", "vista-previa", 2), ("texto", "n")]),
+    "calibrar": ("calibrar", 100, 30, [("foto", "calibrar", 4), ("teclas", ["abajo"]), ("foto", "bajando", 1), ("teclas", [E]), ("foto", "prompt", 2)]),
+    "calibrar-60": ("calibrar", 60, 26, [("foto", "calibrar", 4), ("teclas", [E]), ("foto", "prompt", 2)]),
+    "sintesis": ("sintesis", 100, 30, [("foto", "reagrupar", 4), ("teclas", ["abajo"]), ("foto", "bajando", 1), ("teclas", [E]), ("foto", "prompt", 2)]),
+    "sintesis-60": ("sintesis", 60, 26, [("foto", "reagrupar", 4), ("teclas", [E]), ("foto", "prompt", 2)]),
     # Menú y Opciones a 100 y 60 columnas, y el menú con --ascii: la evidencia del color real y los símbolos seguros.
     "inicio-100": ("menu", 100, 30, [("foto", "inicio", 5), ("teclas", ["2"]), ("foto", "opciones", 3), ("teclas", [E, E])]),
     "inicio-60": ("menu", 60, 24, [("foto", "inicio", 5), ("teclas", ["2"]), ("foto", "opciones", 3), ("teclas", [E, E])]),
@@ -209,7 +197,8 @@ ESCENARIOS = {
         ("teclas", ["abajo", "abajo"]), ("foto", "prioridad", 1), ("teclas", [ENT]), ("foto", "prioridad-lista", 1),
         ("teclas", ["2", "g"]), ("foto", "confirmar", 1.5), ("teclas", [E, E, E, E]),
     ]),
-    "recomendar": ("recomendar", 100, 30, [("foto", "salida", 5)]),
+    "recomendar": ("recomendar", 100, 30, [("foto", "recomendacion", 5), ("teclas", [E]), ("foto", "prompt", 2)]),
+    "recomendar-aplicar": ("recomendar --aplicar", 100, 30, [("foto", "en-linea", 5)]),
     "ayuda": ("-h", 100, 30, [("foto", "daily-h", 2)]),
     "grabar": ("", 100, 30, [
         ("foto", "arranque", 4), ("foto", "escuchando", 20), ("teclas", ["o"]), ("foto", "panel-opciones", 1.5),

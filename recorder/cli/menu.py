@@ -11,7 +11,6 @@ vuelve al menú al terminar; al elegir, una línea tenue dice qué se abre y par
 cambian. Ctrl+C o el fin de la entrada salen sin ruido. Mismo estilo que la pantalla en vivo
 (consola de `consola.make_console`, símbolos por `presentar`).
 """
-import sys
 from types import ModuleType
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -63,7 +62,7 @@ def menu(
     consola = consola or make_console()
     comandos = app.cargar_comandos() if comandos is None else comandos
     mgr = mgr or ConfigManager()
-    if entrada is input and consola.is_terminal and sys.stdin is not None and sys.stdin.isatty():
+    if entrada is input and app.hay_pantalla(consola):
         from .pantallas import Terminal
 
         return Terminal(consola, comandos, mgr).run()
