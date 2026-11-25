@@ -29,6 +29,12 @@ DÓNDE QUEDA CADA COSA
 Al desinstalar se quitan solo los archivos del programa: la configuración, las
 notas, los registros y los modelos se conservan.
 
+ACTUALIZAR
+
+Ejecuta el instalador nuevo: se instala encima, en la misma carpeta, sin perder la
+configuración ni las notas. Si Recorder o daily están abiertos, ciérralos antes.
+Para saber qué versión tienes: daily --version.
+
 DESDE LA TERMINAL
 
 Con la casilla "Añadir daily a la terminal" marcada, abre una terminal NUEVA de

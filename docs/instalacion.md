@@ -70,6 +70,59 @@ la configuracion esta en `%APPDATA%\Recorder\config.json`, que se crea solo en e
 los fallos quedan en `%LOCALAPPDATA%\Recorder\logs\recorder.log`
 ([architecture.md](architecture.md), §2.8).
 
+### Actualizar
+
+Un solo comando, desde la carpeta del repositorio:
+
+```powershell
+.\install.ps1 -Actualizar
+```
+
+(o `install.bat -Actualizar` desde una terminal). Hace, en este orden:
+
+1. Se niega, con un mensaje claro y sin tocar nada, si hay cambios sin guardar en el codigo
+   (archivos de git modificados). `config.json` no cuenta: esta fuera de git.
+2. Trae lo nuevo con `git pull --ff-only` (si no se puede avanzar limpio, por ejemplo porque hay
+   commits locales, se detiene) y dice de que version a cual pasa.
+3. Vuelve a ejecutar el instalador, ya el nuevo: actualiza las dependencias de `.venv` y deja la
+   funcion `daily` del perfil al dia. Tu `config.json` no se toca.
+
+Comprueba la version con `daily --version`. Si prefieres hacerlo a mano, `git pull --ff-only` y
+despues `.\install.ps1` (sin `-Actualizar`) es lo mismo. Una copia que ya tenia el `install.ps1`
+viejo necesita ese `git pull --ff-only` a mano una sola vez: `-Actualizar` existe desde que se
+trae el `install.ps1` nuevo.
+
+### Pasar del codigo al instalador
+
+Instalar `Recorder-<version>-setup.exe` no toca el repositorio ni su `.venv`, y las dos
+instalaciones pueden convivir, pero hay dos cosas que conviene saber:
+
+* **La funcion `daily` del perfil tapa al `daily.exe` instalado.** En PowerShell una funcion
+  gana a un `.exe` del PATH, asi que `daily` seguiria abriendo la copia del codigo. El instalador
+  avisa al terminar si encuentra ese bloque en tu perfil. Para usar la instalada, quita el bloque
+  (en una terminal nueva, `Get-Command daily` debe decir `Application`):
+
+  ```powershell
+  $t = Get-Content $PROFILE -Raw
+  $t = [regex]::Replace($t, '(?ms)^# >>> recorder >>>.*?^# <<< recorder <<<\r?\n?', '')
+  Set-Content $PROFILE $t -NoNewline -Encoding UTF8
+  ```
+
+  Haz lo mismo con el perfil de PowerShell 7 si lo usas. Para volver al codigo, ejecuta
+  `.\install.ps1` otra vez.
+* **El `config.json` del repositorio no es el instalado**, que vive en
+  `%APPDATA%\Recorder\config.json`. Para llevarte tu configuracion (vocabulario, dispositivos,
+  carpetas), copiala una vez, solo si aun no existe la instalada:
+
+  ```powershell
+  $destino = "$env:APPDATA\Recorder\config.json"
+  if (-not (Test-Path $destino)) {
+      New-Item -ItemType Directory -Force (Split-Path $destino) | Out-Null
+      Copy-Item .\config.json $destino
+  }
+  ```
+
+  Las notas y los modelos de Whisper ya estan fuera de las dos instalaciones y se comparten.
 ### Desinstalar
 
 Recorder no deja nada fuera de su propia carpeta salvo el comando `daily`. Para quitarlo

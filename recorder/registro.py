@@ -28,6 +28,9 @@ from . import __version__, rutas
 NOMBRE_ARCHIVO = "recorder.log"
 TAMANO_MAX = 1_000_000  # bytes por archivo antes de rotar
 COPIAS = 3
+# Mutex con nombre que Recorder.exe y daily.exe tienen mientras corren: el instalador (AppMutex en
+# packaging\recorder.iss) lo usa para pedir que se cierren antes de actualizar. Mismo nombre en los dos.
+NOMBRE_MUTEX = "RecorderEnEjecucion"
 
 _log = logging.getLogger("recorder.fallos")
 _log.propagate = False  # que no acabe en el stderr de un logging ajeno
@@ -81,6 +84,16 @@ def _gancho_hilos(args) -> None:
     _ganchos_previos["threading"](args)
 
 
+def _marcar_en_ejecucion() -> None:
+    """Crea el mutex del instalador; Windows lo suelta solo al terminar el proceso."""
+    try:
+        import ctypes
+
+        ctypes.windll.kernel32.CreateMutexW(None, False, NOMBRE_MUTEX)
+    except Exception:
+        pass  # sin mutex solo se pierde el aviso del instalador: nunca motivo para no arrancar
+
+
 def instalar() -> pathlib.Path:
     """Engancha los dos ganchos al archivo rotatorio y devuelve su ruta. Repetirlo no duplica.
 
@@ -102,6 +115,7 @@ def instalar() -> pathlib.Path:
     sys.excepthook = _gancho_sys
     threading.excepthook = _gancho_hilos
     if rutas.congelado():
+        _marcar_en_ejecucion()
         _log.info("Recorder %s (%s) arranca: %s", __version__, modo(), os.path.basename(sys.executable))
     return ruta
 

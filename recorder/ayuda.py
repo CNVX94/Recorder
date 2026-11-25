@@ -1089,6 +1089,9 @@ INTRO: Dict[str, str] = {
     "intro.opcion_sin_intro": "no muestra la introducción (el logotipo del primer daily)",
 }
 
+# Ayuda de `daily --version` (argparse la pone en la lista de opciones).
+AYUDA_VERSION = "muestra la versión instalada de Recorder y sale"
+
 SECCIONES: Dict[str, Textos] = {"Ventana": VENTANA, "Terminal": TERMINAL, "Común": COMUN, "Glosario": GLOSARIO}
 _TODOS: Textos = {clave: valor for seccion in SECCIONES.values() for clave, valor in seccion.items()}
 

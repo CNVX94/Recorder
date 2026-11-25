@@ -16,6 +16,12 @@
       esta misma carpeta (via $PSScriptRoot, sin rutas fijas).
     Se puede ejecutar varias veces sin duplicar nada ni perder datos.
 
+.PARAMETER Actualizar
+    Actualiza una copia ya instalada: se niega si hay cambios locales sin guardar en el codigo,
+    trae lo nuevo con `git pull --ff-only` y vuelve a ejecutar este mismo instalador (ya el nuevo),
+    que pone al dia las dependencias de .venv y la funcion `daily` del perfil. config.json no se
+    toca nunca. Ver docs/instalacion.md, seccion "Actualizar".
+
 .PARAMETER ProfilePath
     Perfil de Windows PowerShell a modificar. Por defecto, $PROFILE (el perfil real
     de quien ejecuta el instalador). Pensado para pruebas: se le puede pasar la ruta
@@ -33,11 +39,16 @@
     Instalacion normal, para quien lo ejecuta.
 
 .EXAMPLE
+    .\install.ps1 -Actualizar
+    Trae la ultima version del codigo y deja todo al dia.
+
+.EXAMPLE
     .\install.ps1 -ProfilePath C:\temp\perfil_prueba.ps1 -SkipPwsh
     Instalacion de prueba: no toca el perfil real ni el de PowerShell 7.
 #>
 [CmdletBinding()]
 param(
+    [switch]$Actualizar,
     [string]$ProfilePath = $PROFILE,
     [string]$PwshProfilePath = "",
     [switch]$SkipPwsh
@@ -67,6 +78,49 @@ function Write-Err {
 function Write-Aviso {
     param([string]$Texto)
     Write-Host "    AVISO: $Texto" -ForegroundColor Yellow
+}
+
+# ---------------------------------------------------------------------------
+# 0. Con -Actualizar: traer el codigo antes de instalar nada
+# ---------------------------------------------------------------------------
+function Get-VersionRecorder {
+    $m = Select-String -LiteralPath (Join-Path $RepoRoot "recorder\__init__.py") -Pattern '^__version__\s*=\s*"([^"]+)"' | Select-Object -First 1
+    if ($m) { return $m.Matches[0].Groups[1].Value }
+    return "?"
+}
+
+if ($Actualizar) {
+    Write-Step "Actualizando el codigo (git pull --ff-only)..."
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+        Write-Err "No se encontro git en el PATH; sin el no se puede traer la version nueva."
+        exit 1
+    }
+    if (-not (Test-Path -LiteralPath (Join-Path $RepoRoot ".git"))) {
+        Write-Err "'$RepoRoot' no es un repositorio de git (se descargo como zip?). Descarga el zip nuevo o clona el repositorio."
+        exit 1
+    }
+    $cambios = & git -C $RepoRoot status --porcelain --untracked-files=no
+    if ($cambios) {
+        Write-Err "Hay cambios locales sin guardar en el codigo; no se actualiza para no pisarlos:"
+        $cambios | ForEach-Object { Write-Host "      $_" -ForegroundColor Yellow }
+        Write-Host "    Guardalos (git commit o git stash) o descartalos, y vuelve a ejecutar 'install.ps1 -Actualizar'." -ForegroundColor Yellow
+        Write-Host "    config.json no cuenta: esta fuera de git y no se toca." -ForegroundColor Yellow
+        exit 1
+    }
+    $versionAntes = Get-VersionRecorder
+    # git cuenta su progreso por stderr; con 'Stop' PowerShell 5.1 lo tomaria por un error.
+    $ErrorActionPreference = "Continue"
+    & git -C $RepoRoot pull --ff-only
+    $salidaGit = $LASTEXITCODE
+    $ErrorActionPreference = "Stop"
+    if ($salidaGit -ne 0) {
+        Write-Err "'git pull --ff-only' no pudo traer los cambios (sin conexion, o hay commits locales que no estan en el remoto). No se ha tocado nada mas."
+        exit 1
+    }
+    Write-Ok "Codigo al dia: Recorder $versionAntes -> $(Get-VersionRecorder)."
+    # El install.ps1 puede haber cambiado con el pull: se sigue con la copia nueva, sin -Actualizar.
+    & $PSCommandPath -ProfilePath $ProfilePath -PwshProfilePath $PwshProfilePath -SkipPwsh:$SkipPwsh
+    exit $LASTEXITCODE
 }
 
 # ---------------------------------------------------------------------------
@@ -266,7 +320,7 @@ if (-not $SkipPwsh) {
 # ---------------------------------------------------------------------------
 # Resumen final
 # ---------------------------------------------------------------------------
-Write-Step "Instalacion terminada."
+Write-Step "Instalacion terminada (Recorder $(Get-VersionRecorder))."
 Write-Host "    Abre una terminal NUEVA de PowerShell y escribe 'daily' para abrir Recorder." -ForegroundColor White
 Write-Host "    (En esta misma terminal tambien funciona tras ejecutar: . `$PROFILE)" -ForegroundColor White
 Write-Host ""

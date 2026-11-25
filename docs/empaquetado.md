@@ -125,6 +125,25 @@ Fuera, a propósito:
 * El `AppId` es un GUID fijo: así "Aplicaciones instaladas" reconoce la misma aplicación entre
   versiones.
 
+### Actualizar encima
+
+Ejecutar el instalador nuevo sobre uno ya instalado es la actualización; no hay que desinstalar:
+
+* Reconoce la instalación por el `AppId` (clave de desinstalación) y **usa la misma carpeta**: la
+  página de carpeta no sale. Las tareas que se eligieron (PATH, escritorio) quedan marcadas como
+  estaban, y el PATH no se duplica.
+* El asistente dice de qué versión a cuál se actualiza (y avisa si la instalada es más nueva), y
+  **no vuelve a mostrar el `LEEME.txt`** del primer uso; sigue en la carpeta de instalación.
+* **Recorder.exe y daily.exe abiertos.** Desde la versión que lo incluye (`NOMBRE_MUTEX` en
+  `recorder/registro.py`, el `AppMutex` del `.iss`) Setup se detiene al empezar y pide cerrarlos,
+  en vez de fallar a los 30 segundos con `daily.exe`, que no tiene ventana que el Administrador
+  de reinicio pueda cerrar. En silencio (`/VERYSILENT`) sale al instante con código 1. Las
+  versiones anteriores no crean el mutex: ahí se aplica lo de antes (se cierra la ventana sola,
+  `daily.exe` hay que cerrarlo a mano antes).
+* La configuración (`%APPDATA%\Recorder`) no se toca. Un `config.json` de una versión anterior se
+  lee tal cual: los campos que faltan (`intro_seen`, `allow_igpu`, `process_priority`…) toman su
+  valor de fábrica y se escriben la próxima vez que se guarde.
+* Se ve la versión con `daily --version` (o `daily.exe --version`), y `--selftest` la imprime.
 `build.ps1` le pasa la versión (`/DMyAppVersion`), la carpeta onedir (`/DSourceDir`) y la salida
 (`/DOutputDir`). Abierto en el IDE de Inno Setup sin esas definiciones, toma la carpeta de
 `%LOCALAPPDATA%\RecorderBuild\dist\Recorder` y lee la versión del recurso de `Recorder.exe`.

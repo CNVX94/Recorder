@@ -23,10 +23,14 @@
 #define MyAppName "Recorder"
 #define MyAppExe "Recorder.exe"
 #define MyTerminalExe "daily.exe"
+; GUID de la aplicación: AppId (con la llave escapada) y la clave de desinstalación donde Windows
+; guarda la versión instalada.
+#define MyAppGuid "7D2B1C4E-5F3A-4B8E-9C1D-2E6F8A0B3C5D"
+#define MyUninstallKey "Software\Microsoft\Windows\CurrentVersion\Uninstall\{" + MyAppGuid + "}_is1"
 
 [Setup]
 ; GUID fijo: identifica la aplicación en "Aplicaciones instaladas" y permite actualizar encima.
-AppId={{7D2B1C4E-5F3A-4B8E-9C1D-2E6F8A0B3C5D}
+AppId={{{#MyAppGuid}}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
@@ -57,6 +61,20 @@ WizardStyle=modern
 ChangesEnvironment=yes
 InfoBeforeFile=LEEME.txt
 CloseApplications=yes
+; Actualizar encima de la versión anterior: se reutiliza su carpeta (la página de carpeta no sale si
+; ya hay una instalación) y las tareas que se eligieron (UsePreviousTasks, por defecto).
+DisableDirPage=auto
+; Recorder.exe y daily.exe crean este mutex al arrancar (recorder/registro.py, NOMBRE_MUTEX; las
+; versiones anteriores a que se añadiera no lo tienen y las cierra solo el Administrador de reinicio).
+; Mientras exista, Setup pide cerrarlos antes de copiar archivos en vez de dejar que daily.exe, que no
+; tiene ventana que cerrar, haga fallar la actualización a los 30 segundos.
+AppMutex=RecorderEnEjecucion
+
+[CustomMessages]
+spanish.ActualizarVersion=Se actualizará Recorder de la versión %1 a la %2 en la misma carpeta. Se conservan la configuración, las notas y las tareas que elegiste.
+spanish.ReinstalarVersion=Recorder %1 ya está instalado. Se volverá a instalar encima, conservando la configuración, las notas y las tareas que elegiste.
+spanish.VersionMasNueva=Ojo: hay instalada una versión más nueva (%1) que la de este instalador (%2). Seguir la sustituirá por la anterior; la configuración y las notas se conservan.
+spanish.PerfilConDaily=En tu perfil de PowerShell hay una función «daily» de una instalación desde el código: tapa a la «daily» instalada y abre la copia del código con su propia configuración. Para usar la instalada, quita ese bloque del perfil (pasos en docs\instalacion.md, dentro de la carpeta _internal).
 
 [Languages]
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
@@ -83,6 +101,67 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExe}"; Tasks: escrit
 Filename: "{app}\{#MyAppExe}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+var
+  VersionPrevia: String; // la versión que ya hay instalada; vacío si es una instalación nueva
+
+function LeerVersionPrevia: String;
+begin
+  // Por usuario va a HKCU; si se instaló para todos, a HKLM.
+  if not RegQueryStringValue(HKEY_CURRENT_USER, '{#MyUninstallKey}', 'DisplayVersion', Result) then
+    if not RegQueryStringValue(HKEY_LOCAL_MACHINE, '{#MyUninstallKey}', 'DisplayVersion', Result) then
+      Result := '';
+end;
+
+function InitializeSetup: Boolean;
+begin
+  VersionPrevia := LeerVersionPrevia;
+  Result := True;
+end;
+
+// Lo que solo sirve la primera vez (SmartScreen, descarga del modelo) no se repite al actualizar.
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := (PageID = wpInfoBefore) and (VersionPrevia <> '');
+end;
+
+function TextoActualizacion: String;
+var
+  Anterior, Nueva: Int64;
+begin
+  Result := FmtMessage(CustomMessage('ActualizarVersion'), [VersionPrevia, '{#MyAppVersion}']);
+  if VersionPrevia = '{#MyAppVersion}' then
+    Result := FmtMessage(CustomMessage('ReinstalarVersion'), [VersionPrevia])
+  else if StrToVersion(VersionPrevia, Anterior) and StrToVersion('{#MyAppVersion}', Nueva)
+       and (ComparePackedVersion(Anterior, Nueva) > 0) then
+    Result := FmtMessage(CustomMessage('VersionMasNueva'), [VersionPrevia, '{#MyAppVersion}']);
+end;
+
+// Un perfil de PowerShell con el bloque que deja install.ps1 (la función daily del código).
+function PerfilTieneDaily(const Carpeta: String): Boolean;
+var
+  Contenido: AnsiString;
+begin
+  Result := LoadStringFromFile(ExpandConstant('{userdocs}\') + Carpeta + '\Microsoft.PowerShell_profile.ps1', Contenido)
+    and (Pos('# >>> recorder >>>', String(Contenido)) > 0);
+end;
+
+function PerfilConDailyDelCodigo: Boolean;
+begin
+  Result := PerfilTieneDaily('WindowsPowerShell') or PerfilTieneDaily('PowerShell');
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  if VersionPrevia <> '' then
+  begin
+    if CurPageID = wpSelectTasks then
+      WizardForm.SelectTasksLabel.Caption := TextoActualizacion
+    else if CurPageID = wpReady then
+      WizardForm.ReadyLabel.Caption := TextoActualizacion;
+  end;
+  if (CurPageID = wpFinished) and PerfilConDailyDelCodigo then
+    WizardForm.FinishedLabel.Caption := WizardForm.FinishedLabel.Caption + #13#10#13#10 + CustomMessage('PerfilConDaily');
+end;
 // PATH: se añade {app} al final sin duplicarlo y se quita al desinstalar, sin tocar el resto.
 // Por usuario va a HKCU\Environment; si se eligió instalar para todos, a la clave del sistema.
 

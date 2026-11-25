@@ -31,9 +31,9 @@ from typing import Dict, Optional, Sequence
 
 from rich.console import Console
 
-from .. import ayuda, paleta, registro
+from .. import __version__, ayuda, paleta, registro
 from ..intro import OPCION_SIN_INTRO
-from ..rutas import ruta_config
+from ..rutas import NOMBRE_APP, ruta_config
 from . import vt
 from .consola import make_console
 
@@ -84,6 +84,7 @@ def construir_parser(comandos: Dict[str, ModuleType]) -> argparse.ArgumentParser
     )
     parser.add_argument("--ascii", action="store_true", help="símbolos ASCII (en la consola clásica se detecta solo)")
     parser.add_argument("--gui", action="store_true", help="abre la ventana en vez de usar la terminal")
+    parser.add_argument("--version", action="version", version=f"{NOMBRE_APP} {__version__}", help=ayuda.AYUDA_VERSION)
     parser.add_argument(OPCION_SIN_INTRO, action="store_true", help=ayuda.texto_intro("intro.opcion_sin_intro"))
     parser.add_argument(
         "--historial", action="store_true",
