@@ -302,11 +302,11 @@ Contexto del proyecto
 Recorder es una app de escritorio en Python 3.14 para Windows que transcribe en vivo las dailies de Teams (faster-whisper int8 en CPU, CUDA si hay NVIDIA, o whisper.cpp con Vulkan en GPU como proceso aparte) y escribe una nota Markdown. Interfaces: ventana Tkinter (recorder/ui/) y terminal con rich (recorder/cli/), ambas con panel/pantalla de rendimiento alimentados por las métricas y el «motor efectivo» del snapshot de la sesión (recorder/metricas.py o equivalente). Textos de ayuda en recorder/ayuda.py o equivalente. Equipo de desarrollo: i7-1255U (2 núcleos P con HT + 8 E), Iris Xe integrada, sin NVIDIA. El repositorio tiene índice CodeGraph (.codegraph/): usa las herramientas codegraph_* (context, search, callers, impact, explore) antes de abrir archivos; si no responde, `codegraph init -i`. Pruebas: `python -m pytest` y `python recorder.py --selftest`. Shell: PowerShell 5.1. Lee docs/rendimiento.md, docs/gpu-amd-vulkan.md y docs/recomendacion-hardware.md antes de planear.
 
 Reglas de trabajo
-1. Primero planea: explora con codegraph, escribe un plan breve (archivos, cambios, riesgos, cómo verificarás) y después ejecútalo. Solo detente a preguntar si aparece una decisión que cambie el alcance.
-2. No hagas commits ni push. Deja los cambios en el árbol de trabajo y propón un mensaje de commit en español, en el estilo de los commits del repo («Agrega…», «Corrige…», «Permite…»).
+1. Trabaja por pasos. Primero planea: explora con codegraph y escribe un plan breve y numerado (archivos, cambios, riesgos, cómo verificarás). Después ejecuta un paso cada vez, comprobándolo antes de pasar al siguiente y diciendo en qué paso vas. Solo detente a preguntar si aparece una decisión que cambie el alcance.
+2. No hagas commits ni push. Deja los cambios en el árbol de trabajo y, solo al final, propón un mensaje de commit en español, en el estilo de los commits del repo («Agrega…», «Corrige…», «Permite…»).
 3. No menciones asistentes, agentes, modelos ni herramientas de IA en código, comentarios, documentación ni en el commit propuesto; sin líneas de coautoría.
 4. Sin dependencias nuevas.
-5. Código, comentarios y textos en español. Ningún cambio silencioso de configuración: todo cambio lo confirma el usuario.
+5. Sin valores fijos en el código (hardcode): colores desde la paleta (recorder/paleta.py), textos visibles desde recorder/ayuda.py, tiempos, tamaños y umbrales en constantes con nombre, y rutas desde la configuración o recorder/rutas.py; nunca rutas, dispositivos ni datos de este equipo o del usuario. Código, comentarios y textos en español. Ningún cambio silencioso de configuración: todo cambio lo confirma el usuario.
 6. `python -m pytest` y `python recorder.py --selftest` deben pasar; añade pruebas para la lógica nueva.
 7. Termina con: archivos cambiados, cómo se verificó, qué queda pendiente o sin verificar, y el commit sugerido.
 8. Antes de reproducir audio de prueba por los altavoces, comprueba que no suena nada más ni hay una llamada en curso. No instales software del sistema (Visual Studio, CMake, Vulkan SDK).
@@ -339,11 +339,11 @@ Contexto del proyecto
 Recorder es una app de escritorio para Windows que transcribe en vivo las dailies de Teams en el propio equipo (sin nube) y deja una nota Markdown ordenada con capturas de pantalla. Se distribuye como ejecutable con instalador (Recorder.exe ventana, daily.exe terminal). La interfaz es Tkinter con temas claro, oscuro y sistema; la paleta está en el módulo de paleta del repositorio (búscalo con las herramientas codegraph_*; si el índice no responde, `codegraph init -i`). El icono actual lo genera packaging/generar_icono.py (recorder/assets/recorder.ico): la identidad visual parte de ahí. Tipografías disponibles: Segoe UI Variable / Segoe UI. Blender está conectado por MCP para modelar y renderizar. Usa el flujo /design para la propuesta visual si está disponible; si no, entrega el storyboard como documento con imágenes.
 
 Reglas de trabajo
-1. Primero planea (propuesta de concepto y storyboard en texto), después produce los entregables.
-2. No hagas commits ni push. Propón un mensaje de commit en español («Agrega…»).
+1. Trabaja por pasos. Primero planea (propuesta de concepto y storyboard en texto); después produce los entregables uno a uno, revisando cada uno antes del siguiente y diciendo en qué paso vas.
+2. No hagas commits ni push. Solo al final, propón un mensaje de commit en español («Agrega…»).
 3. No menciones asistentes, agentes, modelos ni herramientas de IA en los entregables, nombres de archivo ni el commit propuesto.
 4. En Blender: inspecciona la escena antes de tocarla y no borres objetos existentes sin confirmar; trabaja en una colección o archivo propio.
-5. No escribas código de la aplicación.
+5. No escribas código de la aplicación. En la especificación, cada color por su token de la paleta y cada duración con nombre: nada de valores sueltos que el código tenga que copiar a mano.
 6. Termina con: entregables y rutas, duración total, peso total de assets, miniaturas de cada escena y preguntas abiertas.
 
 Tarea: diseñar una presentación de la app sencilla, dinámica, corta (6-8 s) y que se pueda saltar desde el primer fotograma, para la primera vez que se abre el ejecutable.
@@ -372,11 +372,11 @@ Contexto del proyecto
 Recorder es una app de escritorio en Python 3.14 para Windows que transcribe en vivo las dailies de Teams. Ventana Tkinter (recorder/ui/) y terminal con rich (recorder/cli/), sobre el núcleo recorder/session.py. Se empaqueta con PyInstaller (packaging/recorder.spec, packaging/build.ps1) e Inno Setup (packaging/recorder.iss); con Recorder instalado la configuración vive en %APPDATA%\Recorder\config.json. Ya existen: paleta por temas, campo «animations» (completas | reducidas | ninguna), helper de animaciones y menú «Más» de la ventana, y el diseño de la introducción: especificación en docs/intro/ y fotogramas en recorder/assets/intro/. El repositorio tiene índice CodeGraph (.codegraph/): usa las herramientas codegraph_* (context, search, callers, impact, explore) antes de abrir archivos; si no responde, `codegraph init -i`. Pruebas: `python -m pytest` y `python recorder.py --selftest`. Shell: PowerShell 5.1.
 
 Reglas de trabajo
-1. Primero planea: lee docs/intro/, explora con codegraph, escribe un plan breve (archivos, cambios, riesgos, cómo verificarás) y después ejecútalo. Solo detente a preguntar si aparece una decisión que cambie el alcance.
-2. No hagas commits ni push. Deja los cambios en el árbol de trabajo y propón un mensaje de commit en español, en el estilo de los commits del repo («Agrega…», «Corrige…», «Permite…»).
+1. Trabaja por pasos. Primero planea: lee docs/intro/, explora con codegraph y escribe un plan breve y numerado (archivos, cambios, riesgos, cómo verificarás). Después ejecuta un paso cada vez, comprobándolo antes de pasar al siguiente y diciendo en qué paso vas. Solo detente a preguntar si aparece una decisión que cambie el alcance.
+2. No hagas commits ni push. Deja los cambios en el árbol de trabajo y, solo al final, propón un mensaje de commit en español, en el estilo de los commits del repo («Agrega…», «Corrige…», «Permite…»).
 3. No menciones asistentes, agentes, modelos ni herramientas de IA en código, comentarios, documentación ni en el commit propuesto; sin líneas de coautoría.
 4. Sin dependencias nuevas (Pillow ya está si hace falta).
-5. Código, comentarios y textos en español.
+5. Sin valores fijos en el código (hardcode): colores desde la paleta (recorder/paleta.py), textos visibles desde recorder/ayuda.py, tiempos, tamaños y umbrales en constantes con nombre, y rutas desde la configuración o recorder/rutas.py; nunca rutas, dispositivos ni datos de este equipo o del usuario. Código, comentarios y textos en español.
 6. `python -m pytest` y `python recorder.py --selftest` deben pasar; añade pruebas para la lógica nueva.
 7. Termina con: archivos cambiados, cómo se verificó, qué queda pendiente o sin verificar, y el commit sugerido.
 8. Si cambias el config.json instalado para probar, guarda una copia antes y restáurala al terminar.
@@ -406,8 +406,8 @@ Contexto del proyecto
 Recorder es una app de escritorio en Python 3.14 para Windows que transcribe en vivo las dailies de Teams. Se han aplicado mejoras en varios pasos: métricas y motor efectivo, temas claro/oscuro/sistema, textos de ayuda y tooltips, ventana con menú nuevo, responsive, animaciones y panel de rendimiento, terminal interactiva, asistente de ajuste de rendimiento e introducción animada (detalle en docs/plan-mejoras-experiencia-y-rendimiento.md). El repositorio tiene índice CodeGraph (.codegraph/): usa las herramientas codegraph_* (context, search, callers, impact, explore) antes de abrir archivos; si no responde, `codegraph init -i`. Pruebas: `python -m pytest` y `python recorder.py --selftest`. Empaquetado: packaging\build.ps1. Shell: PowerShell 5.1.
 
 Reglas de trabajo
-1. Primero planea el recorrido de verificación y después ejecútalo.
-2. No hagas commits ni push. Corrige solo lo trivial (y dilo); lo demás se anota.
+1. Trabaja por pasos. Primero planea el recorrido de verificación, numerado; después ejecútalo un paso cada vez, anotando el resultado de cada uno antes del siguiente.
+2. No hagas commits ni push. Corrige solo lo trivial (y dilo); lo demás se anota. Si corriges algo, propón al final un mensaje de commit.
 3. No menciones asistentes, agentes, modelos ni herramientas de IA en código, documentación ni commits propuestos.
 4. Antes de reproducir audio de prueba por los altavoces, comprueba que no suena nada más ni hay una llamada en curso. Si modificas config.json para probar, guarda una copia y restáurala.
 5. Informa los fallos con su salida real; no los suavices.
@@ -419,7 +419,7 @@ Qué hacer
 2. Recorrido manual con capturas en docs/capturas-ui/ (nombre: tema_escala_ancho.png): ventana en cada tema, a 100/125/150 % y en 1366×768; terminal en la consola de Windows PowerShell 5.1 (la del día a día: conhost con color real, fondo negro y azul #012456), en cmd, con `--ascii`, y en Windows Terminal o PowerShell 7 si están instalados; introducción en primera ejecución del instalado (`Recorder.exe` y `daily.exe`).
 3. Contraste: la prueba automática de temas y una revisión a ojo de hover, foco y desactivado.
 4. Coste: sesión de unos 10 minutos grabando en CPU con audio de prueba: CPU del proceso y velocidad con panel y animaciones activados y con «animations: ninguna» y panel plegado. Anota la diferencia.
-5. Busca en el diff completo respecto a la rama principal menciones a asistentes, agentes o herramientas de IA (código, docs, textos de la app).
+5. Busca en el diff completo respecto a la rama principal menciones a asistentes, agentes o herramientas de IA (código, docs, textos de la app), y valores fijos (hardcode): colores fuera de la paleta, textos visibles fuera de recorder/ayuda.py, rutas o datos de este equipo.
 6. Informe en docs/verificacion-mejoras-ux.md: qué pasó, qué falló (con salida), capturas, pendientes, y la lista de commits sugeridos en orden si los pasos aún no se han confirmado.
 ```
 
