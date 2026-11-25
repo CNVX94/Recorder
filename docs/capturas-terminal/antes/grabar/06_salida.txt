@@ -1,0 +1,10 @@
+Recorder · daily_2026-11-24_21-09.md
+Calidad Media · CPU
+21:09:45      Fuentes: OUT Altavoces (Realtek(R) Audio) [Loopback] · MIC Headset Microphone (Oculus
+Virtual Audio Device)
+21:10:13      || pausa: no se captura audio nuevo
+21:10:15      > continúa, se vuelve a capturar audio
+Grabación terminada · nota: C:\Users\DESARR~1\AppData\Local\Temp\evid7shh34sm\notas\daily_2026-11-24
+_21-09.md
+
+C:\Users\desarrollo 6\Documents\GitHub\Recorder>

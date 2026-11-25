@@ -1,0 +1,24 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media…
+ ──────────────────────────────────────────────────────────
+ Inicio
+ ► 1  Grabar
+   2  Opciones
+   3  Calibrar
+   4  Reagrupar nota
+   5  Recomendación del equipo
+   6  Abrir la ventana
+   7  Rendimiento
+   8  Ayuda
+   0  Salir
+
+ Próxima grabación
+   Nota de hoy  aún no hay (se crea al grabar)
+   Calidad      Media · CPU, 4 hilos
+   Escucha      predeterminado · Mic: predeterminado
+
+ Empieza a transcribir la reunión a pantalla completa y la
+ guarda en la nota de hoy. Al terminar vuelves a este menú.
+
+
+
+ [↑↓] Mover · [Enter] Abrir · [Esc] Salir · [?] Más

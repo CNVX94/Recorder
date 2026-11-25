@@ -1,0 +1,26 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media…
+ ──────────────────────────────────────────────────────────
+ Reagrupar nota › daily_2026-11-21_09-30.md
+
+ ► Agrupar               ‹ Cada 15 min ›
+   Unir frases seguidas  ● sí
+   Hora corta            ● sí
+   Quitar imágenes       ● sí
+   Quitar frases cortas  ○ no
+   Quitar eco            ● sí
+   Crear la copia
+ ──────────────────────────────────────────────────────────
+ Vista previa                                     1-5 de 20
+ 7 frases en 2 tramos · 67 palabras, 0 quitadas
+ # Daily 2026-11-21 09:30 - reagrupada en tramos de 15
+   min
+
+ ## 09:30 - 09:45
+
+
+ Junta las frases en tramos de tiempo, cada uno con su hora
+ de título (por ejemplo, 09:30 - 09:45). «Sin agrupar» solo
+ aplica la limpieza.
+
+
+ [←→] Cambiar · [g] Crear la copia · [Esc] Volver · [?] Más

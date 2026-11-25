@@ -1,0 +1,30 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media · CPU
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ Inicio › Ayuda
+
+     ↑ 30 más arriba
+   Haz de búsqueda (beam): Cuántas alternativas compara la transcripción antes de elegir cada
+     frase. Más acierta un poco más pero va más lento. Lo fija la calidad.
+   VAD: Detector de voz: separa los trozos con habla de los silencios para no transcribir
+     ruido.
+   Whisper: El modelo que convierte la voz en texto. Funciona en tu equipo: el audio no sale a
+     internet.
+   Vulkan: La forma en que whisper.cpp usa tarjetas gráficas AMD o Intel. Viene con el
+     controlador de la tarjeta; no hay que instalar nada aparte.
+   Flash attention: Una forma de calcular más rápida y con menos memoria en la tarjeta gráfica.
+     Solo la usa whisper.cpp.
+   Loopback: Grabar lo que suena por tus altavoces o auriculares como si fuera un micrófono.
+     Así Recorder oye la reunión sin cables ni programas extra.
+   int8: Una forma de guardar el modelo con números más pequeños: ocupa menos y va más rápido
+     en el procesador, con muy poca pérdida de calidad.
+   Hilos: Tareas que el procesador hace a la vez; cada núcleo atiende una o dos. Más hilos para
+     transcribir dejan menos para los demás programas.
+   Tiempo real (×): Velocidad de la transcripción comparada con el habla: 2× tarda la mitad de
+     lo que dura el audio; por debajo de 1× se acumula atraso.
+   Markdown (.md): Texto plano con marcas sencillas (# para títulos, enlaces a imágenes). Se
+     abre con cualquier editor y se ve con formato en Obsidian o VS Code.
+
+ Las teclas de este menú y de la grabación, y la jerga de Recorder en palabras llanas.
+
+
+ [↑↓] Desplazar · [RePág/AvPág] Página · [Esc] Volver · [t] Tema

@@ -1,0 +1,30 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media · CPU
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ Reagrupar nota
+
+      Nota                       Fecha       Hora   Tamaño
+ ► 1  daily_2026-11-21_09-30.md  25/11/2026  02:55  1 KB  ● escribiéndose
+   2  daily_2026-11-24_09-30.md  25/11/2026  02:55  1 KB
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Esta nota se está escribiendo ahora: la copia llevará lo que haya hasta este momento.
+
+
+ [Enter] Elegir · [Esc] Volver · [↑↓] Mover · [1-2] Directo · [?] Ayuda

@@ -1,0 +1,9 @@
+> daily recomendar
+Equipo:      12th Gen Intel Core i7-1255U · 10 núcleos (2P+8E), 12 hilos · AVX2 · 32 GB de RAM · 
+portátil · GPU: Intel(R) Iris(R) Xe Graphics (integrada)
+Recomendado: Media (small, haz 5, CPU, int8, 9 hilos) [medida]
+Motivo:      12th Gen Intel Core i7-1255U (10 núcleos, 2P+8E, 32 GB): solo 2 núcleos de rendimiento 
+(los E rinden menos de la mitad), es de gama media. Media va unas 3 veces más rápido que el habla 
+(medido en un i7-1255U), con margen aunque la videollamada esté abierta; Alta iría al límite. La 
+tarjeta gráfica integrada no se usa: comparte memoria y potencia con el procesador y con Teams. Se 
+puede probar a mano en Opciones tras medirla.

@@ -1,0 +1,7 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media · CPU
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ Inicio › Ventana
+
+
+   La ventana de Recorder está abierta
+   Ciérrala para volver a este menú. Mientras esté abierta, esta terminal no atiende el teclado.

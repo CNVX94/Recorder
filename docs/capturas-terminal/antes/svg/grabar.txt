@@ -1,0 +1,27 @@
+> daily
+Recorder · daily_2026-11-24_09-30.md
+Calidad Media · CPU
+09:30:01     Fuentes: 🔊 Altavoces · 🎤 Micrófono del portátil
+09:30:05  🔊 Buenos días, empezamos con el estado del despliegue de la versión nueva.
+09:30:41  🎤 Ayer terminé la revisión de QA del módulo de notas y quedó todo en verde.
+09:32:02  🔊 Hay un bloqueo con el servidor de pruebas, lo vemos después de la daily.
+             📸 captura: bloqueo
+09:33:10     ⏸ pausa: no se captura audio nuevo
+● Escuchando + 🎤 · pendientes: 1 · ☕   🔊 ░░░░░░░░   🎤 ░░░░░░░░
+faster-whisper · CPU, 4 hilos · small · haz 5 · 2,6× tiempo real
+[p] pausar · [c] captura · [r] reconectar · [a] nota · [o] opciones · [q] salir
+── con [o] ──
+● Escuchando + 🎤 · pendientes: 1 · ☕   🔊 ░░░░░░░░   🎤 ░░░░░░░░
+faster-whisper · CPU, 4 hilos · small · haz 5 · 2,6× tiempo real
+🔧 Opciones   ahora: 🔊 (predeterminado de Windows) · 🎤 (predeterminado de Windows) · 📸 todas las 
+pantallas · capturas normales
+[1] salida de audio 🔊 · [2] micrófono 🎤 · [3] qué capturar 📸 · [4] calidad de capturas · [Esc/o] 
+volver
+● Escuchando + 🎤 · pendientes: 1 · ☕   🔊 ░░░░░░░░   🎤 ░░░░░░░░
+faster-whisper · CPU, 4 hilos · small · haz 5 · 2,6× tiempo real
+🔧 Salida de audio 🔊  elige con el número
+  [1] (predeterminado de Windows)
+  [2] Altavoces  (actual)
+  [3] Auriculares USB
+¿no aparece? si se conectó después de arrancar, sal con q y vuelve a entrar
+[1-3] elegir · [Esc] volver · [o] cerrar

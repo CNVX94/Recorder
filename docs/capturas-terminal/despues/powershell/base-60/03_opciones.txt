@@ -1,0 +1,24 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media…
+ ──────────────────────────────────────────────────────────
+ Inicio › Opciones
+   Carpetas
+ ►   Carpeta de notas            C:\Users…vid4cfwfzt7\notas
+     Carpeta de capturas         C:\Users…t7\notas\capturas
+     Palabras clave              pendiente, bloqueo, captu…
+   Audio
+     Salida a capturar           (predeterminado de Window…
+     Transcribir mi micrófono    ● sí
+     Micrófono                   (predeterminado de Window…
+   Capturas
+     Qué capturar                (todas las pantallas)
+     Capturas por palabra clave  Normales: JPEG 85 a tamañ…
+   Calidad
+     Calidad                     Media
+     ↓ 6 más abajo
+
+ Dónde se guarda la nota .md de cada daily. Si la cambias
+ en plena grabación, la nota de hoy se mueve allí con sus
+ enlaces a capturas.
+
+
+ [Enter] Editar · [g] Guardar · [Esc] Volver · [?] Más

@@ -1,0 +1,30 @@
+frase>
+
+¿Qué quieres hacer?
+     1  Vocabulario de contexto (guía a Whisper antes de oír)  Recorder, Teams, QA, despliegue,
+demo
+     2  Frases a ignorar (lista negra de alucinaciones)  2 frases
+     3  Correcciones de léxico («oído_mal=escrito_bien; ...»)  1 corrección
+     4  Umbrales del decodificador  silencio 0.6 · confianza -1.0 · anti-bucles 2.4
+     5  Filtro de eco del vocabulario (quitar lo que solo repite el vocab)  activado
+     6  Probar frases (sandbox, con lo escrito ahora)
+     7  Guardar y salir
+     8  Salir sin guardar
+Número: 4
+Filtro de silencio (no_speech_prob > X descarta) [0.1 a 0.95] (0.6):
+Confianza mínima (avg_logprob < X descarta) [-2.5 a -0.2] (-1.0):
+Anti-bucles (ratio de compresión > X descarta) [1.5 a 3.5] (2.4):
+
+¿Qué quieres hacer?
+     1  Vocabulario de contexto (guía a Whisper antes de oír)  Recorder, Teams, QA, despliegue,
+demo
+     2  Frases a ignorar (lista negra de alucinaciones)  2 frases
+     3  Correcciones de léxico («oído_mal=escrito_bien; ...»)  1 corrección
+     4  Umbrales del decodificador  silencio 0.6 · confianza -1.0 · anti-bucles 2.4
+     5  Filtro de eco del vocabulario (quitar lo que solo repite el vocab)  activado
+     6  Probar frases (sandbox, con lo escrito ahora)
+     7  Guardar y salir
+     8  Salir sin guardar
+Número: 8
+
+C:\Users\desarrollo 6\Documents\GitHub\Recorder>

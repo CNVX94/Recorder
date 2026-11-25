@@ -1,0 +1,30 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media · CPU
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ Inicio › Ayuda
+
+     ↑ 6 más arriba
+   Esc  q        volver a la pantalla anterior; en Inicio, salir.
+   1-9  0        abrir una opción de Inicio o elegir en una lista numerada.
+   g             guardar los cambios (antes enseña qué cambia).
+   t             tema claro u oscuro (se guarda).
+   ?             esta ayuda.
+   Ctrl+C        salir de Recorder sin guardar.
+
+ Teclas de la grabación (daily)
+   [p] Pausar / seguir: Deja de escuchar audio nuevo sin cerrar; lo pendiente se sigue
+       transcribiendo. Pulsa p otra vez para seguir.
+   [c] Captura: Guarda ahora una imagen de la pantalla o ventana elegida y la enlaza en la
+       nota en este punto.
+   [r] Reconectar: Vuelve a abrir el audio con los dispositivos elegidos. Úsalo si una fuente
+       marca × o dejó de oírse.
+   [a] Abrir la nota: Abre la nota de hoy con el programa que usa tu PC para los .md, para
+       leerla mientras se escribe.
+   [o] Opciones: Cambia audio, micrófono y capturas sin parar la grabación. Elige con ↑↓ y
+       Enter o con el número; Esc vuelve sin cambiar nada.
+   [q] Salir: Termina la grabación. Si queda audio sin transcribir, te pregunta si esperar o
+     ↓ 25 más abajo
+
+ Las teclas de este menú y de la grabación, y la jerga de Recorder en palabras llanas.
+
+
+ [↑↓] Desplazar · [RePág/AvPág] Página · [Esc] Volver · [t] Tema

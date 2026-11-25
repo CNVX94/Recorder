@@ -1,0 +1,24 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media…
+ ──────────────────────────────────────────────────────────
+ Inicio › Opciones                    ● cambios sin guardar
+   Carpetas
+     Carpeta de notas            C:\Users…vid4cfwfzt7\notas
+     Carpeta de capturas         C:\Users…t7\notas\capturas
+     Palabras clave              pendiente, bloqueo, captu…
+   Audio
+     Salida a capturar           (predeterminado de Window…
+ ►   Transcribir mi micrófono    ○ no
+     Micrófono                   (predeterminado de Window…
+   Capturas
+     Qué capturar                (todas las pantallas)
+     Capturas por palabra clave  Normales: JPEG 85 a tamañ…
+   Calidad
+     Calidad                     Media
+     ↓ 6 más abajo
+
+ Actívalo para que tu voz también quede en la nota, marcada
+ con MIC. Apágalo si solo te interesa lo que dicen los
+ demás.
+
+
+ [Espacio] Cambiar · [g] Guardar · [Esc] Volver · [?] Más

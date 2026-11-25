@@ -1,0 +1,30 @@
+Recorder · nota de hoy: daily_2026-11-24_09-30.md
+Calidad Media · CPU · se usaría faster-whisper · CPU, 4 hilos · small · haz 5
+Equipo: 12th Gen Intel Core i7-1255U · 10 núcleos (2P+8E), 12 hilos · AVX2 · 32 GB de RAM · portáti…
+────────────────────────────────────────────────────────────────────────────────────────────────────
+Inicio › Opciones
+▶ Carpeta de notas            C:\Users\DESARR~1\AppData\Local\Temp\evidpewo_wbe\notas
+  Carpeta de capturas         C:\Users\DESARR~1\AppData\Local\Temp\evidpewo_wbe\notas\capturas
+  Palabras clave              pendiente, bloqueo, captura
+  Salida a capturar 🔊        (predeterminado de Windows)
+  Transcribir mi micrófono    sí
+  Micrófono 🎤                (predeterminado de Windows)
+  Qué capturar 📸             (todas las pantallas)
+  Capturas por palabra clave  Normales: JPEG 85 a tamaño real, texto nítido (~470 MB/h)
+  Calidad                     Media
+  Hilos de CPU                0
+  Carpeta de whisper.cpp      (vacío)
+  GPU de whisper.cpp          Automática (dedicada)
+  Flash attention             no
+  Tema                        Oscuro
+  Usar la recomendada para este equipo  
+
+
+
+
+
+
+
+
+
+[↑↓] Mover · [←→] Cambiar · [Enter] Editar · [g] Guardar · [Esc] Volver

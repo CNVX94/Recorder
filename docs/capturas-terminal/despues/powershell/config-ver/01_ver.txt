@@ -1,0 +1,22 @@
+
+  Carpeta de notas             C:\Users\DESARR~1\AppData\Local\Temp\evidpt40pr_o\notas
+  Carpeta de capturas          C:\Users\DESARR~1\AppData\Local\Temp\evidpt40pr_o\notas\capturas
+  Palabras clave               pendiente, bloqueo, captura
+  Salida a capturar OUT        (predeterminado de Windows)
+  Micrófono MIC                (predeterminado de Windows)
+  Qué capturar ■               (todas las pantallas)
+  Capturas por palabra clave   Normales: JPEG 85 a tamaño real, texto nítido (~470 MB/h)
+  Calidad                      Media: small, haz 5, CPU, int8
+  Hilos de CPU                 0 (4 de la biblioteca)
+  whisper.cpp                  (vacía: sin motor Vulkan)
+  GPU de whisper.cpp           Automática (dedicada)
+  Flash attention              no
+  Permitir GPU integrada       no
+  Prioridad del proceso        Normal
+  Vocabulario                  Recorder, Teams, QA, despliegue, demo
+  Frases a ignorar             2 frases
+  Correcciones                 1 corrección
+  Umbrales                     silencio 0.6 · confianza -1.0 · anti-bucles 2.4
+  Tema                         Oscuro
+
+PS C:\Users\desarrollo 6\Documents\GitHub\Recorder>

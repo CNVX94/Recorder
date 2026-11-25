@@ -1,0 +1,10 @@
+Recorder · daily_2026-11-24_21-09.md
+Calidad Media · CPU
+21:09:45      Fuentes: OUT Altavoces (Realtek(R) Audio) [Loopback] · MIC Headset Microphone (Oculus
+Virtual Audio Device)
+* Escuchando + MIC · pendientes: 0 · (despierto)   OUT ######..   MIC ........
+faster-whisper · CPU, 4 hilos · small · haz 5 · 6,6× tiempo real
+ Opciones   ahora: OUT (predeterminado de Windows) · MIC Headset Microphone (Oculus Virtual Audio
+Device) · [cap] todas las pantallas · capturas normales
+[1] salida de audio OUT · [2] micrófono MIC · [3] qué capturar [cap] · [4] calidad de capturas ·
+[Esc/o] volver

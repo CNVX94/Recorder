@@ -1,0 +1,8 @@
+uso: daily menu [-h]
+
+menú con todo lo que se puede hacer, navegable con el teclado
+
+opciones:
+  -h, --help  muestra esta ayuda y sale
+
+C:\Users\desarrollo 6\Documents\GitHub\Recorder>

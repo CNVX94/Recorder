@@ -1,0 +1,30 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media · CPU
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ Inicio › Opciones
+
+   Carpetas
+     Carpeta de notas            C:\Users\DESARR~1\AppData\Local\Temp\evidn4u66mo2\notas
+     Carpeta de capturas         C:\Users\DESARR~1\AppData\Local\Temp\evidn4u66mo2\notas\capturas
+ ►   Palabras clave              › pendiente, bloqueo, capturaerr▌or
+   Audio
+     Salida a capturar           (predeterminado de Windows)
+     Transcribir mi micrófono    ● sí
+     Micrófono                   (predeterminado de Windows)
+   Capturas
+     Qué capturar                (todas las pantallas)
+     Capturas por palabra clave  Normales: JPEG 85 a tamaño real, texto nítido (~470 MB/h)
+   Calidad
+     Calidad                     Media
+     Hilos de CPU                automático (4)
+     Carpeta de whisper.cpp      (vacío)
+     Prioridad del proceso       Normal
+     Usar la recomendada
+   Apariencia
+     Tema                        Oscuro
+
+
+
+ Escribe o corrige el valor: ←→ mueven el cursor, Enter lo acepta y Esc lo deja como estaba.
+
+
+ [←→] Cursor · [Enter] Aceptar · [Esc] Cancelar

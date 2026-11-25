@@ -1,0 +1,30 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media · CPU
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ Inicio › Rendimiento
+
+   ∙ Midiendo. La primera cifra llega en un par de segundos.
+
+   Se transcribiría con: CPU, 4 hilos · Calidad Media
+
+   Ahora, en todo el equipo                                                           últimos 2 min
+   Procesador             ∙  ░░░░░░░░░░░░░░░░░░░░
+
+   Tarjeta gráfica        ∙  ░░░░░░░░░░░░░░░░░░░░
+
+   Memoria             71 %  ██████████████░░░░░░                                                 ░
+            22,4 de 31,6 GB                                                                       █
+
+   Equipo
+     12th Gen Intel Core i7-1255U · 10 núcleos (2P+8E), 12 hilos · AVX2 · 32 GB de RAM · portátil
+     GPU: Intel(R) Iris(R) Xe Graphics (integrada)
+
+ ► Medir mi equipo
+
+
+
+
+
+ Prueba de 2 o 3 minutos que dice qué calidad aguanta tu equipo de verdad.
+
+
+ [Enter] Medir mi equipo · [Esc] Volver · [?] Ayuda · [t] Tema

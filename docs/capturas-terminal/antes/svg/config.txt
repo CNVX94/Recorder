@@ -1,0 +1,102 @@
+> daily config
+🔧 Configuración de Recorder  C:\Users\DESARR~1\AppData\Local\Temp\evidpewo_wbe\config.json
+Enter conserva el valor actual, «-» vacía un campo y Ctrl+C cancela sin guardar.
+Detectando el equipo…
+
+¿Qué quieres cambiar?
+     1  Carpetas y palabras clave
+     2  Audio: salida a capturar y micrófono
+     3  Capturas: pantalla o ventana, y calidad de las capturas por palabra clave
+     4  Calidad y motor: preset, hilos, whisper.cpp y GPU
+     5  Apariencia: tema claro u oscuro
+     6  Todo, paso a paso
+     7  Guardar y salir
+     8  Salir sin guardar
+Número: 2
+
+Audio
+Salida a capturar 🔊
+  ▶  1  (predeterminado de Windows)
+     2  Auriculares (Oculus Virtual Audio Device)
+     3  H27T27 (HD Audio Driver for Display Audio)
+     4  Auriculares (Realtek(R) Audio)
+     5  Altavoces (Realtek(R) Audio)
+Número (1): 
+¿Transcribir también mi micrófono 🎤? [s/n] (s): 
+Micrófono 🎤
+  ▶  1  (predeterminado de Windows)
+     2  Micrófono externo (Realtek(R) Audio)
+     3  Varios micrófonos (Intel® Smart Sound Technology for Digital Microphones)
+     4  Headset Microphone (Oculus Virtual Audio Device)
+Número (1): 
+Sin cambios.
+
+¿Qué quieres cambiar?
+     1  Carpetas y palabras clave
+     2  Audio: salida a capturar y micrófono
+     3  Capturas: pantalla o ventana, y calidad de las capturas por palabra clave
+     4  Calidad y motor: preset, hilos, whisper.cpp y GPU
+     5  Apariencia: tema claro u oscuro
+     6  Todo, paso a paso
+     7  Guardar y salir
+     8  Salir sin guardar
+Número: 4
+
+Calidad y motor
+Carpeta de whisper.cpp (GPU AMD/Intel; vacía si no se usa): 
+  Vacía: sin motor Vulkan. Solo hace falta para una GPU AMD o Intel (docs/gpu-amd-vulkan.md).
+  Recomendado para este equipo: Media (small, haz 5, CPU, int8, 9 hilos) — 12th Gen Intel Core 
+i7-1255U (10 núcleos, 2P+8E, AVX2, 32 GB): solo 2 núcleos de rendimiento (los E rinden menos de la 
+mitad), gama media. Media (small, haz 5) va a ~3,0x el tiempo real medido en un i7-1255U, holgada 
+aun con la videollamada abierta; Alta iría al límite. La GPU integrada no se usa por defecto: su 
+memoria es la RAM del sistema (el mismo ancho de banda que ya usa la CPU) y comparte con la CPU, y 
+con Teams, la potencia. Se puede probar a mano (whispercpp_device) tras medirla. [medida]
+¿Usar la recomendada (calidad, hilos y, con whisper.cpp, flash attention)? [s/n] (n): 
+Calidad de transcripción (se aplica al reiniciar)
+     1  Baja
+  ▶  2  Media
+     3  Alta
+     4  Extra (no disponible en este equipo)
+     5  Personalizado
+Número (2): 
+  Modelo small, haz 5. Sigue yendo holgada en CPU (~3,0x tiempo real medido) y acierta mas que Baja 
+gracias al haz mayor.
+  0 = 4 de la biblioteca · recomendado: 9 (10 núcleos)
+Hilos de CPU (0): 
+Sin cambios.
+
+¿Qué quieres cambiar?
+     1  Carpetas y palabras clave
+     2  Audio: salida a capturar y micrófono
+     3  Capturas: pantalla o ventana, y calidad de las capturas por palabra clave
+     4  Calidad y motor: preset, hilos, whisper.cpp y GPU
+     5  Apariencia: tema claro u oscuro
+     6  Todo, paso a paso
+     7  Guardar y salir
+     8  Salir sin guardar
+Número: 1
+
+Carpetas y palabras clave
+Carpeta de notas (.md) (C:\Users\DESARR~1\AppData\Local\Temp\evidpewo_wbe\notas): 
+Carpeta de capturas (C:\Users\DESARR~1\AppData\Local\Temp\evidpewo_wbe\notas\capturas): 
+Palabras clave que disparan una captura (separadas por coma) (pendiente, bloqueo, captura): bloqueo, demo
+
+                            Cambios                             
+                                                                
+  Ajuste           Antes                         Después        
+ ────────────────────────────────────────────────────────────── 
+  Palabras clave   pendiente, bloqueo, captura   bloqueo, demo  
+                                                                
+¿Guardar en config.json? [s/n] (s): n
+
+¿Qué quieres cambiar?
+     1  Carpetas y palabras clave
+     2  Audio: salida a capturar y micrófono
+     3  Capturas: pantalla o ventana, y calidad de las capturas por palabra clave
+     4  Calidad y motor: preset, hilos, whisper.cpp y GPU
+     5  Apariencia: tema claro u oscuro
+     6  Todo, paso a paso
+     7  Guardar y salir
+     8  Salir sin guardar
+Número: 8
+No se guardó nada.

@@ -1,0 +1,24 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media…
+ ──────────────────────────────────────────────────────────
+ Inicio › Opciones                    ● cambios sin guardar
+   Carpetas
+     Carpeta de notas            C:\Users…vidnr2jd_l6\notas
+     Carpeta de capturas         C:\Users…l6\notas\capturas
+ ►   Palabras clave              pendiente, bloqueo, captu…
+   Audio
+     Salida a capturar           (predeterminado de Window…
+     Transcribir mi micrófono    ● sí
+     Micrófono                   (predeterminado de Window…
+   Capturas
+     Qué capturar                (todas las pantallas)
+     Capturas por palabra clave  Normales: JPEG 85 a tamañ…
+   Calidad
+     Calidad                     Media
+     ↓ 6 más abajo
+
+ Palabras separadas por coma que, al oírse, guardan una
+ captura y resaltan la frase. Por ejemplo: bloqueo, error,
+ demo.
+
+
+ [Enter] Editar · [g] Guardar · [Esc] Volver · [?] Más

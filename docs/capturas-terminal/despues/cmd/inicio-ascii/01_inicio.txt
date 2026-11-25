@@ -1,0 +1,30 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media · CPU
+ --------------------------------------------------------------------------------------------------
+ Inicio
+
+ > 1  Grabar                       | Próxima grabación
+   2  Opciones                     |   Nota de hoy  aún no hay (se crea al grabar)
+   3  Calibrar                     |   Carpeta      C:\Users\DESAR...\Local\Temp\eviduv5jakae\notas
+   4  Reagrupar nota               |   Calidad      Media
+   5  Recomendación del equipo     |   Se usará     CPU, 4 hilos
+   6  Abrir la ventana             |   Escucha      predeterminado
+   7  Rendimiento                  |   Micrófono    predeterminado
+   8  Ayuda                        |   Capturas     todas las pantallas · al oír pendiente, bloq...
+   0  Salir                        |
+                                   | Equipo
+                                   |   12th Gen Intel Core i7-1255U · 10 núcleos (2P+8E), 12
+                                   |   hilos · AVX2 · 32 GB de RAM · portátil · GPU: Intel(R)
+                                   |   Iris(R) Xe Graphics (integrada)
+
+
+
+
+
+
+
+
+
+ Empieza a transcribir la reunión a pantalla completa y la guarda en la nota de hoy. Al terminar
+ vuelves a este menú.
+
+ [^v] Mover · [Enter] Abrir · [Esc] Salir · [1-8] Abrir directo · [?] Ayuda · [t] Tema

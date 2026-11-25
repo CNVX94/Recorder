@@ -1,0 +1,24 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media…
+ ──────────────────────────────────────────────────────────
+ Inicio › Ayuda
+     ↑ 6 más arriba
+   Esc  q        volver a la pantalla anterior; en Inicio,…
+   1-9  0        abrir una opción de Inicio o elegir en un…
+   g             guardar los cambios (antes enseña qué cam…
+   t             tema claro u oscuro (se guarda).
+   ?             esta ayuda.
+   Ctrl+C        salir de Recorder sin guardar.
+
+ Teclas de la grabación (daily)
+   [p] Pausar / seguir: Deja de escuchar audio nuevo
+       sin cerrar; lo pendiente se sigue transcribiendo.
+       Pulsa p otra vez para seguir.
+   [c] Captura: Guarda ahora una imagen de la
+     ↓ 49 más abajo
+
+ Las teclas de este menú y de la grabación, y la jerga de
+ Recorder en palabras llanas.
+
+
+
+ [↑↓] Desplazar · [RePág/AvPág] Página · [Esc] Volver

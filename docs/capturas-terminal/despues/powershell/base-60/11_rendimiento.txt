@@ -1,0 +1,24 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media…
+ ──────────────────────────────────────────────────────────
+ Inicio › Rendimiento
+   √ Hay margen para grabar. El equipo va desahogado:
+     puedes grabar con la calidad elegida.
+   Se transcribiría con: CPU, 4 hilos · Calidad Media
+   Ahora, en todo el equipo                   últimos 2 min
+   Procesador           6 %  █░░░░░░░░                   ··
+   Tarjeta gráfica      0 %  ░░░░░░░░░                   ··
+   Memoria             71 %  ██████░░░                  ▄▄▄
+   Equipo
+     12th Gen Intel Core i7-1255U · 10 núcleos (2P+8E), 12
+       hilos · AVX2 · 32 GB de RAM · portátil
+     GPU: Intel(R) Iris(R) Xe Graphics (integrada)
+
+ ► Medir mi equipo
+
+
+ Prueba de 2 o 3 minutos que dice qué calidad aguanta tu
+ equipo de verdad.
+
+
+
+ [Enter] Medir mi equipo · [Esc] Volver · [?] Más

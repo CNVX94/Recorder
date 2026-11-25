@@ -1,0 +1,24 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media…
+ ──────────────────────────────────────────────────────────
+ Inicio › Opciones › Guardar          ● cambios sin guardar
+ Se guardará en config.json:
+
+    Palabras clave
+      pendiente, bloqueo, captura → pendiente, bloqueo, ca…
+    Transcribir el micrófono
+      sí → no
+
+
+
+
+
+
+
+
+
+ Revisa lo que cambia: Enter lo guarda y Esc te deja seguir
+ editando.
+
+
+
+ [Enter] Guardar · [Esc] Seguir editando

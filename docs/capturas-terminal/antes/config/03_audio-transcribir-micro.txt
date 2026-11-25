@@ -1,0 +1,24 @@
+ Configuración de Recorder  C:\Users\DESARR~1\AppData\Local\Temp\evidod6jsb1i\config.json
+Enter conserva el valor actual, «-» vacía un campo y Ctrl+C cancela sin guardar.
+Detectando el equipo...
+
+¿Qué quieres cambiar?
+     1  Carpetas y palabras clave
+     2  Audio: salida a capturar y micrófono
+     3  Capturas: pantalla o ventana, y calidad de las capturas por palabra clave
+     4  Calidad y motor: preset, hilos, whisper.cpp y GPU
+     5  Apariencia: tema claro u oscuro
+     6  Todo, paso a paso
+     7  Guardar y salir
+     8  Salir sin guardar
+Número: 2
+
+Audio
+Salida a capturar OUT
+  >  1  (predeterminado de Windows)
+     2  Auriculares (Oculus Virtual Audio Device)
+     3  H27T27 (HD Audio Driver for Display Audio)
+     4  Auriculares (Realtek(R) Audio)
+     5  Altavoces (Realtek(R) Audio)
+Número (1):
+¿Transcribir también mi micrófono MIC? [s/n] (s):
