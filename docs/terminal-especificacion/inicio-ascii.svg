@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 888 594" width="888" height="594" role="img" aria-label="Inicio, ASCII en 16 colores sobre el azul de PowerShell (sin fondo propio)" font-family="Consolas, 'Cascadia Mono', 'DejaVu Sans Mono', monospace" font-size="14.5">
+<rect width="100%" height="100%" rx="6" fill="#012456"/>
+<text x="22.6" y="26" fill="#f2f2f2" font-weight="700" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Recorder</text>
+<text x="100.0" y="26" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">·</text>
+<text x="117.2" y="26" fill="#f2f2f2" textLength="215.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">daily_2026-11-24_09-30.md</text>
+<text x="340.8" y="26" fill="#cccccc" textLength="180.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">· Calidad Media · CPU</text>
+<text x="22.6" y="45" fill="#cccccc" textLength="842.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">--------------------------------------------------------------------------------------------------</text>
+<text x="22.6" y="64" fill="#f2f2f2" font-weight="700" textLength="51.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Inicio</text>
+<text x="22.6" y="102" fill="#f9f1a5" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">&gt;</text>
+<text x="39.8" y="102" fill="#f9f1a5" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">1</text>
+<text x="65.6" y="102" fill="#f9f1a5" font-weight="700" textLength="51.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Grabar</text>
+<text x="297.8" y="102" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">|</text>
+<text x="315.0" y="102" fill="#f2f2f2" font-weight="700" textLength="146.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Próxima grabación</text>
+<text x="39.8" y="121" fill="#f9f1a5" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">2</text>
+<text x="65.6" y="121" fill="#f2f2f2" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Opciones</text>
+<text x="297.8" y="121" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">|</text>
+<text x="332.2" y="121" fill="#cccccc" textLength="94.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Nota de hoy</text>
+<text x="444.0" y="121" fill="#f2f2f2" textLength="215.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">daily_2026-11-24_09-30.md</text>
+<text x="39.8" y="140" fill="#f9f1a5" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">3</text>
+<text x="65.6" y="140" fill="#f2f2f2" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Calibrar</text>
+<text x="297.8" y="140" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">|</text>
+<text x="332.2" y="140" fill="#cccccc" textLength="60.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Carpeta</text>
+<text x="444.0" y="140" fill="#f2f2f2" textLength="258.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">C:\Users\ana\Documents\Dailies</text>
+<text x="39.8" y="159" fill="#f9f1a5" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">4</text>
+<text x="65.6" y="159" fill="#f2f2f2" textLength="120.4" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Reagrupar nota</text>
+<text x="297.8" y="159" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">|</text>
+<text x="332.2" y="159" fill="#cccccc" textLength="60.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Calidad</text>
+<text x="444.0" y="159" fill="#f2f2f2" textLength="43.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Media</text>
+<text x="39.8" y="178" fill="#f9f1a5" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">5</text>
+<text x="65.6" y="178" fill="#f2f2f2" textLength="206.4" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Recomendación del equipo</text>
+<text x="297.8" y="178" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">|</text>
+<text x="332.2" y="178" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Se usará</text>
+<text x="444.0" y="178" fill="#f2f2f2" textLength="103.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">CPU, 4 hilos</text>
+<text x="39.8" y="197" fill="#f9f1a5" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">6</text>
+<text x="65.6" y="197" fill="#f2f2f2" textLength="137.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Abrir la ventana</text>
+<text x="297.8" y="197" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">|</text>
+<text x="332.2" y="197" fill="#cccccc" textLength="60.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Escucha</text>
+<text x="444.0" y="197" fill="#f2f2f2" textLength="77.4" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Altavoces</text>
+<text x="39.8" y="216" fill="#f9f1a5" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">7</text>
+<text x="65.6" y="216" fill="#f2f2f2" textLength="94.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Rendimiento</text>
+<text x="297.8" y="216" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">|</text>
+<text x="332.2" y="216" fill="#cccccc" textLength="77.4" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Micrófono</text>
+<text x="444.0" y="216" fill="#f2f2f2" textLength="189.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Micrófono del portátil</text>
+<text x="39.8" y="235" fill="#f9f1a5" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">8</text>
+<text x="65.6" y="235" fill="#f2f2f2" textLength="43.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Ayuda</text>
+<text x="297.8" y="235" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">|</text>
+<text x="332.2" y="235" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Capturas</text>
+<text x="444.0" y="235" fill="#f2f2f2" textLength="421.4" lengthAdjust="spacingAndGlyphs" xml:space="preserve">todas las pantallas · al oír bloqueo, error, demo</text>
+<text x="39.8" y="254" fill="#f9f1a5" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">0</text>
+<text x="65.6" y="254" fill="#f2f2f2" textLength="43.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Salir</text>
+<text x="297.8" y="254" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">|</text>
+<text x="297.8" y="273" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">|</text>
+<text x="315.0" y="273" fill="#f2f2f2" font-weight="700" textLength="51.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Equipo</text>
+<text x="297.8" y="292" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">|</text>
+<text x="332.2" y="292" fill="#cccccc" textLength="34.4" lengthAdjust="spacingAndGlyphs" xml:space="preserve">12th</text>
+<text x="375.2" y="292" fill="#cccccc" textLength="25.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Gen</text>
+<text x="409.6" y="292" fill="#cccccc" textLength="43.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Intel</text>
+<text x="461.2" y="292" fill="#cccccc" textLength="34.4" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Core</text>
+<text x="504.2" y="292" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">i7-1255U</text>
+<text x="581.6" y="292" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">·</text>
+<text x="598.8" y="292" fill="#cccccc" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">10</text>
+<text x="624.6" y="292" fill="#cccccc" textLength="60.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">núcleos</text>
+<text x="693.4" y="292" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">(2P+8E),</text>
+<text x="770.8" y="292" fill="#cccccc" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">12</text>
+<text x="796.6" y="292" fill="#cccccc" textLength="43.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">hilos</text>
+<text x="848.2" y="292" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">·</text>
+<text x="297.8" y="311" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">|</text>
+<text x="332.2" y="311" fill="#cccccc" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">32</text>
+<text x="358.0" y="311" fill="#cccccc" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">GB</text>
+<text x="383.8" y="311" fill="#cccccc" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">de</text>
+<text x="409.6" y="311" fill="#cccccc" textLength="25.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">RAM</text>
+<text x="444.0" y="311" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">·</text>
+<text x="461.2" y="311" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">portátil</text>
+<text x="297.8" y="330" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">|</text>
+<text x="332.2" y="330" fill="#cccccc" textLength="34.4" lengthAdjust="spacingAndGlyphs" xml:space="preserve">GPU:</text>
+<text x="375.2" y="330" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Intel(R)</text>
+<text x="452.6" y="330" fill="#cccccc" textLength="60.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Iris(R)</text>
+<text x="521.4" y="330" fill="#cccccc" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Xe</text>
+<text x="547.2" y="330" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Graphics</text>
+<text x="624.6" y="330" fill="#cccccc" textLength="94.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">(integrada)</text>
+<text x="22.6" y="520" fill="#cccccc" textLength="60.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Empieza</text>
+<text x="91.4" y="520" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">a</text>
+<text x="108.6" y="520" fill="#cccccc" textLength="94.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">transcribir</text>
+<text x="211.8" y="520" fill="#cccccc" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">la</text>
+<text x="237.6" y="520" fill="#cccccc" textLength="60.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">reunión</text>
+<text x="306.4" y="520" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">a</text>
+<text x="323.6" y="520" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">pantalla</text>
+<text x="401.0" y="520" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">completa</text>
+<text x="478.4" y="520" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">y</text>
+<text x="495.6" y="520" fill="#cccccc" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">la</text>
+<text x="521.4" y="520" fill="#cccccc" textLength="51.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">guarda</text>
+<text x="581.6" y="520" fill="#cccccc" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">en</text>
+<text x="607.4" y="520" fill="#cccccc" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">la</text>
+<text x="633.2" y="520" fill="#cccccc" textLength="34.4" lengthAdjust="spacingAndGlyphs" xml:space="preserve">nota</text>
+<text x="676.2" y="520" fill="#cccccc" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">de</text>
+<text x="702.0" y="520" fill="#cccccc" textLength="34.4" lengthAdjust="spacingAndGlyphs" xml:space="preserve">hoy.</text>
+<text x="745.0" y="520" fill="#cccccc" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Al</text>
+<text x="770.8" y="520" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">terminar</text>
+<text x="22.6" y="539" fill="#cccccc" textLength="60.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">vuelves</text>
+<text x="91.4" y="539" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">a</text>
+<text x="108.6" y="539" fill="#cccccc" textLength="34.4" lengthAdjust="spacingAndGlyphs" xml:space="preserve">este</text>
+<text x="151.6" y="539" fill="#cccccc" textLength="43.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">menú.</text>
+<text x="22.6" y="577" fill="#f9f1a5" textLength="34.4" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[^v]</text>
+<text x="65.6" y="577" fill="#cccccc" textLength="43.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Mover</text>
+<text x="117.2" y="577" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">·</text>
+<text x="134.4" y="577" fill="#f9f1a5" textLength="60.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[Enter]</text>
+<text x="203.2" y="577" fill="#cccccc" textLength="43.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Abrir</text>
+<text x="254.8" y="577" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">·</text>
+<text x="272.0" y="577" fill="#f9f1a5" textLength="43.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[1-8]</text>
+<text x="323.6" y="577" fill="#cccccc" textLength="111.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Abrir directo</text>
+<text x="444.0" y="577" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">·</text>
+<text x="461.2" y="577" fill="#f9f1a5" textLength="43.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[Esc]</text>
+<text x="512.8" y="577" fill="#cccccc" textLength="43.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Salir</text>
+<text x="564.4" y="577" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">·</text>
+<text x="581.6" y="577" fill="#f9f1a5" textLength="25.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[?]</text>
+<text x="616.0" y="577" fill="#cccccc" textLength="43.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Ayuda</text>
+<text x="667.6" y="577" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">·</text>
+<text x="684.8" y="577" fill="#f9f1a5" textLength="25.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[t]</text>
+<text x="719.2" y="577" fill="#cccccc" textLength="34.4" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Tema</text>
+</svg>

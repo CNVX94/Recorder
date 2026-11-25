@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 888 594" width="888" height="594" role="img" aria-label="Grabación, ASCII en 16 colores sobre el azul de PowerShell" font-family="Consolas, 'Cascadia Mono', 'DejaVu Sans Mono', monospace" font-size="14.5">
+<rect width="100%" height="100%" rx="6" fill="#012456"/>
+<text x="22.6" y="26" fill="#f2f2f2" font-weight="700" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Recorder</text>
+<text x="100.0" y="26" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">·</text>
+<text x="117.2" y="26" fill="#f2f2f2" textLength="215.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">daily_2026-11-24_09-30.md</text>
+<text x="340.8" y="26" fill="#cccccc" textLength="258.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">· Calidad Media · CPU, 4 hilos</text>
+<text x="22.6" y="45" fill="#16c60c" textLength="103.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">* Escuchando</text>
+<text x="143.0" y="45" fill="#cccccc" textLength="172.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">00:04:02 · en cola 1</text>
+<text x="650.4" y="45" fill="#cccccc" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">PC</text>
+<text x="676.2" y="45" fill="#f9f1a5" textLength="43.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">#####</text>
+<text x="719.2" y="45" fill="#cccccc" textLength="25.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">...</text>
+<text x="762.2" y="45" fill="#61d6d6" textLength="25.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Mic</text>
+<text x="796.6" y="45" fill="#f9f1a5" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">#</text>
+<text x="805.2" y="45" fill="#cccccc" textLength="60.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">.......</text>
+<text x="22.6" y="64" fill="#cccccc" textLength="842.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">--------------------------------------------------------------------------------------------------</text>
+<text x="22.6" y="83" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">09:30:01</text>
+<text x="143.0" y="83" fill="#cccccc" textLength="60.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Empieza</text>
+<text x="211.8" y="83" fill="#cccccc" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">la</text>
+<text x="237.6" y="83" fill="#cccccc" textLength="77.4" lengthAdjust="spacingAndGlyphs" xml:space="preserve">grabación</text>
+<text x="323.6" y="83" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">·</text>
+<text x="340.8" y="83" fill="#cccccc" textLength="77.4" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Altavoces</text>
+<text x="426.8" y="83" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">y</text>
+<text x="444.0" y="83" fill="#cccccc" textLength="77.4" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Micrófono</text>
+<text x="530.0" y="83" fill="#cccccc" textLength="25.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">del</text>
+<text x="564.4" y="83" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">portátil</text>
+<text x="22.6" y="102" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">09:30:05</text>
+<text x="108.6" y="102" fill="#cccccc" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">PC</text>
+<text x="143.0" y="102" fill="#f2f2f2" textLength="619.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Buenos días, empezamos con el estado del despliegue de la versión nueva.</text>
+<text x="22.6" y="121" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">09:30:41</text>
+<text x="108.6" y="121" fill="#61d6d6" textLength="25.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Mic</text>
+<text x="143.0" y="121" fill="#f2f2f2" textLength="627.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Ayer terminé la revisión de QA del módulo de notas y quedó todo en verde.</text>
+<text x="22.6" y="140" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">09:31:12</text>
+<text x="108.6" y="140" fill="#cccccc" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">PC</text>
+<text x="143.0" y="140" fill="#f2f2f2" textLength="430.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Perfecto. ¿Algo pendiente para la demo del jueves?</text>
+<text x="22.6" y="159" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">09:31:30</text>
+<text x="108.6" y="159" fill="#61d6d6" textLength="25.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Mic</text>
+<text x="143.0" y="159" fill="#f2f2f2" textLength="602.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Falta revisar las capturas del informe; lo termino hoy antes de comer.</text>
+<text x="22.6" y="178" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">09:32:02</text>
+<text x="108.6" y="178" fill="#cccccc" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">PC</text>
+<text x="143.0" y="178" fill="#f9f1a5" textLength="25.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Hay</text>
+<text x="177.4" y="178" fill="#f9f1a5" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">un</text>
+<text x="203.2" y="178" fill="#f9f1a5" textLength="60.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">bloqueo</text>
+<text x="272.0" y="178" fill="#f9f1a5" textLength="25.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">con</text>
+<text x="306.4" y="178" fill="#f9f1a5" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">el</text>
+<text x="332.2" y="178" fill="#f9f1a5" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">servidor</text>
+<text x="409.6" y="178" fill="#f9f1a5" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">de</text>
+<text x="435.4" y="178" fill="#f9f1a5" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">pruebas,</text>
+<text x="512.8" y="178" fill="#f9f1a5" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">lo</text>
+<text x="538.6" y="178" fill="#f9f1a5" textLength="43.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">vemos</text>
+<text x="590.2" y="178" fill="#f9f1a5" textLength="60.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">después</text>
+<text x="659.0" y="178" fill="#f9f1a5" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">de</text>
+<text x="684.8" y="178" fill="#f9f1a5" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">la</text>
+<text x="710.6" y="178" fill="#f9f1a5" textLength="51.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">daily.</text>
+<text x="143.0" y="197" fill="#cccccc" textLength="43.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[cap]</text>
+<text x="194.6" y="197" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">captura:</text>
+<text x="272.0" y="197" fill="#cccccc" textLength="60.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">bloqueo</text>
+<text x="22.6" y="216" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">09:32:40</text>
+<text x="108.6" y="216" fill="#cccccc" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">PC</text>
+<text x="143.0" y="216" fill="#f2f2f2" textLength="619.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Lo de los permisos ya está pedido, debería llegar mañana a primera hora.</text>
+<text x="22.6" y="235" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">09:33:05</text>
+<text x="108.6" y="235" fill="#61d6d6" textLength="25.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Mic</text>
+<text x="143.0" y="235" fill="#f2f2f2" textLength="516.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Vale, entonces sigo con la parte de exportar mientras tanto.</text>
+<text x="22.6" y="254" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">09:33:48</text>
+<text x="143.0" y="254" fill="#cccccc" textLength="43.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[cap]</text>
+<text x="194.6" y="254" fill="#cccccc" textLength="60.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">captura</text>
+<text x="263.4" y="254" fill="#cccccc" textLength="51.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">manual</text>
+<text x="22.6" y="273" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">09:34:02</text>
+<text x="108.6" y="273" fill="#cccccc" textLength="17.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">PC</text>
+<text x="143.0" y="273" fill="#f2f2f2" textLength="662.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Entonces el plan es desplegar el miércoles por la tarde si las pruebas pasan.</text>
+<text x="22.6" y="577" fill="#f9f1a5" textLength="25.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[p]</text>
+<text x="57.0" y="577" fill="#cccccc" textLength="51.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Pausar</text>
+<text x="117.2" y="577" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">·</text>
+<text x="134.4" y="577" fill="#f9f1a5" textLength="25.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[c]</text>
+<text x="168.8" y="577" fill="#cccccc" textLength="60.2" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Captura</text>
+<text x="237.6" y="577" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">·</text>
+<text x="254.8" y="577" fill="#f9f1a5" textLength="25.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[a]</text>
+<text x="289.2" y="577" fill="#cccccc" textLength="34.4" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Nota</text>
+<text x="332.2" y="577" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">·</text>
+<text x="349.4" y="577" fill="#f9f1a5" textLength="25.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[o]</text>
+<text x="383.8" y="577" fill="#cccccc" textLength="68.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Opciones</text>
+<text x="461.2" y="577" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">·</text>
+<text x="478.4" y="577" fill="#f9f1a5" textLength="25.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[m]</text>
+<text x="512.8" y="577" fill="#cccccc" textLength="94.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Rendimiento</text>
+<text x="616.0" y="577" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">·</text>
+<text x="633.2" y="577" fill="#f9f1a5" textLength="25.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[q]</text>
+<text x="667.6" y="577" fill="#cccccc" textLength="43.0" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Salir</text>
+<text x="719.2" y="577" fill="#cccccc" textLength="8.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">·</text>
+<text x="736.4" y="577" fill="#f9f1a5" textLength="25.8" lengthAdjust="spacingAndGlyphs" xml:space="preserve">[?]</text>
+<text x="770.8" y="577" fill="#cccccc" textLength="51.6" lengthAdjust="spacingAndGlyphs" xml:space="preserve">Teclas</text>
+</svg>
