@@ -1,0 +1,30 @@
+ Recorder · daily_2026-11-25_01-11.md · Calidad Media · CPU
+ … Terminando  00:00:29 · en cola 3                                       PC █████░░░  Mic ████░░░░
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ 01:11:54  PC  Entonces el plan es desplegar el miércoles por la tarde si las pruebas pasan.
+ 01:11:54  PC  Buenos días, empezamos con el estado del despliegue de la versión nueva.
+ 01:11:55  Mic Ayer terminé la revisión de QA del módulo de notas y quedó todo en verde.
+ 01:11:55  PC  Perfecto. ¿Algo pendiente para la demo del jueves?
+ 01:11:55  Mic Falta revisar las capturas del informe; lo termino hoy antes de comer.
+ 01:11:55  PC  Hay un bloqueo con el servidor de pruebas, lo vemos después de la daily.
+               ■ captura: bloqueo
+ 01:11:55  PC  Lo de los permisos ya está pedido, debería llegar mañana a primera hora.
+ 01:11:55  Mic Vale, entonces sigo con la parte de exportar mientras tanto.
+ 01:11:55  PC  Entonces el plan es desplegar el miércoles por la tarde si las pruebas pasan.
+ 01:11:55  PC  Buenos días, empezamos con el estado del despliegue de la versión nueva.
+ 01:11:55  Mic Ayer terminé la revisión de QA del módulo de notas y quedó todo en verde.
+ 01:11:55  PC  Perfecto. ¿Algo pendiente para la demo del jueves?
+ 01:11:55  Mic Falta revisar las capturas del informe; lo termino hoy antes de comer.
+ 01:11:55  PC  Hay un bloqueo con el servidor de pruebas, lo vemos después de la daily.
+               ■ captura: bloqueo
+ 01:11:59  PC  Lo de los permisos ya está pedido, debería llegar mañana a primera hora.
+ 01:12:03  Mic Vale, entonces sigo con la parte de exportar mientras tanto.
+ 01:12:07  PC  Entonces el plan es desplegar el miércoles por la tarde si las pruebas pasan.
+ 01:12:11  PC  Buenos días, empezamos con el estado del despliegue de la versión nueva.
+ 01:12:12      ‖ pausa: no se escucha audio nuevo
+ 01:12:13      ► sigue la grabación
+ 01:12:15  Mic Ayer terminé la revisión de QA del módulo de notas y quedó todo en verde.
+ ── Terminando lo pendiente ───────────────────────────────────────────────────────────────────────
+   ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  0 de 3 trozos · unos 45 s
+
+ [s] Salir sin esperar · [a] Nota

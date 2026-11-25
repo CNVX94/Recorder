@@ -244,6 +244,22 @@ def _now() -> str:
     return dt.datetime.now().strftime("%H:%M:%S")
 
 
+# Lo que cuenta de un aviso en el resumen de la sesión: su clase y a quién toca (la fuente) o el texto.
+AVISO_MUDA, AVISO_CAIDA, AVISO_ERROR = "muda", "caida", "error"
+
+
+@dataclasses.dataclass(frozen=True)
+class Resumen:
+    """Lo que queda de una sesión al terminar, para el resumen de la terminal: cuánto duró, cuántas
+    frases se transcribieron, cuántas capturas se guardaron (por palabra clave o a mano) y los avisos
+    (fuentes sin audio o caídas y errores), en orden, como (clase, fuente o texto)."""
+
+    duracion_s: float
+    frases: int
+    capturas: int
+    avisos: Tuple[Tuple[str, str], ...]
+
+
 # ---------------------------------------------------------------------------
 # Sesión
 # ---------------------------------------------------------------------------
@@ -320,11 +336,18 @@ class RecorderSession:
         self._events: List[Event] = []  # lo que devolverá el próximo poll(); solo lo toca el hilo de la interfaz
         self._capturing = False  # True mientras un hilo captura la pantalla; otro clic mientras tanto se ignora
         self.capture_errors = 0  # capturas manuales fallidas; suman en la cabecera con las del transcriptor
+        # Para el resumen: lo que pasó por `poll()` (frases, capturas, avisos) y cuándo empezó y acabó.
+        self._frases = 0
+        self._capturas = 0
+        self._avisos: List[Tuple[str, str]] = []
+        self._inicio: Optional[float] = None
+        self._fin: Optional[float] = None
 
     # ------------------------------------------------------------------ arranque
     def start(self) -> None:
         """Arranca el buffer de capturas, la captura de audio y la detección del equipo; el
         transcriptor, ya o tras detectar."""
+        self._inicio = time.monotonic()
         self._avisar_config_ilegible()
         self._anotar_fuentes()  # antes de abrir los flujos: solo enumera dispositivos
         self._start_buffer()
@@ -544,7 +567,30 @@ class RecorderSession:
             self.finished = True
 
         events, self._events = self._events, []
+        self._contar(events)
         return events
+
+    def _contar(self, events: List[Event]) -> None:
+        """Anota para el resumen lo que traen estos eventos."""
+        for ev in events:
+            if isinstance(ev, Line):
+                if ev.kind in ("out", "mic"):
+                    self._frases += 1
+                if ev.hits:
+                    self._capturas += 1
+            elif isinstance(ev, Notice) and ev.level == "err":
+                self._avisos.append((AVISO_ERROR, ev.text))
+            elif isinstance(ev, SourceChanged) and not ev.up:
+                self._avisos.append((AVISO_CAIDA, ev.kind))
+            elif isinstance(ev, SourceMuted) and ev.muted:
+                self._avisos.append((AVISO_MUDA, ev.kind))
+
+    @property
+    def resumen(self) -> Resumen:
+        """El resumen de la sesión hasta ahora (o hasta que se cerró, si ya se cerró)."""
+        fin = self._fin if self._fin is not None else time.monotonic()
+        duracion = 0.0 if self._inicio is None else max(0.0, fin - self._inicio)
+        return Resumen(duracion, self._frases, self._capturas, tuple(self._avisos))
 
     def _check_mute(self):
         """Una fuente que lleva MUTE_WARN_SEC sin audio mientras la otra sí (un micrófono que no es
@@ -703,6 +749,8 @@ class RecorderSession:
         """Para la captura, el transcriptor y el buffer, y suelta el equipo. La interfaz se cierra después."""
         self.audio_manager.stop()
         self.stop_event.set()
+        if self._fin is None:
+            self._fin = time.monotonic()
         if self.metricas.parar():  # una vez por sesión, aunque se cierre dos veces
             registro.anotar_resumen(self.metricas.resumen())
         keep_awake(False)

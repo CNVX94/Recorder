@@ -111,6 +111,12 @@ class TestEleccionDeFrontal(unittest.TestCase):
         self.assertIsInstance(consola.ascii_mode, bool, "sin --ascii lo decide la consola (detect_legacy_windows)")
         self.ventana.assert_not_called()
 
+    def test_historial_pide_las_frases_en_el_historial_de_la_terminal(self):
+        app.main([])
+        self.assertFalse(self.grabar.call_args.kwargs["historial"], "por defecto, a pantalla completa")
+        app.main(["--historial"])
+        self.assertTrue(self.grabar.call_args.kwargs["historial"])
+
     def test_ascii_se_fuerza_con_la_opcion(self):
         app.main(["--ascii"])
         self.assertTrue(self.grabar.call_args.kwargs["consola"].ascii_mode)

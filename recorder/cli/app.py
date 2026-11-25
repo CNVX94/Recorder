@@ -79,6 +79,10 @@ def construir_parser(comandos: Dict[str, ModuleType]) -> argparse.ArgumentParser
     )
     parser.add_argument("--ascii", action="store_true", help="símbolos ASCII (en la consola clásica se detecta solo)")
     parser.add_argument("--gui", action="store_true", help="abre la ventana en vez de usar la terminal")
+    parser.add_argument(
+        "--historial", action="store_true",
+        help="al grabar, deja las frases en el historial de la terminal en vez de usar la pantalla completa",
+    )
     sub = parser.add_subparsers(dest="comando", metavar="comando", title="comandos")
 
     def subcomando(nombre: str, ayuda: str) -> argparse.ArgumentParser:
@@ -149,7 +153,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.comando is None:
         from .live import grabar
 
-        return grabar(consola=consola)
+        return grabar(consola=consola, historial=args.historial)
     if args.comando == "menu":
         from .menu import menu
 

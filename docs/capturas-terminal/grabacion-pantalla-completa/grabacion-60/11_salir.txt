@@ -1,0 +1,24 @@
+ Recorder · daily_2026-11-25_01-12.md · Calidad Media · CPU
+ ● Escuchando  00:00:27 · en cola 3       PC ██░░  Mic █░░░
+ ──────────────────────────────────────────────────────────
+ 01:12:38  PC  Lo de los permisos ya está pedido, debería
+               llegar mañana a primera hora.
+ 01:12:42  Mic Vale, entonces sigo con la parte de exportar
+               mientras tanto.
+ 01:12:46  PC  Entonces el plan es desplegar el miércoles
+               por la tarde si las pruebas pasan.
+ 01:12:50  PC  Buenos días, empezamos con el estado del
+               despliegue de la versión nueva.
+ 01:12:50      ‖ pausa: no se escucha audio nuevo
+ 01:12:52      ► sigue la grabación
+ ── Salir de la grabación ─────────────────────────────────
+   Quedan 3 fragmentos (~45 s de audio) sin transcribir.
+ ► Esperar y salir
+   Salir sin esperar
+   Seguir grabando
+ Termina de transcribir lo pendiente sin escuchar audio
+ nuevo y sale sola al acabar.
+
+
+
+ [e] Esperar y salir · [s] Salir sin esperar · [Esc] Seguir

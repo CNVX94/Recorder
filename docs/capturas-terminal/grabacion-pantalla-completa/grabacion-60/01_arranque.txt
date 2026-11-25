@@ -1,0 +1,24 @@
+ Recorder · daily_2026-11-25_01-12.md · Calidad Media · CPU
+ ● Preparando
+ ──────────────────────────────────────────────────────────
+
+   ● Cargando el modelo (Calidad Media)…
+   √ Salida de audio: Altavoces
+   √ Micrófono: Micrófono del portátil
+   · Capturas: todas las pantallas, al oír bloqueo, error,
+     demo
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ [q] Cancelar · [?] Teclas

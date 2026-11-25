@@ -1,0 +1,24 @@
+ Recorder · daily_2026-11-25_01-12.md · Calidad Media · CPU
+ ● Escuchando  00:00:22 · en cola 3       PC ███░  Mic ░░░░
+ ──────────────────────────────────────────────────────────
+ Grabación › Rendimiento
+
+   ● Cargando el modelo. La velocidad se sabrá con la
+     primera frase.
+
+   Velocidad              ●  ░░░░░░░░░
+    1× = al ritmo del habla
+   En cola          3 trozos · 45 s de audio
+
+   Procesador           0 %  ░░░░░░░░░
+                 equipo 8 %                       ·········
+   Tarjeta gráfica      0 %  ░░░░░░░░░
+                 equipo 3 %                       ·········
+   Memoria           0,1 GB  ░░░░░░░░░
+                 de 31,6 GB                      ··········
+
+
+
+
+
+ [Esc] Volver a la transcripción · [q] Salir · [?] Más

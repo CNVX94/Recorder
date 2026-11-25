@@ -1,0 +1,30 @@
+ Recorder · daily_2026-11-25_01-11.md · Calidad Media · CPU
+ ● Escuchando  00:00:19 · en cola 3                                       PC █████░░░  Mic ████░░░░
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ 01:11:54  PC  Entonces el plan es desplegar el miércoles por la tarde si las pruebas pasan.
+ 01:11:54  PC  Buenos días, empezamos con el estado del despliegue de la versión nueva.
+ 01:11:55  Mic Ayer terminé la revisión de QA del módulo de notas y quedó todo en verde.
+ 01:11:55  PC  Perfecto. ¿Algo pendiente para la demo del jueves?
+ 01:11:55  Mic Falta revisar las capturas del informe; lo termino hoy antes de comer.
+ 01:11:55  PC  Hay un bloqueo con el servidor de pruebas, lo vemos después de la daily.
+               ■ captura: bloqueo
+ 01:11:55  PC  Lo de los permisos ya está pedido, debería llegar mañana a primera hora.
+ 01:11:55  Mic Vale, entonces sigo con la parte de exportar mientras tanto.
+ 01:11:55  PC  Entonces el plan es desplegar el miércoles por la tarde si las pruebas pasan.
+ 01:11:55  PC  Buenos días, empezamos con el estado del despliegue de la versión nueva.
+ 01:11:55  Mic Ayer terminé la revisión de QA del módulo de notas y quedó todo en verde.
+ 01:11:55  PC  Perfecto. ¿Algo pendiente para la demo del jueves?
+ 01:11:55  Mic Falta revisar las capturas del informe; lo termino hoy antes de comer.
+ 01:11:55  PC  Hay un bloqueo con el servidor de pruebas, lo vemos después de la daily.
+               ■ captura: bloqueo
+ 01:11:59  PC  Lo de los permisos ya está pedido, debería llegar mañana a primera hora.
+ 01:12:03  Mic Vale, entonces sigo con la parte de exportar mientras tanto.
+ ── Opciones de la grabación ──────────────────────────────────────────────────────────────────────
+ ► 1  Salida de audio      (predeterminado de Windows)
+   2  Micrófono            (predeterminado de Windows)
+   3  Qué capturar         todas las pantallas
+   4  Calidad de capturas  Normales
+ El altavoz o los auriculares por los que oyes la reunión: de ahí sale la voz de los demás.
+ Cámbialo si OUT no se mueve cuando alguien habla.
+
+ [↑↓] Mover · [Enter] Abrir · [1-4] Directo · [Esc] Cerrar · [q] Salir

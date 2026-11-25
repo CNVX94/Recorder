@@ -249,6 +249,51 @@ class TestEventos(BaseSesion):
         self.assertIn("> ✔ audio de micrófono recuperado", self.nota)
 
 
+class TestResumen(BaseSesion):
+    """Lo que la terminal cuenta al terminar: duración, frases, capturas y avisos."""
+
+    def test_sin_arrancar_no_hay_nada_que_contar(self):
+        self.assertEqual(self.session.resumen, ses.Resumen(0.0, 0, 0, ()))
+
+    def test_cuenta_frases_capturas_y_avisos_sin_tocar_los_eventos(self):
+        ui = self.session.ui_queue
+        ui.put(("status", "● Escuchando"))
+        ui.put(("line", "10:00:01", "mic", "Hola equipo", []))
+        ui.put(("line", "10:00:05", "out", "Hay un bloqueo", ["bloqueo"]))
+        ui.put(("line", "10:00:06", "info", "(captura manual)", ["manual"]))
+        ui.put(("line", "10:00:07", "info", "⏳ transcripción atrasada 5 min", []))
+        ui.put(("notice", "10:00:08", "⚠ algo falló", "err"))
+        ui.put(("notice", "10:00:09", "Fuentes: x", "info"))
+        self.audio.source_callback("out", False, "OSError(-9999)")
+        self.audio.source_callback("mic", True, "")
+        eventos = self.session.poll()
+        self.assertEqual(len(eventos), 9, "contar no cambia lo que se entrega")
+        r = self.session.resumen
+        self.assertEqual((r.frases, r.capturas), (2, 2), "las líneas de la sesión no son frases; la captura manual sí cuenta")
+        self.assertEqual(r.avisos, ((ses.AVISO_ERROR, "⚠ algo falló"), (ses.AVISO_CAIDA, "out")))
+        self.session.poll()
+        self.assertEqual(self.session.resumen.frases, 2, "no se cuenta dos veces")
+
+    def test_una_fuente_muda_es_un_aviso(self):
+        self.escuchando()
+        self.audio.started_at = time.time() - 2 * MUTE_WARN_SEC
+        self.audio.last_chunk_at = {"out": time.time() - 5, "mic": 0.0}
+        self.session.poll()
+        self.assertEqual(self.session.resumen.avisos, ((ses.AVISO_MUDA, "mic"),))
+
+    def test_la_duracion_va_de_arrancar_a_cerrar_y_se_queda_fija(self):
+        self.assertIsNone(self.session._inicio)
+        self.session.start()
+        self.assertGreaterEqual(self.session.resumen.duracion_s, 0.0)
+        self.session._inicio -= 120  # como si llevara dos minutos
+        self.assertGreaterEqual(self.session.resumen.duracion_s, 120.0)
+        self.session.shutdown()
+        fija = self.session.resumen.duracion_s
+        time.sleep(0.02)
+        self.assertEqual(self.session.resumen.duracion_s, fija, "tras cerrar ya no corre")
+        self.assertGreaterEqual(fija, 120.0)
+
+
 class TestCabecera(BaseSesion):
     def test_antes_de_escuchar_se_muestra_lo_que_diga_el_transcriptor(self):
         st = self.session.status

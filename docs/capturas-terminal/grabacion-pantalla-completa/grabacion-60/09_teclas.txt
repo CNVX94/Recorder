@@ -1,0 +1,24 @@
+ Recorder · daily_2026-11-25_01-12.md · Calidad Media · CPU
+ ● Escuchando  00:00:24 · en cola 3       PC ███░  Mic ░░░░
+ ──────────────────────────────────────────────────────────
+ Grabación › Teclas
+
+   p             Pausar / seguir: Deja de escuchar audio
+                 nuevo sin cerrar; lo pendiente se sigue
+                 transcribiendo. Pulsa p otra vez para
+                 seguir.
+   c             Captura: Guarda ahora una imagen de la
+                 pantalla o ventana elegida y la enlaza en
+                 la nota en este punto.
+   a             Abrir la nota: Abre la nota de hoy con el
+                 programa que usa tu PC para los .md, para
+                 leerla mientras se escribe.
+   r             Reconectar: Vuelve a abrir el audio con
+                 los dispositivos elegidos. Úsalo si una
+                 fuente marca × o dejó de oírse.
+   o             Opciones: Cambia audio, micrófono y
+                 capturas sin parar la grabación. Elige con
+                 ↑↓ y Enter o con el número; Esc vuelve sin
+     ↓ 13 más abajo
+
+ [Esc] Volver a la transcripción · [q] Salir
