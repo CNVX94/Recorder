@@ -8,7 +8,9 @@ Abre ventanas de consola en el escritorio mientras corre (unos 3 min con todos l
 carga el modelo de verdad; no toca el config.json del usuario ni sus notas (todo es sintético y temporal).
 El Ctrl+C inyectado como tecla no equivale al del teclado: compruébalo a mano.
 
-uso: python tools/capturar_terminal.py [carpeta_salida] [escenario ...]   (por defecto docs/capturas-terminal)
+uso: python tools/capturar_terminal.py [--powershell | --cmd] [carpeta_salida] [escenario ...]
+(por defecto docs/capturas-terminal y cmd). --powershell lanza cada escenario en Windows PowerShell
+(`powershell.exe -NoProfile -NoExit -Command ...`), la consola del día a día; en ambas se quita NO_COLOR.
 """
 import ctypes
 import ctypes.wintypes as wt
@@ -161,6 +163,10 @@ ESCENARIOS = {
         ("texto", "n"), ("foto", "no-creada", 1.5),
     ]),
     "sintesis-60": ("sintesis", 60, 26, [("foto", "lista", 3), ("texto", ""), ("texto", ""), *[("texto", "")] * 5, ("foto", "vista-previa", 2), ("texto", "n")]),
+    # Menú y Opciones a 100 y 60 columnas, y el menú con --ascii: la evidencia del color real y los símbolos seguros.
+    "inicio-100": ("menu", 100, 30, [("foto", "inicio", 5), ("teclas", ["2"]), ("foto", "opciones", 3), ("teclas", [E, E])]),
+    "inicio-60": ("menu", 60, 24, [("foto", "inicio", 5), ("teclas", ["2"]), ("foto", "opciones", 3), ("teclas", [E, E])]),
+    "inicio-ascii": ("--ascii menu", 100, 30, [("foto", "inicio", 5), ("teclas", ["2"]), ("foto", "opciones", 3), ("teclas", [E, E])]),
     "recomendar": ("recomendar", 100, 30, [("foto", "salida", 5)]),
     "ayuda": ("-h", 100, 30, [("foto", "daily-h", 2)]),
     "grabar": ("", 100, 30, [
@@ -171,14 +177,23 @@ ESCENARIOS = {
 }
 
 
-def correr(nombre, raiz, salida):
+def lanzador(powershell, raiz, args, cols, lineas):
+    """La línea que abre conhost: cmd o Windows PowerShell, con el config sintético y sin NO_COLOR."""
+    config = raiz / "config.json"
+    if powershell:
+        orden = (f"mode con: cols={cols} lines={lineas}; $env:RECORDER_CONFIG='{config}'; "
+                 f"Remove-Item Env:NO_COLOR -ErrorAction SilentlyContinue; & '{sys.executable}' recorder.py {args}")
+        return ["conhost.exe", "powershell.exe", "-NoProfile", "-NoExit", "-Command", orden]
+    orden = f"mode con: cols={cols} lines={lineas}& set RECORDER_CONFIG={config}& set NO_COLOR=& {sys.executable} recorder.py {args}"
+    return ["conhost.exe", "cmd", "/k", orden]
+
+
+def correr(nombre, raiz, salida, powershell=False):
     args, cols, lineas, pasos = ESCENARIOS[nombre]
     destino = salida / nombre
     destino.mkdir(parents=True, exist_ok=True)
-    orden = (f"mode con: cols={cols} lines={lineas}& set RECORDER_CONFIG={raiz / 'config.json'}& set NO_COLOR=& "
-             f"{sys.executable} recorder.py {args}")
     antes = pythons()
-    proc = subprocess.Popen(["conhost.exe", "cmd", "/k", orden], cwd=REPO)
+    proc = subprocess.Popen(lanzador(powershell, raiz, args, cols, lineas), cwd=REPO)
     pid = None
     for _ in range(150):
         nuevos = pythons() - antes
@@ -219,12 +234,14 @@ def correr(nombre, raiz, salida):
 
 
 def main():
-    salida = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else REPO / "docs" / "capturas-terminal"
-    elegidos = sys.argv[2:] or list(ESCENARIOS)
+    argv = [a for a in sys.argv[1:] if a not in ("--powershell", "--cmd")]
+    powershell = "--powershell" in sys.argv
+    salida = pathlib.Path(argv[0]) if argv else REPO / "docs" / "capturas-terminal"
+    elegidos = argv[1:] or list(ESCENARIOS)
     raiz = preparar()
     try:
         for nombre in elegidos:
-            correr(nombre, raiz, salida)
+            correr(nombre, raiz, salida, powershell)
     finally:
         shutil.rmtree(raiz, ignore_errors=True)  # el config.json y las notas sintéticas
 

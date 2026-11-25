@@ -66,15 +66,16 @@ from ..engine.whispercpp import vulkan_readiness, whispercpp_ready
 from ..metricas import INTERVALO as INTERVALO_METRICAS
 from ..metricas import MotorEfectivo, Muestreador, hilos_efectivos
 from . import app as despacho, configurar, teclas
-from .consola import partes_teclas, presentar, tema_rich
+from .consola import JUEGO_ASCII, JUEGO_COMPLETO, JUEGO_CONSOLA, juego_de, partes_teclas, presentar, tema_rich
 from .menu import opciones_disponibles
 from .teclas import ABAJO, ARRIBA, DERECHA, ENTER, ESC, IZQUIERDA, RETROCESO
 
 INTERVALO = 0.05  # s entre lecturas del teclado
 TIC = 1.0  # s entre refrescos de la cabecera (y de las cifras de Rendimiento)
 HISTORIA = 60  # muestras de la tendencia de Rendimiento: 2 minutos con una cada 2 s
-MARCA = "▶"  # la fila elegida (en ASCII, «>»)
-CHISPAS, CHISPAS_ASCII = "▁▂▃▄▅▆▇█", "_.:-=+*#"  # la tendencia, de 0 a 100 %
+MARCA = "▶"  # la fila elegida; `presentar` la deja en «›» en el juego «consola» y en «>» en ASCII
+# La tendencia, de 0 a 100 %, en cada juego de símbolos (en «consola», solo lo que dibuja Consolas).
+CHISPAS = {JUEGO_COMPLETO: "▁▂▃▄▅▆▇█", JUEGO_CONSOLA: "·‥░█", JUEGO_ASCII: "_.:-=+*#"}
 
 # Las pantallas propias del inicio, entre lo del menú numerado y Salir.
 EXTRA = (
@@ -111,11 +112,11 @@ def barra(valor: float, ancho: int) -> Tuple[str, str]:
     return "█" * llenos, "░" * (ancho - llenos)
 
 
-def tendencia(valores: Sequence[Optional[float]], ancho: int, ascii_mode: bool = False) -> str:
+def tendencia(valores: Sequence[Optional[float]], ancho: int, juego: str = JUEGO_COMPLETO) -> str:
     """Las últimas `ancho` muestras (% de 0 a 100) como una línea de bloques; un hueco sin dato."""
     if ancho <= 0:
         return ""
-    chispas = CHISPAS_ASCII if ascii_mode else CHISPAS
+    chispas = CHISPAS[juego]
     tope = len(chispas) - 1
     return "".join(
         " " if v is None else chispas[min(tope, int(max(0.0, v) / 100 * len(chispas)))] for v in list(valores)[-ancho:]
@@ -530,7 +531,7 @@ class Rendimiento(Pantalla):
             lineas.append(t(
                 (titulo.ljust(etiqueta), "texto"), (lleno, "acento"), (vacio, "borde"),
                 (f"{'n/d' if v is None else f'{v:.0f} %':>6}  ", "texto"),
-                (tendencia(self.historia[serie], ancho - etiqueta - celdas - 8, self.app.ascii), "mic"),
+                (tendencia(self.historia[serie], ancho - etiqueta - celdas - 8, self.app.juego), "mic"),
             ))
         return lineas, 0
 
@@ -595,8 +596,9 @@ class Terminal:
         self.windows = windows
         self._detectar = detectar
         self.nuevo_muestreador = muestreador or (lambda: Muestreador(None, lambda: (0, 0.0)))
-        self.ascii = getattr(consola, "ascii_mode", False)
-        self._spinner = Spinner("line" if self.ascii else "dots")
+        self.juego = juego_de(consola)
+        self.ascii = self.juego == JUEGO_ASCII
+        self._spinner = Spinner("dots" if self.juego == JUEGO_COMPLETO else "line")  # el braille no es de Consolas
         self.config = mgr.load()
         self.pila: List[Pantalla] = [Inicio(self)]
         self.aviso: Tuple[str, str] = ("", "tenue")  # dura hasta la siguiente tecla

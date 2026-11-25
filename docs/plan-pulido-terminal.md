@@ -323,6 +323,16 @@ Aceptación
 Fuera de alcance: rediseño de pantallas, paleta nueva, PowerShell 7 y Windows Terminal (no están en el equipo; el juego «completo» se prueba con variables de entorno simuladas).
 ```
 
+**Resultado del paso 2b** (contraste de la paleta oscura con color real, relación de luminancia; AA texto = 4,5, AA elementos gráficos = 3):
+
+| Token | Sobre negro | Sobre azul #012456 |
+| :--- | :--- | :--- |
+| texto / acento / ok | 14,5 / 16,5 / 14,1 | 10,5 / 11,9 / 10,2 |
+| tenue / mic / error | 9,4 / 10,0 / 9,1 | 6,8 / 7,2 / 6,5 |
+| borde | 4,3 (no llega a 4,5) | 3,1 (no llega a 4,5) |
+
+Todo el texto llega a AA salvo `borde`, que solo se usa en reglas y barras vacías (elemento gráfico: pasa el 3 en ambos fondos). Para la especificación: no usar `borde` para texto. Capturas en docs/capturas-terminal/powershell/ (`inicio-100`, `inicio-60`, `inicio-ascii`; `--powershell` en tools/capturar_terminal.py). En el juego «consola» las flechas ↑↓←→ y «…» de las etiquetas salen en ASCII (`^v`, `<->`); el recorte con puntos suspensivos de rich sí usa «…».
+
 ---
 
 ### Paso 3. Base común: teclas, componentes y una pantalla por módulo

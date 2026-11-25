@@ -70,7 +70,7 @@ from ..session import (
     Event, Line, Notice, RecorderSession, SourceChanged, SourceMuted, Status, StatusSnapshot, with_action,
 )
 from . import teclas
-from .consola import make_console, partes_teclas, presentar
+from .consola import JUEGO_COMPLETO, juego_de, make_console, partes_teclas, presentar
 from .teclas import CTRL_C, ENTER, ESC, RETROCESO  # las teclas, ya con su nombre (teclas.py)
 
 INTERVALO = 0.2  # segundos entre sondeos, como la ventana (POLL_MS)
@@ -160,7 +160,7 @@ class PantallaEnVivo:
         self._dormir = dormir
         self._abrir = abrir
         self._entorno = entorno or Entorno(self.session.pa)
-        self.ascii = getattr(self.consola, "ascii_mode", False)
+        self.ascii = juego_de(self.consola) != JUEGO_COMPLETO  # sin emoji: la columna de icono va en texto
         self.plano = not self.consola.is_interactive  # salida redirigida: sin pie
         self._teclas: Deque[str] = collections.deque()  # lo que mete el manejador de Ctrl+C; va antes que el teclado
         self._live: Optional[Live] = None  # el pie; None en modo plano
@@ -182,7 +182,7 @@ class PantallaEnVivo:
         self.consola.print(self._texto(*partes), soft_wrap=True)
 
     def _icono(self, kind: str) -> str:
-        """La columna de icono, del mismo ancho para todas las líneas: 🔊 o 🎤 (OUT, MIC en ASCII)
+        """La columna de icono, del mismo ancho para todas las líneas: 🔊 o 🎤 (OUT, MIC sin emoji)
         y un espacio; en blanco para los hechos de la sesión y los avisos."""
         icono = ICONOS.get(kind, "")
         if self.ascii:

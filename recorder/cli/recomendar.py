@@ -9,7 +9,7 @@ from typing import Optional
 from rich.console import Console
 
 from ..config.manager import ConfigManager
-from .consola import asciify, make_console
+from .consola import make_console, presentar
 
 NOMBRE = "recomendar"
 AYUDA = "qué equipo se detecta y qué configuración se recomienda (--aplicar la guarda)"
@@ -32,11 +32,10 @@ def recomendar(
     from ..engine.whispercpp import vulkan_readiness
 
     consola = consola or make_console()
-    ascii_mode = getattr(consola, "ascii_mode", False)
 
     def decir(texto: str) -> None:
         # Sin marcado: "[alta]" (la confianza) se tomaría por una etiqueta de estilo
-        consola.print(asciify(texto) if ascii_mode else texto, markup=False)
+        consola.print(presentar(texto, consola), markup=False)
 
     mgr = config_manager or ConfigManager()
     cfg = mgr.load()

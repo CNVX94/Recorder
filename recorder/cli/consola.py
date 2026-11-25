@@ -1,12 +1,21 @@
 """La consola que comparten todos los comandos de terminal: mismos colores y mismo modo ASCII."""
+import os
 import re
 import sys
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Mapping, Optional, Sequence, Tuple
 
-from rich.console import Console, detect_legacy_windows
+from rich.console import Console
 from rich.theme import Theme
 
 from .. import paleta
+from . import vt
+
+# Los tres juegos de símbolos (docs/plan-pulido-terminal.md §3): el color se decide aparte.
+JUEGO_COMPLETO = "completo"  # Windows Terminal, VS Code, terminales que no son de Windows: todos, emoji incluidos
+JUEGO_CONSOLA = "consola"  # conhost con VT (cmd y Windows PowerShell): solo lo que dibuja Consolas
+JUEGO_ASCII = "ascii"  # consola sin VT, salida redirigida o --ascii
+VARIABLE_WT = "WT_SESSION"  # la define Windows Terminal
+VARIABLE_PROGRAMA, PROGRAMA_VSCODE = "TERM_PROGRAM", "vscode"
 
 # Estilo de rich -> token de la paleta que comparte con la ventana (recorder/paleta.py, sin tkinter).
 ESTILOS = {
@@ -32,6 +41,14 @@ ASCII = {
 # Desde U+2000 (salvo las rayas – y —) y el espacio que lo siga.
 FUERA_DE_ASCII = re.compile("[^\\x00-\\u1fff–—] ?")
 
+# Los únicos símbolos fuera de ASCII que Consolas dibuja bien en la consola clásica (verificados en
+# docs/capturas-terminal/powershell/); el resto se sustituye. Con «‥» y «·» se hace la tendencia.
+SEGUROS_CONSOLA = "─█░‹›‥●·«»"
+# El juego «consola»: lo mismo que ASCII salvo lo seguro, y la marca de fila sin ▶.
+CONSOLA = {k: v for k, v in ASCII.items() if k not in SEGUROS_CONSOLA}
+CONSOLA["▶"] = "›"
+FUERA_DE_CONSOLA = re.compile(f"[^\\x00-\\u1fff–—{re.escape(SEGUROS_CONSOLA)}] ?")
+
 # Símbolos con presentación de texto (✔ ⚙ 🖥: Emoji_Presentation=No) que rich mide a una celda
 # pero Windows Terminal dibuja con un glifo de dos (el de Segoe UI Symbol/Emoji), pisando el
 # espacio que sigue: «✔vuelve», «⚙Opciones». Su equivalente con presentación emoji mide dos celdas
@@ -39,16 +56,26 @@ FUERA_DE_ASCII = re.compile("[^\\x00-\\u1fff–—] ?")
 EMOJI_SEGURO = {"✔": "✅", "⚙": "🔧", "🖥": "💻"}
 
 
-def asciify(texto: str) -> str:
-    """El texto con los símbolos de Recorder en ASCII y sin emoji; los acentos se quedan. Un símbolo
-    que desaparece se lleva el espacio que lo seguía: «🎯 Calibrar» queda «Calibrar», no « Calibrar»."""
+def _sustituir(texto: str, tabla: Mapping[str, str], fuera: "re.Pattern[str]") -> str:
+    """`texto` con cada símbolo de `tabla` sustituido; un símbolo que desaparece se lleva el espacio
+    que lo seguía: «🎯 Calibrar» queda «Calibrar», no « Calibrar». Lo que quede fuera de lo que
+    admite el juego (emoji, flechas, bloques) se quita."""
     texto = texto.replace("️", "")  # selector de presentación emoji: no ocupa nada
-    for simbolo, sustituto in ASCII.items():
+    for simbolo, sustituto in tabla.items():
         if not sustituto:
             texto = texto.replace(simbolo + " ", "")
         texto = texto.replace(simbolo, sustituto)
-    # Lo que quede fuera de los alfabetos latinos (emoji, flechas, bloques) no se ve en conhost.
-    return FUERA_DE_ASCII.sub("", texto)
+    return fuera.sub("", texto)
+
+
+def asciify(texto: str) -> str:
+    """El texto con los símbolos de Recorder en ASCII y sin emoji; los acentos se quedan."""
+    return _sustituir(texto, ASCII, FUERA_DE_ASCII)
+
+
+def consolificar(texto: str) -> str:
+    """El texto con solo los símbolos que Consolas dibuja bien: sin emoji ni ▶ (ver SEGUROS_CONSOLA)."""
+    return _sustituir(texto, CONSOLA, FUERA_DE_CONSOLA)
 
 
 def emoji_seguro(texto: str) -> str:
@@ -59,10 +86,46 @@ def emoji_seguro(texto: str) -> str:
     return texto
 
 
+def juego_de(consola) -> str:
+    """El juego de símbolos de `consola` («completo» si no dice: una consola de rich cualquiera)."""
+    juego = getattr(consola, "juego", None)
+    if juego:
+        return juego
+    return JUEGO_ASCII if getattr(consola, "ascii_mode", False) else JUEGO_COMPLETO
+
+
 def presentar(texto: str, consola) -> str:
-    """`texto` tal como lo pinta esta consola: ASCII en la clásica (conhost); si no, con los
-    símbolos seguros. Es por donde pasa todo lo que la terminal escribe con símbolos."""
-    return asciify(texto) if getattr(consola, "ascii_mode", False) else emoji_seguro(texto)
+    """`texto` tal como lo pinta esta consola según su juego de símbolos: ASCII, «consola» o completo
+    (con los símbolos seguros). Es por donde pasa todo lo que la terminal escribe con símbolos."""
+    juego = juego_de(consola)
+    if juego == JUEGO_ASCII:
+        return asciify(texto)
+    return consolificar(texto) if juego == JUEGO_CONSOLA else emoji_seguro(texto)
+
+
+def elegir_juego(
+    es_terminal: bool, vt_activo: bool, entorno: Optional[Mapping[str, str]] = None, windows: Optional[bool] = None
+) -> str:
+    """El juego de símbolos que pide el entorno: ASCII si la salida no es una terminal o es una consola
+    de Windows sin VT; completo en Windows Terminal, VS Code y fuera de Windows; «consola» en conhost con VT."""
+    entorno = os.environ if entorno is None else entorno
+    windows = sys.platform == "win32" if windows is None else windows
+    if not es_terminal:
+        return JUEGO_ASCII
+    if entorno.get(VARIABLE_WT) or entorno.get(VARIABLE_PROGRAMA) == PROGRAMA_VSCODE or not windows:
+        return JUEGO_COMPLETO
+    return JUEGO_CONSOLA if vt_activo else JUEGO_ASCII
+
+
+def _es_terminal(kwargs: Mapping[str, object]) -> bool:
+    """Si la salida que va a usar la consola (`file` o la estándar) es una terminal."""
+    if kwargs.get("force_terminal") is not None:
+        return bool(kwargs["force_terminal"])
+    salida = kwargs.get("file") or sys.stdout
+    try:
+        return bool(salida is not None and salida.isatty())
+    except (AttributeError, ValueError):
+        return False
 
 
 def partes_teclas(ayudas: Sequence[Tuple[str, str]]) -> List[Tuple[str, str]]:
@@ -79,9 +142,10 @@ def partes_teclas(ayudas: Sequence[Tuple[str, str]]) -> List[Tuple[str, str]]:
 def make_console(ascii_mode: Optional[bool] = None, tema: str = paleta.POR_DEFECTO, **kwargs) -> Console:
     """Consola de rich con el tema de Recorder (`tema`: el «theme» de config).
 
-    `ascii_mode`: None lo decide solo (sí en la consola clásica sin secuencias VT, donde los emoji
-    salen rotos; no en Windows Terminal). Quien pinte texto con emoji o medidores debe pasarlo por
-    `asciify` cuando `console.ascii_mode` sea True.
+    El color lo decide rich según lo que admita la consola (con el modo VT activo, `vt.activar`, la
+    consola clásica llega a color real). Los símbolos van aparte, en tres juegos (`console.juego`):
+    `ascii_mode` True fuerza ASCII, False el completo y None lo decide `elegir_juego` según el
+    entorno. Quien pinte símbolos debe pasarlos por `presentar`.
     """
     if "file" not in kwargs and sys.stdout is not None:
         # Redirigida a un pipe o archivo, la salida va en cp1252 y un emoji la tumbaría; en la
@@ -91,7 +155,10 @@ def make_console(ascii_mode: Optional[bool] = None, tema: str = paleta.POR_DEFEC
         except (AttributeError, ValueError):
             pass
     if ascii_mode is None:
-        ascii_mode = detect_legacy_windows()
-    console = Console(theme=tema_rich(tema), highlight=False, emoji=not ascii_mode, **kwargs)
-    console.ascii_mode = ascii_mode  # atributo propio: lo consultan los comandos al pintar
+        juego = elegir_juego(_es_terminal(kwargs), vt.hay_vt())
+    else:
+        juego = JUEGO_ASCII if ascii_mode else JUEGO_COMPLETO
+    console = Console(theme=tema_rich(tema), highlight=False, emoji=juego == JUEGO_COMPLETO, **kwargs)
+    console.juego = juego  # atributos propios: los consultan los comandos al pintar
+    console.ascii_mode = juego == JUEGO_ASCII
     return console

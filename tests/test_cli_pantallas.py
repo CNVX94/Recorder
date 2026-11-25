@@ -22,7 +22,7 @@ from rich.cells import cell_len
 
 from recorder import ayuda
 from recorder.cli import app, configurar, pantallas
-from recorder.cli.consola import make_console
+from recorder.cli.consola import JUEGO_ASCII, JUEGO_CONSOLA, make_console
 from recorder.cli.menu import menu
 from recorder.cli.pantallas import Terminal, barra, nota_de_hoy, recorte, tendencia
 from recorder.cli.teclas import ABAJO, ARRIBA, DERECHA, ENTER, ESC, RETROCESO
@@ -166,7 +166,8 @@ class TestLogica(unittest.TestCase):
         self.assertEqual(barra(140, 4), ("████", ""), "lo que pasa de 100 se queda en 100")
         self.assertEqual(tendencia([0, 50, 100, None], 4), "▁▅█ ")
         self.assertEqual(tendencia([0, 50, 100, None], 2), "█ ", "las últimas")
-        self.assertEqual(tendencia([0, 50, 100], 3, ascii_mode=True), "_=#")
+        self.assertEqual(tendencia([0, 50, 100], 3, JUEGO_ASCII), "_=#")
+        self.assertEqual(tendencia([0, 50, 100], 3, JUEGO_CONSOLA), "·░█")
         self.assertEqual(tendencia([10], 0), "")
 
     def test_nota_de_hoy_es_la_ultima_y_no_una_copia(self):

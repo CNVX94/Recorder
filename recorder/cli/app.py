@@ -29,6 +29,7 @@ from rich.console import Console
 
 from .. import paleta, registro
 from ..rutas import ruta_config
+from . import vt
 from .consola import make_console
 
 COMANDOS = (
@@ -161,4 +162,8 @@ def arrancar(argv: Optional[Sequence[str]] = None) -> int:
     ventana no la tienen); si no, la terminal, que abre la ventana con --gui o `ventana`."""
     if sys.stdout is None:
         return abrir_ventana()
-    return main(argv)
+    vt.activar()  # antes de crear la primera consola de rich: ella recuerda lo que detectó
+    try:
+        return main(argv)
+    finally:
+        vt.restaurar()  # también con Ctrl+C o una excepción: el prompt queda limpio

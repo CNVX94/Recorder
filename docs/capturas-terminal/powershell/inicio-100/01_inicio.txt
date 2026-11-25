@@ -1,0 +1,30 @@
+Recorder · nota de hoy: daily_2026-11-24_09-30.md
+Calidad Media · CPU · se usaría faster-whisper · CPU, 4 hilos · small · haz 5
+Equipo: 12th Gen Intel Core i7-1255U · 10 núcleos (2P+8E), 12 hilos · AVX2 · 32 GB de RAM · portáti…
+────────────────────────────────────────────────────────────────────────────────────────────────────
+Inicio
+› 1  Grabar                    transcribe en vivo a la nota de hoy, aquí en la terminal
+  2  Opciones                  carpetas, audio, capturas, calidad y motor
+  3  Calibrar                  filtros anti-alucinaciones, vocabulario y sandbox
+  4  Reagrupar nota            copia de una nota ordenada por hora y por tramos (no resume)
+  5  Recomendación del equipo  qué equipo se detecta y qué configuración conviene
+  6  Abrir la ventana          la interfaz gráfica
+  7  Rendimiento               motor que se usaría y lo que gasta el equipo
+  8  Ayuda                     teclas y glosario
+  0  Salir
+
+
+
+
+
+
+
+
+
+
+
+
+
+Empieza a transcribir la reunión aquí, en la terminal, y la guarda en la nota de hoy. Las teclas
+para pausar, capturar o salir se ven al pie.
+[Enter] Abrir · [Esc] Salir · [?] Ayuda · [t] Tema
