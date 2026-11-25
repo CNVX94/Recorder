@@ -1,0 +1,30 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media · CPU
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ Inicio › Calibrar                                                            ● cambios sin guardar
+
+   Tus términos
+     Vocabulario                 Recorder, Teams, QA, despliegue, demo
+     Correcciones                cuba=QA
+   Frases inventadas
+     Frases a ignorar            suscríbete, gracias por ver
+     Añadir las comunes
+     Quitar eco del vocabulario  ● sí
+   Filtros de frases dudosas
+ ►   Filtro de silencio          ‹ 0,65 ›   ← descarta más · descarta menos →
+     Confianza mínima            -1,0
+     Filtro de repeticiones      2,4
+
+   Probar una frase
+      Enter para escribir una frase · e para probar con un ejemplo
+
+
+
+
+
+
+
+
+ Descarta lo que probablemente era solo ruido. Bájalo si salen frases inventadas en silencios;
+ súbelo si se pierden frases dichas en voz baja.
+
+ [←→] Ajustar · [g] Guardar · [Esc] Volver · [↑↓] Mover · [e] Ejemplo · [Enter] Teclear · [?] Más

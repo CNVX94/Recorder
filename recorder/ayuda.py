@@ -371,6 +371,64 @@ TERMINAL: Textos = {
     "pie_desplazar": ("Desplazar", "Sube y baja el texto con ↑ ↓."),
     "pie_pagina": ("Página", "Avanza o retrocede una página con RePág y AvPág."),
     "pie_vista_previa": ("Vista previa", "Desplaza la vista previa con RePág y AvPág."),
+    # Calibrar (pantalla de `daily menu`): «calibrar_» + el rótulo, el estado o el aviso
+    "calibrar_terminos": ("Tus términos", "Lo que Recorder debe saber escribir bien."),
+    "calibrar_vocabulario": (
+        "Vocabulario",
+        "Nombres y siglas de tu equipo para que se escriban bien. Como lista, sin rótulos como «Términos:», que se colarían en el texto.",
+    ),
+    "calibrar_correcciones": (
+        "Correcciones",
+        "Arregla palabras que siempre se oyen mal: «oído_mal=escrito_bien», separadas por «;». Por ejemplo: cuba=QA; ayayas=IIS.",
+    ),
+    "calibrar_inventadas": ("Frases inventadas", "Lo que la transcripción se inventa en los silencios."),
+    "calibrar_ignorar": (
+        "Frases a ignorar",
+        "Frases que la transcripción inventa en los silencios, como «Suscríbete». Si alguna sale en tus notas, añádela aquí, separadas por coma.",
+    ),
+    "calibrar_comunes": (
+        "Añadir las comunes",
+        "Agrega las frases inventadas más típicas («gracias por ver», «suscríbete»…). No borra las que ya tienes.",
+    ),
+    "calibrar_comunes_hecho": ("Frases comunes", "Añadidas {n} frases comunes; ahora hay {total}."),
+    "calibrar_comunes_ya": ("Frases comunes", "Ya estaban todas."),
+    "calibrar_eco": (
+        "Quitar eco del vocabulario",
+        "Quita los renglones que solo repiten tu vocabulario, algo que la transcripción inventa a veces en los silencios. Conviene dejarlo en «sí».",
+    ),
+    "calibrar_filtros": (
+        "Filtros de frases dudosas",
+        "Tres reglas que descartan frases dudosas. Tócalas solo si ves frases inventadas o se pierden frases reales.",
+    ),
+    "calibrar_silencio": (
+        "Filtro de silencio",
+        "Descarta lo que probablemente era solo ruido. Bájalo si salen frases inventadas en silencios; súbelo si se pierden frases dichas en voz baja.",
+    ),
+    "calibrar_confianza": (
+        "Confianza mínima",
+        "Descarta frases de las que la transcripción no está segura. Súbelo si salen frases sin sentido; bájalo si se pierden frases reales.",
+    ),
+    "calibrar_repeticiones": (
+        "Filtro de repeticiones",
+        "Descarta frases que repiten lo mismo una y otra vez. Bájalo si ves repeticiones en bucle; súbelo si se pierden frases largas que sí se dijeron.",
+    ),
+    "calibrar_descarta_mas": ("descarta más", "Hacia ese lado el filtro descarta más frases."),
+    "calibrar_descarta_menos": ("descarta menos", "Hacia ese lado el filtro deja pasar más frases."),
+    "calibrar_fuera_de_rango": ("Fuera de rango", "Escribe un número entre {min} y {max}."),
+    "calibrar_probar": (
+        "Probar una frase",
+        "Escribe una frase y mira al momento si se quedaría o se descartaría con lo que hay ahora, sin guardar. e propone un ejemplo.",
+    ),
+    "calibrar_probar_vacio": ("Probar una frase", "Enter para escribir una frase · e para probar con un ejemplo."),
+    "calibrar_se_queda": ("Se queda", "Se queda: «{frase}»."),
+    "calibrar_corregido": ("corregido", "(corregido: {de} → {a})."),
+    "calibrar_con_captura": ("con captura", "y guardaría una captura ({palabras})."),
+    "calibrar_descarta_ignorar": ("Se descarta", "Se descarta: contiene «{frase}» (Frases a ignorar)."),
+    "calibrar_descarta_eco": ("Se descarta", "Se descarta: solo repite tu vocabulario (Quitar eco del vocabulario)."),
+    "calibrar_guardado": ("Calibración guardada", "Calibración guardada. Vale desde la próxima grabación."),
+    "calibrar_pie_ajustar": ("Ajustar", "Cambia el valor de la fila elegida con ← →."),
+    "calibrar_pie_teclear": ("Teclear", "Escribe el valor de la fila elegida, o la frase que quieres probar."),
+    "calibrar_pie_ejemplo": ("Ejemplo", "Propone una frase de ejemplo con tu vocabulario y la prueba."),
     # Las teclas de las pantallas, para la Ayuda: «atajo_» + qué hacen. El título es la tecla.
     "ayuda_teclas": ("Teclas de las pantallas", "Valen en Inicio, Opciones, Calibrar, Reagrupar, Recomendación y Rendimiento."),
     "atajo_mover": ("↑ ↓  j k", "moverse por la lista."),

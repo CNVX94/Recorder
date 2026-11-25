@@ -1,0 +1,24 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media…
+ ──────────────────────────────────────────────────────────
+ Inicio › Calibrar                    ● cambios sin guardar
+   Tus términos
+     Vocabulario                 Recorder, Teams, QA, desp…
+     Correcciones                cuba=QA
+   Frases inventadas
+     Frases a ignorar            suscríbete, gracias por v…
+     Añadir las comunes
+     Quitar eco del vocabulario  ● sí
+   Filtros de frases dudosas
+     ↓ 3 más abajo
+
+   Probar una frase
+ ►    › En cuba ya probamos Teams y funciono. Gracias por …
+      × Se descarta: contiene «gracias por ver» (Frases a
+        ignorar)
+
+ Escribe una frase y mira al momento si se quedaría o se
+ descartaría con lo que hay ahora, sin guardar. e propone
+ un ejemplo.
+
+
+ [g] Guardar · [Esc] Volver · [↑↓] Mover · [?] Más

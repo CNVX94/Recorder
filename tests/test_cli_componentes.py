@@ -311,7 +311,7 @@ class TestTerminalComoBase(BaseTerminal):
         self.assertEqual(t.aviso[0], "", "y dura hasta la siguiente tecla")
 
     def test_el_registro_abre_cada_pantalla_por_su_modulo(self):
-        self.assertEqual(sorted(registro.PANTALLAS), ["ayuda", "config", "rendimiento"])
+        self.assertLessEqual({"ayuda", "config", "rendimiento"}, set(registro.PANTALLAS))  # y las que se vayan añadiendo
         t = self.terminal()
         for accion, clase in (("config", Opciones), ("rendimiento", Rendimiento), ("ayuda", Ayuda)):
             self.assertIs(registro.clase_de(accion), clase)

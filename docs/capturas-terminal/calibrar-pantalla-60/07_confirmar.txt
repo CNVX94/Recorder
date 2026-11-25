@@ -1,0 +1,24 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media…
+ ──────────────────────────────────────────────────────────
+ Inicio › Calibrar › Guardar          ● cambios sin guardar
+ Se guardará en config.json:
+
+    Umbral de silencio  0.6  →  0.65
+
+
+
+
+
+
+
+
+
+
+
+
+ Revisa lo que cambia: Enter lo guarda y Esc te deja seguir
+ editando.
+
+
+
+ [Enter] Guardar · [Esc] Seguir editando

@@ -10,6 +10,7 @@ PANTALLAS: Dict[str, Tuple[str, str]] = {
     "config": ("opciones", "Opciones"),
     "rendimiento": ("rendimiento", "Rendimiento"),
     "ayuda": ("ayuda", "Ayuda"),
+    "calibrar": ("calibrar", "Calibrar"),
 }
 
 

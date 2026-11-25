@@ -1,0 +1,30 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media · CPU
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ Inicio › Calibrar                                                            ● cambios sin guardar
+
+   Tus términos
+     Vocabulario                 Recorder, Teams, QA, despliegue, demo
+     Correcciones                cuba=QA
+   Frases inventadas
+     Frases a ignorar            suscríbete, gracias por ver
+     Añadir las comunes
+     Quitar eco del vocabulario  ● sí
+   Filtros de frases dudosas
+     Filtro de silencio          0,65
+     Confianza mínima            -1,0
+     Filtro de repeticiones      2,4
+
+   Probar una frase
+ ►    › En cuba ya probamos Teams y funciono. Gracias por ver
+      × Se descarta: contiene «gracias por ver» (Frases a ignorar)
+
+
+
+
+
+
+
+ Escribe una frase y mira al momento si se quedaría o se descartaría con lo que hay ahora, sin
+ guardar. e propone un ejemplo.
+
+ [g] Guardar · [Esc] Volver · [↑↓] Mover · [e] Ejemplo · [Enter] Teclear · [?] Ayuda · [t] Tema
