@@ -1,0 +1,42 @@
+> daily sintesis
+Nota origen (solo se lee; las copias reagrupadas no se listan)
+        archivo                         fecha       hora       tamaño
+  ▶  1  daily_2026-11-21_09-30.md       24/11/2026  21:14       1 KB ● en curso
+     2  daily_2026-11-24_09-30.md       24/11/2026  21:14       1 KB
+Número (1): 
+
+Cada bloque pasa a ser un encabezado como ## 09:30 - 09:45 con sus líneas debajo. «Sin agrupar» solo
+aplica la limpieza.
+Agrupamiento temporal
+     1  Sin agrupar
+     2  Cada 5 min
+  ▶  3  Cada 15 min
+     4  Cada 30 min
+     5  Cada hora
+Número (3): 
+¿Unir líneas seguidas del mismo hablante? [s/n] (s): 
+¿Hora corta [HH:MM] por párrafo, en vez de HH:MM:SS por línea? [s/n] (s): 
+¿Quitar las referencias de imagen (texto puro)? [s/n] (s): 
+¿Descartar las líneas de menos de 4 palabras? (se lleva respuestas como «Sí, va.») [s/n] (n): 
+¿Quitar el eco del vocabulario («Términos.», listas del vocab)? [s/n] (s): 
+10 líneas → 2 bloques · 24 líneas · ~1 KB · 67 → 67 palabras
+
+# Daily 2026-11-21 09:30 - reagrupada en tramos de 15 min
+
+> **No es un resumen.** Es la misma transcripcion, ordenada por hora y agrupada: 67 palabras en el 
+original, 67 aqui (0 % menos). Las decisiones, tareas y fechas hay que sacarlas leyendola.
+
+## 09:30 - 09:45
+
+- [09:30] Buenos días, empezamos con el estado del despliegue de la versión nueva.
+- [09:30] 🎤 Ayer terminé la revisión de QA del módulo de notas y quedó todo en verde.
+- [09:31] Sí.
+- [09:32] Hay un bloqueo con el servidor de pruebas, lo vemos después de la daily.
+… (6 líneas más)
+
+Se creará daily_2026-11-21_09-30_reagrupada-15min.md en la misma carpeta (si ya existe se numera; 
+nunca se sobrescribe).
+⚠ Las copias reagrupadas son derivadas y con pérdida: para otro agrupamiento, regenera desde la nota
+original, nunca desde otra copia. No es un resumen: es el mismo texto.
+¿Generar la copia reagrupada? [s/n] (s): n
+No se creó nada.

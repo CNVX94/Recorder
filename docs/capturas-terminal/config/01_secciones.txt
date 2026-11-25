@@ -1,0 +1,14 @@
+ Configuración de Recorder  C:\Users\DESARR~1\AppData\Local\Temp\evidod6jsb1i\config.json
+Enter conserva el valor actual, «-» vacía un campo y Ctrl+C cancela sin guardar.
+Detectando el equipo...
+
+¿Qué quieres cambiar?
+     1  Carpetas y palabras clave
+     2  Audio: salida a capturar y micrófono
+     3  Capturas: pantalla o ventana, y calidad de las capturas por palabra clave
+     4  Calidad y motor: preset, hilos, whisper.cpp y GPU
+     5  Apariencia: tema claro u oscuro
+     6  Todo, paso a paso
+     7  Guardar y salir
+     8  Salir sin guardar
+Número:

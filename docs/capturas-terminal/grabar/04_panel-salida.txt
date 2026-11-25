@@ -1,0 +1,14 @@
+Recorder · daily_2026-11-24_21-09.md
+Calidad Media · CPU
+21:09:45      Fuentes: OUT Altavoces (Realtek(R) Audio) [Loopback] · MIC Headset Microphone (Oculus
+Virtual Audio Device)
+* Escuchando + MIC · pendientes: 0 · (despierto)   OUT #####...   MIC ........
+faster-whisper · CPU, 4 hilos · small · haz 5 · 6,6× tiempo real
+ Salida de audio OUT  elige con el número
+  [1] (predeterminado de Windows)  (actual)
+  [2] Auriculares (Oculus Virtual Audio Device)
+  [3] H27T27 (HD Audio Driver for Display Audio)
+  [4] Auriculares (Realtek(R) Audio)
+  [5] Altavoces (Realtek(R) Audio)
+¿no aparece? si se conectó después de arrancar, sal con q y vuelve a entrar
+[1-5] elegir · [Esc] volver · [o] cerrar

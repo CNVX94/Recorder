@@ -1,0 +1,5 @@
+Nota origen (solo se lee; las copias reagrupadas no se listan)
+        archivo                         fecha       hora       tamaño
+  >  1  daily_2026-11-21_09-30.md       24/11/2026  21:08       1 KB * en curso
+     2  daily_2026-11-24_09-30.md       24/11/2026  21:08       1 KB
+Número (1):

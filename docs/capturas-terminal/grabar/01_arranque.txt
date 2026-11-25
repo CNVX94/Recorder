@@ -1,0 +1,6 @@
+Recorder · daily_2026-11-24_21-09.md
+Calidad Media · CPU
+21:09:45      Fuentes: OUT Altavoces (Realtek(R) Audio) [Loopback] · MIC Headset Microphone (Oculus
+Virtual Audio Device)
+Cargando modelo small...   OUT #####...   MIC ........
+[p] pausar · [c] captura · [r] reconectar · [a] nota · [o] opciones · [q] salir
