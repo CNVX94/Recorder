@@ -111,6 +111,16 @@ class TestMuestreador(unittest.TestCase):
         self.assertAlmostEqual(self.m.cpu_proceso, 50.0)
         self.assertEqual(self.m.muestras_cpu, 1, "la media solo cuenta tramos limpios")
 
+    def test_ram_del_sistema_en_la_foto(self):
+        self.m._ram_sistema = lambda: (11468.8, 32768.0)
+        self.m.muestrear()
+        f = self.m.foto()
+        self.assertEqual((f.ram_sistema_mb, f.ram_total_mb), (11468.8, 32768.0))
+        self.m._ram_sistema = lambda: None  # no se puede leer: n/d, sin error
+        self.m.muestrear()
+        f = self.m.foto()
+        self.assertEqual((f.ram_sistema_mb, f.ram_total_mb), (None, None))
+
     def test_gpu_que_no_se_puede_leer_es_nd(self):
         self.m.muestrear()
         self.assertIsNone(self.m.foto().gpu_sistema)
@@ -177,6 +187,11 @@ class TestLecturasReales(unittest.TestCase):
         self.assertGreater(cpu_s, 0)
         self.assertGreater(ram, 0)
         self.assertEqual(met.leer_procesos([0x7FFFFFF0]), (0.0, 0), "un proceso que no existe suma 0")
+
+    def test_ram_del_sistema(self):
+        usada, total = met.leer_ram_sistema()
+        self.assertGreater(total, 0)
+        self.assertTrue(0 < usada <= total, (usada, total))
 
     def test_gpu_n_d_o_instancias(self):
         lector = met.LectorGpu()

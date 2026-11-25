@@ -186,6 +186,29 @@ def leer_procesos(pids: Sequence[int]) -> Tuple[float, int]:
     return cpu / 1e7, ram
 
 
+class _EstadoMemoria(ctypes.Structure):  # MEMORYSTATUSEX
+    _fields_ = [("dwLength", ctypes.c_uint32), ("dwMemoryLoad", ctypes.c_uint32)] + [
+        (n, ctypes.c_uint64) for n in (
+            "ullTotalPhys", "ullAvailPhys", "ullTotalPageFile", "ullAvailPageFile",
+            "ullTotalVirtual", "ullAvailVirtual", "ullAvailExtendedVirtual",
+        )
+    ]
+
+
+def leer_ram_sistema() -> Optional[Tuple[float, float]]:
+    """(usada, total) de la memoria física del equipo en MB; None si no se puede leer."""
+    try:
+        k = _kernel32()
+        k.GlobalMemoryStatusEx.argtypes = [ctypes.POINTER(_EstadoMemoria)]
+        estado = _EstadoMemoria()
+        estado.dwLength = ctypes.sizeof(estado)
+        if not k.GlobalMemoryStatusEx(ctypes.byref(estado)) or not estado.ullTotalPhys:
+            return None
+        return (estado.ullTotalPhys - estado.ullAvailPhys) / 2**20, estado.ullTotalPhys / 2**20
+    except (OSError, AttributeError):
+        return None
+
+
 class _ValorPdh(ctypes.Structure):  # PDH_FMT_COUNTERVALUE con doubleValue
     _fields_ = [("estado", ctypes.c_uint32), ("valor", ctypes.c_double)]
 
@@ -295,6 +318,8 @@ class Metricas:
     gpu_sistema: Optional[float]
     cola: int  # fragmentos esperando
     atraso_s: float  # segundos de audio esperando
+    ram_sistema_mb: Optional[float] = None  # memoria ocupada en todo el equipo
+    ram_total_mb: Optional[float] = None  # memoria física del equipo
 
     @property
     def linea(self) -> str:
@@ -322,6 +347,7 @@ class Muestreador:
         sistema: Callable[[], Optional[Tuple[int, int]]] = tiempos_sistema,
         procesos: Callable[[Sequence[int]], Tuple[float, int]] = leer_procesos,
         gpu: Optional[Callable[[], Optional[List[Tuple[str, float]]]]] = None,
+        ram_sistema: Callable[[], Optional[Tuple[float, float]]] = leer_ram_sistema,
         n_cpus: Optional[int] = None,
         pid: Optional[int] = None,
     ):
@@ -330,12 +356,14 @@ class Muestreador:
         self.intervalo = intervalo
         self._reloj, self._sistema, self._procesos = reloj, sistema, procesos
         self._gpu = gpu or LectorGpu()
+        self._ram_sistema = ram_sistema
         self._n_cpus = n_cpus or os.cpu_count() or 1
         self._pid = pid or os.getpid()
         self._previa = None  # (reloj, s de CPU, tiempos del sistema, pids)
         self._parar = threading.Event()
         self._hilo: Optional[threading.Thread] = None
         self.cpu_proceso = self.cpu_sistema = self.ram_mb = self.gpu_proceso = self.gpu_sistema = None
+        self.ram_sistema_mb = self.ram_total_mb = None
         self.cola, self.atraso_s = 0, 0.0
         self.suma_cpu = self.suma_cpu_sistema = 0.0
         self.muestras_cpu = self.muestras_cpu_sistema = 0
@@ -366,6 +394,7 @@ class Muestreador:
         self.ram_mb = ram / 2**20 if ram else None
         items = self._gpu()
         self.gpu_sistema, self.gpu_proceso = gpu_pct(items, pids) if items else (None, None)
+        self.ram_sistema_mb, self.ram_total_mb = self._ram_sistema() or (None, None)
         self.cola, self.atraso_s = self._cola()
         self.pico_cola = max(self.pico_cola, self.cola)
         self.pico_atraso_s = max(self.pico_atraso_s, self.atraso_s)
@@ -400,6 +429,8 @@ class Muestreador:
             gpu_sistema=self.gpu_sistema,
             cola=self.cola,
             atraso_s=self.atraso_s,
+            ram_sistema_mb=self.ram_sistema_mb,
+            ram_total_mb=self.ram_total_mb,
         )
 
     def resumen(self) -> str:

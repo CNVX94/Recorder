@@ -24,7 +24,7 @@ from recorder import ayuda
 from recorder.cli import app, configurar, pantallas
 from recorder.cli.consola import JUEGO_ASCII, JUEGO_CONSOLA, make_console
 from recorder.cli.menu import menu
-from recorder.cli.pantallas import Terminal, barra, nota_de_hoy, recorte, tendencia
+from recorder.cli.pantallas import Terminal, barra, nota_de_hoy, recorte, registro, tendencia
 from recorder.cli.teclas import ABAJO, ARRIBA, DERECHA, ENTER, ESC, RETROCESO
 from recorder.config import hardware
 from recorder.config.hardware import HardwareProfile
@@ -89,8 +89,8 @@ class Reloj:
 
 
 class MuestreoFalso:
-    def __init__(self, cpu=None, gpu=None):
-        self.cpu, self.gpu = cpu, gpu
+    def __init__(self, cpu=None, gpu=None, ram=(None, None)):
+        self.cpu, self.gpu, self.ram = cpu, gpu, ram
         self.parado = False
 
     def iniciar(self):
@@ -100,7 +100,7 @@ class MuestreoFalso:
         self.parado = True
 
     def foto(self):
-        return Metricas(None, None, None, 1.0, self.cpu, 80.0, None, self.gpu, 0, 0.0)
+        return Metricas(None, None, None, 1.0, self.cpu, 80.0, None, self.gpu, 0, 0.0, *self.ram)
 
 
 def comando_falso(nombre, registro):
@@ -334,19 +334,49 @@ class TestOpciones(BaseTerminal):
 
 
 class TestRendimiento(BaseTerminal):
-    def test_barras_tendencia_y_motor_que_se_usaria(self):
-        _codigo, texto = self.correr("7", *[None] * 90, ESC, "q")
-        self.assertIn("No hay ninguna grabación en curso", texto)
-        self.assertIn("Motor que se usaría: faster-whisper · CPU, 4 hilos · small · haz 5", texto)
-        self.assertRegex(texto, r"CPU del equipo  █+░+  50 %  ▅▅")
-        self.assertIn("GPU del equipo  ░", texto)
-        self.assertIn("n/d", texto)
+    def test_veredicto_motor_cifras_y_equipo(self):
+        _codigo, texto = self.correr("7", *[None] * 200, ESC, "q")
+        self.assertIn("El equipo va justo. Ya está ocupado", texto, "50 % de media: justo")
+        self.assertIn("Se transcribiría con: CPU, 4 hilos · Calidad Media", texto)
+        self.assertRegex(texto, r"Procesador\s+50 %\s+█+░+")
+        self.assertRegex(texto, r"Tarjeta gráfica\s+n/d\s+░+")
+        self.assertIn("pico 50 %", texto)
+        self.assertIn("Equipo", texto)
+        self.assertIn("6 núcleos", texto)
+        self.assertNotIn("Medir mi equipo", texto, "sin esa función no hay fila")
         self.assertTrue(self.muestreo.parado, "al volver se para el muestreo")
+
+    def test_memoria_del_equipo(self):
+        self.muestreo = MuestreoFalso(cpu=20.0, ram=(8192.0, 16384.0))
+        _codigo, texto = self.correr("7", *[None] * 200, ESC, "q")
+        self.assertRegex(texto, r"Memoria\s+50 %")
+        self.assertIn("8 de 16 GB", texto)
+        self.assertIn("Hay margen para grabar", texto)
 
     def test_spinner_hasta_la_primera_muestra(self):
         self.muestreo = MuestreoFalso()
         _codigo, texto = self.correr("7", None, None, ESC, "q")
-        self.assertIn("midiendo…", texto)
+        self.assertIn("Midiendo", texto)
+        self.assertNotIn("__", texto)
+
+    def test_medir_mi_equipo_solo_si_existe(self):
+        with mock.patch.dict(registro.PANTALLAS, {"medir": ("ayuda", "Ayuda")}):
+            _codigo, texto = self.correr("7", *[None] * 200, ENTER, None, ESC, ESC, "q")
+        self.assertIn("Medir mi equipo", texto)
+        self.assertIn("[Enter] Medir mi equipo", texto)
+        self.assertIn("Inicio › Rendimiento › Ayuda", texto, "Enter abre la pantalla de la acción «medir»")
+
+    def test_cabe_en_60_columnas_en_los_tres_juegos(self):
+        for juego in (None, JUEGO_CONSOLA, JUEGO_ASCII):
+            with self.subTest(juego=juego):
+                t = self.terminal("7", *[None] * 200, ESC, "q", ancho=60, ascii_mode=juego == JUEGO_ASCII)
+                if juego == JUEGO_CONSOLA:
+                    t.consola.juego = t.juego = JUEGO_CONSOLA
+                t.run()
+                texto = limpio(self.salida.getvalue().replace("\x1b[H", "\n"))
+                self.assertFalse([l for l in texto.split("\n") if cell_len(l) > 60])
+                if juego == JUEGO_ASCII:
+                    self.assertTrue(solo_ascii(texto))
 
 
 class TestTerminal(BaseTerminal):

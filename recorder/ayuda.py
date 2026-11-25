@@ -232,6 +232,50 @@ TERMINAL: Textos = {
         "Con qué motor se transcribiría y cuánto procesador y tarjeta gráfica usa ahora el equipo, "
         "con su tendencia. Sirve para ver si hay margen antes de grabar.",
     ),
+    # Rendimiento (pantalla del menú y vista en vivo de la grabación): «rendimiento_» + cada dato
+    "rendimiento_margen_ok": ("Hay margen para grabar", "El equipo va desahogado: puedes grabar con la calidad elegida."),
+    "rendimiento_margen_justo": ("El equipo va justo", "Ya está ocupado: cierra lo que no uses antes de grabar."),
+    "rendimiento_margen_no": ("El equipo va cargado", "Cierra algo o baja la calidad: así la transcripción se atrasaría."),
+    "rendimiento_midiendo": ("Midiendo", "La primera cifra llega en un par de segundos."),
+    "rendimiento_motor": ("Se transcribiría con", "Con qué se transcribiría una grabación que empezara ahora."),
+    "rendimiento_ahora": ("Ahora, en todo el equipo", "Lo que usan todos los programas juntos, como en el Administrador de tareas."),
+    "rendimiento_tendencia": ("últimos 2 min", "Cada columna es una muestra; más alta, más uso."),
+    "rendimiento_cpu": ("Procesador", "Cuánto procesador se usa. Recorder necesita margen para no atrasarse."),
+    "rendimiento_gpu": ("Tarjeta gráfica", "Cuánta tarjeta gráfica se usa. Solo importa si se transcribe con ella."),
+    "rendimiento_ram": ("Memoria", "Cuánta memoria hay ocupada. Con poca libre, Windows va más lento."),
+    "rendimiento_ram_de": ("{usada} de {total} GB", "La memoria ocupada y la que tiene el equipo."),
+    "rendimiento_de_total": ("de {total} GB", "La memoria que tiene el equipo."),
+    "rendimiento_pico": ("pico {n} %", "Lo más alto de los últimos 2 minutos."),
+    "rendimiento_nd": ("n/d", "Windows no da este dato en este equipo."),
+    "rendimiento_equipo": ("Equipo", "El equipo detectado."),
+    "rendimiento_medir": ("Medir mi equipo", "Prueba de 2 o 3 minutos que dice qué calidad aguanta tu equipo de verdad."),
+    "rendimiento_al_dia": ("Va al día", "Transcribe {factor} veces más rápido de lo que se habla."),
+    "rendimiento_va_justo": (
+        "Va justo", "Transcribe casi a la velocidad del habla: si la reunión se alarga, se atrasará.",
+    ),
+    "rendimiento_se_atrasa": (
+        "Se atrasa", "Transcribe más lento de lo que se habla. Baja la calidad en Opciones para la próxima grabación.",
+    ),
+    "rendimiento_cargando": ("Cargando el modelo", "La velocidad se sabrá con la primera frase."),
+    "rendimiento_velocidad": (
+        "Velocidad", "Cuántas veces más rápido que el habla se transcribe. Por debajo de 1× se acumula atraso.",
+    ),
+    "rendimiento_tiempo_real": ("1× = al ritmo del habla", "La marca desde la que la transcripción deja de atrasarse."),
+    "rendimiento_ultimo": ("último trozo: {s} s", "Lo que tardó en transcribirse el último trozo de audio."),
+    "rendimiento_cola": (
+        "En cola", "Trozos de audio que esperan su turno. Si crece sin parar, el equipo no da abasto.",
+    ),
+    "rendimiento_cola_valor": ("{n} trozos · {s} s de audio", "Lo que falta por transcribir."),
+    "rendimiento_cola_uno": ("1 trozo · {s} s de audio", "Lo que falta por transcribir."),
+    "rendimiento_cola_vacia": ("nada pendiente", "Todo lo oído ya está en la nota."),
+    "rendimiento_recorder": ("Recorder", "Lo que usa Recorder (con whisper.cpp si lo usa)."),
+    "rendimiento_todo": ("equipo", "Lo que usa el equipo entero."),
+    "rendimiento_motor_efectivo": (
+        "Motor", "Con qué se transcribe de verdad: programa, procesador o tarjeta gráfica, y calidad.",
+    ),
+    "rendimiento_caida": (
+        "Caída al procesador", "Se transcribe con el procesador porque la tarjeta gráfica falló ({motivo}).",
+    ),
     "menu_ayuda": (
         "Ayuda",
         "Las teclas de este menú y de la grabación, y la jerga de Recorder en palabras llanas.",

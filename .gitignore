@@ -14,3 +14,4 @@ dist/
 *.spec.bak
 packaging/Output/
 *.pyinstaller.log
+/.claude
