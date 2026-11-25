@@ -38,9 +38,9 @@ espera, la consola, el entorno (dispositivos, pantallas, ventanas) y cómo se ab
 inyectan (tests/test_cli_live.py).
 """
 import collections
+import contextlib
 import copy
 import dataclasses
-import msvcrt
 import os
 import signal
 import time
@@ -68,11 +68,11 @@ from ..session import (
     ACTION_DEVICES, ACTION_RECOMMEND, ACTION_SETTINGS,
     Event, Line, Notice, RecorderSession, SourceChanged, SourceMuted, Status, StatusSnapshot, with_action,
 )
-from .consola import make_console, presentar
+from . import teclas
+from .consola import make_console, partes_teclas, presentar
+from .teclas import CTRL_C, ENTER, ESC, RETROCESO  # las teclas, ya con su nombre (teclas.py)
 
 INTERVALO = 0.2  # segundos entre sondeos, como la ventana (POLL_MS)
-CTRL_C = "\x03"  # lo que el manejador de SIGINT mete en la cola de teclas
-ESC, ENTER, RETROCESO = "\x1b", "\r", "\x08"  # como los devuelve msvcrt.getwch
 
 # La barra de teclas cabe en 80 columnas (79 con «seguir» en pausa): un pie de dos líneas.
 TECLAS = (("p", "pausar"), ("c", "captura"), ("r", "reconectar"), ("a", "nota"), ("o", "opciones"), ("q", "salir"))
@@ -102,31 +102,6 @@ AVISO_DISPOSITIVOS = "¿no aparece? si se conectó después de arrancar, sal con
 AVISO_SIN_PIE = "opciones: hacen falta una terminal y su pie; con la salida redirigida usa `daily config` al terminar"
 
 Partes = List[Tuple[str, str]]  # trozos (texto, estilo) de una línea
-
-
-def leer_tecla() -> Optional[str]:
-    """La tecla pulsada si hay alguna esperando; None si no. No bloquea.
-
-    Las teclas especiales (flechas, F1…) llegan como un prefijo \\x00 o \\xe0 y un segundo
-    carácter: se consume y se ignoran.
-    """
-    if not msvcrt.kbhit():
-        return None
-    ch = msvcrt.getwch()
-    if ch in ("\x00", "\xe0"):
-        msvcrt.getwch()
-        return None
-    return ch
-
-
-def partes_teclas(ayudas: Sequence[Tuple[str, str]]) -> Partes:
-    """(("p", "pausar"), …) → «[p] pausar · [c] captura…», con la tecla en acento."""
-    partes: Partes = []
-    for tecla, ayuda in ayudas:
-        if partes:
-            partes.append((" · ", "tenue"))
-        partes += [(f"[{tecla}]", "acento"), (f" {ayuda}", "tenue")]
-    return partes
 
 
 def _ahora() -> str:
@@ -173,7 +148,7 @@ class PantallaEnVivo:
         session: Optional[RecorderSession] = None,
         *,
         consola: Optional[Console] = None,
-        leer_tecla: Callable[[], Optional[str]] = leer_tecla,
+        leer_tecla: Optional[Callable[[], Optional[str]]] = None,  # None: el teclado de la terminal (teclas.py)
         dormir: Callable[[float], None] = time.sleep,
         abrir: Callable[[str], object] = os.startfile,
         entorno: Optional[Entorno] = None,
@@ -528,14 +503,16 @@ class PantallaEnVivo:
             anterior = signal.signal(signal.SIGINT, self._on_sigint)
         except ValueError:  # fuera del hilo principal no se puede; se queda el de siempre
             anterior = None
+        lector = contextlib.nullcontext(self._leer_tecla) if self._leer_tecla else teclas.teclado()
         try:
-            if self.plano:
-                self._bucle()
-            else:
-                # transient: al salir el pie se borra y queda solo la transcripción y la despedida
-                with Live(console=self.consola, auto_refresh=False, transient=True) as live:
-                    self._live = live
+            with lector as self._leer_tecla:  # la terminal se restaura al salir, pase lo que pase
+                if self.plano:
                     self._bucle()
+                else:
+                    # transient: al salir el pie se borra y queda solo la transcripción y la despedida
+                    with Live(console=self.consola, auto_refresh=False, transient=True) as live:
+                        self._live = live
+                        self._bucle()
         finally:
             self._live = None
             if anterior is not None:

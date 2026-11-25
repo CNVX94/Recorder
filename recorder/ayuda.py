@@ -1,5 +1,5 @@
 """Los textos de ayuda de Recorder, sin tkinter ni rich: los tooltips de la ventana (ui/tooltip.py)
-y las líneas de ayuda de la terminal (cli/menu.py) salen de aquí.
+y las líneas de ayuda de la terminal (cli/menu.py, cli/pantallas.py) salen de aquí.
 
 Cada clave da (título corto, explicación). Reglas de redacción: tuteo, lenguaje llano, una o dos
 frases de hasta LARGO_MAXIMO caracteres que digan qué hace, cuándo conviene tocarlo y qué pasa al
@@ -225,6 +225,34 @@ TERMINAL: Textos = {
     "menu_salir": (
         "Salir",
         "Cierra este menú y vuelve a la terminal.",
+    ),
+    "menu_rendimiento": (
+        "Rendimiento",
+        "Con qué motor se transcribiría y cuánto procesador y tarjeta gráfica usa ahora el equipo, "
+        "con su tendencia. Sirve para ver si hay margen antes de grabar.",
+    ),
+    "menu_ayuda": (
+        "Ayuda",
+        "Las teclas de este menú y de la grabación, y la jerga de Recorder en palabras llanas.",
+    ),
+    "solo_windows": (
+        "Solo en Windows",
+        "Necesita la captura de audio de Windows (WASAPI): en Linux y macOS todavía no se puede grabar "
+        "ni abrir la ventana.",
+    ),
+    "opciones_recomendada": (
+        "Usar la recomendada",
+        "Pone la calidad, los hilos y, con whisper.cpp, flash attention que mejor van con tu equipo. "
+        "No toca carpetas ni dispositivos; guarda con g.",
+    ),
+    "opciones_editar": (
+        "Editar un texto",
+        "Escribe el valor nuevo: Enter lo acepta, Esc lo deja como estaba y Retroceso borra la última letra.",
+    ),
+    "opciones_guardar": (
+        "Guardar",
+        "Enseña qué cambió y lo guarda en config.json al confirmar con Enter. Una grabación ya "
+        "abierta sigue con lo anterior hasta que la vuelvas a abrir.",
     ),
     # Grabación (`daily`): «tecla_» + la tecla del pie
     "tecla_p": (

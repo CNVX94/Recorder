@@ -1,7 +1,8 @@
 """`daily` en la terminal: decide qué arrancar y reparte los subcomandos.
 
     daily                       graba: la pantalla en vivo (live.py)
-    daily menu                  menú numerado con todo lo que se puede hacer (menu.py)
+    daily menu                  menú con todo lo que se puede hacer: pantallas navegables con el
+                                teclado (pantallas.py); numerado con la entrada redirigida (menu.py)
     daily ventana | --gui       la ventana de siempre
     daily config | calibrar | sintesis | recomendar [--aplicar]
     daily --ascii …             símbolos ASCII (en la consola clásica se detecta solo; esto lo fuerza)
@@ -82,7 +83,7 @@ def construir_parser(comandos: Dict[str, ModuleType]) -> argparse.ArgumentParser
     def subcomando(nombre: str, ayuda: str) -> argparse.ArgumentParser:
         return _nuevo_parser(sub.add_parser, ascii_suelto=True, name=nombre, help=ayuda, description=ayuda)
 
-    subcomando("menu", "menú numerado con todo lo que se puede hacer")
+    subcomando("menu", "menú con todo lo que se puede hacer, navegable con el teclado")
     subcomando("ventana", "abre la ventana (igual que --gui)")
     for nombre, modulo in comandos.items():
         modulo.agregar_argumentos(subcomando(nombre, modulo.AYUDA))

@@ -1,4 +1,7 @@
-"""`daily menu`: un menú numerado con todo lo que se puede hacer desde la terminal.
+"""`daily menu`: un menú con todo lo que se puede hacer desde la terminal.
+
+En una terminal de verdad son pantallas navegables con el teclado (pantallas.py). Con la entrada
+o la salida redirigidas (tuberías, pruebas) es este menú numerado, que lee líneas con `entrada`.
 
 Pensado para quien no recuerda los subcomandos: un título, una línea con dónde van las notas y
 con qué calidad se transcribe, y las opciones numeradas con una descripción corta cada una,
@@ -8,6 +11,7 @@ vuelve al menú al terminar; al elegir, una línea tenue dice qué se abre y par
 cambian. Ctrl+C o el fin de la entrada salen sin ruido. Mismo estilo que la pantalla en vivo
 (consola de `consola.make_console`, símbolos por `presentar`).
 """
+import sys
 from types import ModuleType
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -54,10 +58,15 @@ def menu(
     comandos: Optional[Dict[str, ModuleType]] = None,
     mgr: Optional[ConfigManager] = None,
 ) -> int:
-    """El bucle del menú. `entrada` lee una línea y `mgr` la configuración (se inyectan en las pruebas)."""
+    """El bucle del menú. `entrada` lee una línea y `mgr` la configuración (se inyectan en las pruebas).
+    Con el teclado y la pantalla de una terminal (y sin `entrada` inyectada), las pantallas navegables."""
     consola = consola or make_console()
     comandos = app.cargar_comandos() if comandos is None else comandos
     mgr = mgr or ConfigManager()
+    if entrada is input and consola.is_terminal and sys.stdin is not None and sys.stdin.isatty():
+        from .pantallas import Terminal
+
+        return Terminal(consola, comandos, mgr).run()
 
     def texto(*partes: Tuple[str, str]) -> Text:
         return Text.assemble(*[(presentar(t, consola), e) for t, e in partes])

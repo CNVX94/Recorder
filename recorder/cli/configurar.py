@@ -15,7 +15,6 @@ import dataclasses
 import os
 from typing import Callable, List, Optional, Tuple
 
-import pyaudiowpatch as pa
 from rich import box
 from rich.console import Console
 from rich.markup import escape
@@ -23,7 +22,6 @@ from rich.table import Table
 from rich.text import Text
 
 from ..actions.screenshot import screen_labels, window_titles
-from ..audio.devices import wasapi_devices
 from ..config.hardware import HardwareProfile, cached_hardware, peek_hardware
 from ..config.manager import ConfigManager
 from ..config.options import (
@@ -135,7 +133,12 @@ class Entorno:
 
 
 def dispositivos_audio() -> Tuple[List[str], List[str]]:
-    """(salidas, micrófonos) WASAPI, con un PyAudio propio que se cierra al terminar (no hay flujos abiertos)."""
+    """(salidas, micrófonos) WASAPI, con un PyAudio propio que se cierra al terminar (no hay flujos abiertos).
+    PyAudio se importa aquí: fuera de Windows no existe y el menú debe poder cargar este comando."""
+    import pyaudiowpatch as pa
+
+    from ..audio.devices import wasapi_devices
+
     p = pa.PyAudio()
     try:
         return wasapi_devices(p, "out"), wasapi_devices(p, "mic")

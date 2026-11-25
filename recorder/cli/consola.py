@@ -1,6 +1,6 @@
 """La consola que comparten todos los comandos de terminal: mismos colores y mismo modo ASCII."""
 import sys
-from typing import Optional
+from typing import List, Optional, Sequence, Tuple
 
 from rich.console import Console, detect_legacy_windows
 from rich.theme import Theme
@@ -17,13 +17,16 @@ ESTILOS = {
 def tema_rich(nombre: str = paleta.POR_DEFECTO) -> Theme:
     """Los colores de la ventana para el tema `nombre` de config («sistema» se resuelve)."""
     colores = paleta.TEMAS[paleta.resolver(nombre)]
-    return Theme({estilo: colores[token] for estilo, token in ESTILOS.items()})
+    estilos = {estilo: colores[token] for estilo, token in ESTILOS.items()}
+    estilos["elegido"] = f"bold {colores['acento']}"  # la fila elegida de un menú
+    return Theme(estilos)
 
 # Equivalentes para la consola clásica (conhost), que pinta mal los emoji y los bloques.
 ASCII = {
     "🔊": "OUT", "🎤": "MIC", "🔇": "(mudo)", "📸": "[cap]", "⚠": "!", "⛔": "x", "✅": "OK", "✔": "OK",
     "●": "*", "⏸": "||", "▶": ">", "⏳": "...", "☕": "(despierto)", "🖥": "", "💻": "", "⚙": "", "🔧": "",
     "🎯": "", "🧪": "", "🧹": "", "📝": "", "📑": "", "█": "#", "░": ".", "→": "->", "➔": "->", "…": "...",
+    "↑": "^", "↓": "v", "←": "<", "‹": "<", "›": ">", "─": "-",
 }
 
 # Símbolos con presentación de texto (✔ ⚙ 🖥: Emoji_Presentation=No) que rich mide a una celda
@@ -53,6 +56,17 @@ def presentar(texto: str, consola) -> str:
     """`texto` tal como lo pinta esta consola: ASCII en la clásica (conhost); si no, con los
     símbolos seguros. Es por donde pasa todo lo que la terminal escribe con símbolos."""
     return asciify(texto) if getattr(consola, "ascii_mode", False) else emoji_seguro(texto)
+
+
+def partes_teclas(ayudas: Sequence[Tuple[str, str]]) -> List[Tuple[str, str]]:
+    """(("p", "pausar"), …) → trozos (texto, estilo) de «[p] pausar · [c] captura…», con la
+    tecla en acento: el pie de botones de la grabación y del menú."""
+    partes: List[Tuple[str, str]] = []
+    for tecla, ayuda in ayudas:
+        if partes:
+            partes.append((" · ", "tenue"))
+        partes += [(f"[{tecla}]", "acento"), (f" {ayuda}", "tenue")]
+    return partes
 
 
 def make_console(ascii_mode: Optional[bool] = None, tema: str = paleta.POR_DEFECTO, **kwargs) -> Console:

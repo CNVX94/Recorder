@@ -289,8 +289,29 @@ class TestTeclas(BasePantalla):
         self.assertEqual(self.abiertos, [str(self.session.file_path)])
 
     def test_una_tecla_desconocida_no_hace_nada(self):
-        salida = self.correr("x", "?", "q")
+        salida = self.correr("x", "?", "abajo", "q")  # una flecha llega con su nombre y no hace nada
         self.assertNotIn("⚠", salida)
+
+    def test_sin_lector_usa_el_teclado_de_la_terminal_y_lo_suelta_al_salir(self):
+        import contextlib
+        from unittest import mock
+
+        estado = []
+
+        @contextlib.contextmanager
+        def teclado():
+            estado.append("preparada")
+            try:
+                yield Teclado(self.salida, ["q"])
+            finally:
+                estado.append("restaurada")
+
+        with mock.patch("recorder.cli.teclas.teclado", teclado):
+            pantalla = PantallaEnVivo(
+                self.session, consola=self.consola, dormir=self.reloj, abrir=self.abiertos.append, entorno=self.entorno,
+            )
+            self.assertEqual(pantalla.run(), 0)
+        self.assertEqual(estado, ["preparada", "restaurada"])
 
 
 class TestCierreConCola(BasePantalla):
