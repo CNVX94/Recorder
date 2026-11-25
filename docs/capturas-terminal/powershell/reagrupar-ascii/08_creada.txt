@@ -1,0 +1,24 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Med...
+ ----------------------------------------------------------
+ Inicio > Reagrupar nota > daily_2026-11-21_09-30.md
+   Agrupar               Sin agrupar
+   Unir frases seguidas  [x] sí
+   Hora corta            [ ] no
+ > Quitar imágenes       [ ] no
+   Quitar frases cortas  [ ] no
+   Quitar eco            [x] sí
+   Crear la copia
+ ----------------------------------------------------------
+ Vista previa                                     1-3 de 16
+ 7 frases · 67 palabras, 0 quitadas
+ # Daily 2026-11-21 09:30 - reagrupada sin agrupar
+
+ - **09:30:05** Buenos días, empezamos con el estado del
+
+ Deja la copia en texto puro, sin enlaces a las capturas.
+ Útil para pegarla en un correo o en un chat.
+
+
+ OK Creada daily_2026-11-21_09-30_reagrupada.md. El
+ original sigue intacto.
+ [<>] Cambiar · [g] Crear la copia · [Esc] Volver · [?] Más

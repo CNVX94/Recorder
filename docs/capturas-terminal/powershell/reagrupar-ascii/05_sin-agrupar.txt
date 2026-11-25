@@ -1,0 +1,24 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Med...
+ ----------------------------------------------------------
+ Inicio > Reagrupar nota > daily_2026-11-21_09-30.md
+ > Agrupar               < Sin agrupar >
+   Unir frases seguidas  [x] sí
+   Hora corta            [ ] no
+   Quitar imágenes       [x] sí
+   Quitar frases cortas  [ ] no
+   Quitar eco            [x] sí
+   Crear la copia
+ ----------------------------------------------------------
+ Vista previa                                     1-4 de 14
+ 7 frases · 67 palabras, 0 quitadas
+ # Daily 2026-11-21 09:30 - reagrupada sin agrupar
+
+ - **09:30:05** Buenos días, empezamos con el estado del
+   despliegue de la versión nueva.
+
+ Junta las frases en tramos de tiempo, cada uno con su hora
+ de título (por ejemplo, 09:30 - 09:45). «Sin agrupar» solo
+ aplica la limpieza. Hora corta no se puede con «Sin
+ agrupar»: ahí la hora exacta es lo único que ordena las...
+
+ [<>] Cambiar · [g] Crear la copia · [Esc] Volver · [?] Más

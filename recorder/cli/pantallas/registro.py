@@ -11,6 +11,7 @@ PANTALLAS: Dict[str, Tuple[str, str]] = {
     "rendimiento": ("rendimiento", "Rendimiento"),
     "ayuda": ("ayuda", "Ayuda"),
     "calibrar": ("calibrar", "Calibrar"),
+    "sintesis": ("reagrupar", "ReagruparNota"),
 }
 
 

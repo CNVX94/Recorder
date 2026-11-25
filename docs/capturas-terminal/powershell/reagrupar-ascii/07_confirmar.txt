@@ -1,0 +1,24 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Med...
+ ----------------------------------------------------------
+ Inicio > Reagrupar nota > Crear la copia
+   Se creará  daily_2026-11-21_09-30_reagrupada.md
+   en         C:\Users\DESAR...ocal\Temp\evidjix5gjia\notas
+
+   7 frases · 67 palabras, 0 quitadas
+
+
+
+
+
+
+
+
+
+
+
+ Es la misma transcripción, ordenada y agrupada: no es un
+ resumen. El original no se toca; si el nombre ya existe,
+ se numera.
+
+
+ [Enter] Crear la copia · [Esc] Seguir ajustando

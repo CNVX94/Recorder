@@ -493,6 +493,75 @@ TERMINAL: Textos = {
         "Con qué se transcribe y cuántas veces más rápido que el habla va. Por debajo de 1× no da "
         "abasto y se acumula atraso: baja la calidad.",
     ),
+    # Reagrupar nota (pantalla del menú): «reagrupar_» + lo que explica
+    "reagrupar_elegir": (
+        "Elige la nota",
+        "Elige la nota que quieres reagrupar. Solo se lee: el original nunca se modifica, mueve ni renombra.",
+    ),
+    "reagrupar_col_nota": ("Nota", "El archivo original."),
+    "reagrupar_col_fecha": ("Fecha", "Día del último cambio."),
+    "reagrupar_col_hora": ("Hora", "Hora del último cambio."),
+    "reagrupar_col_tamano": ("Tamaño", "Tamaño del archivo."),
+    "reagrupar_en_curso": (
+        "escribiéndose",
+        "Esta nota se está escribiendo ahora: la copia llevará lo que haya hasta este momento.",
+    ),
+    "reagrupar_vacio": ("No hay notas todavía", "No hay notas todavía: se crean al grabar."),
+    "reagrupar_agrupar": (
+        "Agrupar",
+        "Junta las frases en tramos de tiempo, cada uno con su hora de título (por ejemplo, 09:30 - 09:45). "
+        "«Sin agrupar» solo aplica la limpieza.",
+    ),
+    "reagrupar_unir": (
+        "Unir frases seguidas",
+        "Une en un párrafo las frases seguidas de la misma fuente (los demás o tu micrófono) para leerlas de corrido.",
+    ),
+    "reagrupar_hora_corta": (
+        "Hora corta",
+        "Pone solo hora y minutos (09:30) al empezar cada párrafo, no la hora exacta de cada frase.",
+    ),
+    "reagrupar_hora_corta_no": (
+        "Hora corta",
+        "Hora corta no se puede con «Sin agrupar»: ahí la hora exacta es lo único que ordena las frases.",
+    ),
+    "reagrupar_sin_imagenes": (
+        "Quitar imágenes",
+        "Deja la copia en texto puro, sin enlaces a las capturas. Útil para pegarla en un correo o en un chat.",
+    ),
+    "reagrupar_cortas": (
+        "Quitar frases cortas",
+        "Quita las frases de menos de 4 palabras, como «sí» u «ok». Ojo: también se van respuestas con contenido, como «Sí, va.».",
+    ),
+    "reagrupar_eco": (
+        "Quitar eco",
+        "Borra renglones como «Términos.» que solo repiten tu vocabulario de Calibrar y que nadie dijo.",
+    ),
+    "reagrupar_previa": (
+        "Vista previa",
+        "{frases} frases en {tramos} tramos · {palabras} palabras, {quitadas} quitadas.",
+    ),
+    "reagrupar_previa_sin_tramos": (
+        "Vista previa",
+        "{frases} frases · {palabras} palabras, {quitadas} quitadas.",
+    ),
+    "reagrupar_crear": (
+        "Crear la copia",
+        "Crea el archivo reagrupado junto a la nota y deja el original intacto. Antes te dice cómo se llamará.",
+    ),
+    "reagrupar_confirmar": (
+        "Crear la copia",
+        "Es la misma transcripción, ordenada y agrupada: no es un resumen. El original no se toca; "
+        "si el nombre ya existe, se numera.",
+    ),
+    "reagrupar_se_creara": ("Se creará", "El nombre de la copia."),
+    "reagrupar_en": ("en", "La carpeta de la copia: la misma que la nota."),
+    "reagrupar_seguir": ("Seguir ajustando", "Vuelve a las opciones sin crear nada."),
+    "reagrupar_creada": ("Copia creada", "Creada {nombre}. El original sigue intacto."),
+    "reagrupar_error": ("No se pudo crear", "No se pudo crear la copia: {motivo}."),
+    "reagrupar_derivada": (
+        "Es una copia reagrupada",
+        "Esa nota ya es una copia reagrupada: elige la original.",
+    ),
     # `daily config`: «config_» + cada sección
     "config_carpetas": (
         "Carpetas y palabras clave",

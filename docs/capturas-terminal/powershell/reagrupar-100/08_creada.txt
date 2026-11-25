@@ -1,0 +1,30 @@
+ Recorder · aún no hay (se crea al grabar) · Calidad Media · CPU
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ Inicio › Reagrupar nota › daily_2026-11-21_09-30.md
+
+   Agrupar               Sin agrupar     │ Vista previa                                  1-16 de 16
+   Unir frases seguidas  ● sí            │ 7 frases · 67 palabras, 0 quitadas
+   Hora corta            ○ no            │ # Daily 2026-11-21 09:30 - reagrupada sin agrupar
+ ► Quitar imágenes       ○ no            │
+   Quitar frases cortas  ○ no            │ - **09:30:05** Buenos días, empezamos con el estado
+   Quitar eco            ● sí            │   del despliegue de la versión nueva.
+ ─────────────────────────────────────── │ - **09:30:41** MIC Ayer terminé la revisión de QA del
+   Crear la copia                        │   módulo de notas y quedó todo en verde.
+                                         │ - **09:31:10** Sí.
+                                         │ - **09:32:02** Hay un bloqueo con el servidor de
+                                         │   pruebas, lo vemos después de la daily.
+                                         │   - ■ `bloqueo` →
+                                         │   ![](capturas/2026-11-21_09-32-02_bloqueo.png)
+                                         │ - **09:47:15** MIC Términos.
+                                         │ - **09:47:30** Para la demo del viernes falta la parte
+                                         │   de capturas por palabra clave.
+                                         │ - **09:52:00** MIC Me encargo yo, lo dejo listo el
+                                         │   jueves para revisarlo juntos.
+
+
+
+
+ Deja la copia en texto puro, sin enlaces a las capturas. Útil para pegarla en un correo o en un
+ chat.
+ √ Creada daily_2026-11-21_09-30_reagrupada.md. El original sigue intacto.
+ [←→] Cambiar · [g] Crear la copia · [Esc] Volver · [RePág/AvPág] Vista previa · [?] Más
