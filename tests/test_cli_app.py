@@ -103,6 +103,7 @@ class TestEleccionDeFrontal(unittest.TestCase):
         self.addCleanup(patch.stopall)
         self.grabar = patch("recorder.cli.live.grabar", return_value=0).start()
         self.menu = patch("recorder.cli.menu.menu", return_value=0).start()
+        patch("recorder.cli.intro.primer_daily", return_value=False).start()  # no toca el config.json real
 
     def test_sin_argumentos_graba_en_la_terminal(self):
         self.assertEqual(app.arrancar([]), 0)

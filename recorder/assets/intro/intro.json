@@ -145,22 +145,7 @@
     }
   ],
 
-  "textos": {
-    "_": "Texto exacto de cada clave. En la aplicación viven en recorder/ayuda.py con estas mismas claves.",
-    "intro.nombre": "Recorder",
-    "intro.graba.titulo": "Graba tu daily",
-    "intro.graba.subtitulo": "Tu micrófono y la reunión, a la vez.",
-    "intro.transcribe.titulo": "Transcribe en tu equipo, sin nube",
-    "intro.transcribe.subtitulo": "El texto aparece mientras hablan.",
-    "intro.notas.titulo": "Notas en Markdown con capturas",
-    "intro.notas.subtitulo": "Cada frase, con su hora.",
-    "intro.comenzar.titulo": "Listo para tu próxima daily",
-    "intro.comenzar.subtitulo": "Está también en el menú «Más».",
-    "intro.saltar": "Saltar",
-    "intro.comenzar": "Comenzar",
-    "intro.pista": "Esc, Enter, Espacio o clic para saltar",
-    "intro.terminal.lema": "Transcribe tu daily en tu equipo, sin nube."
-  },
+  "textos": "El texto de cada clave («intro.graba.titulo»…) vive en recorder/ayuda.py (INTRO), con estas mismas claves.",
 
   "terminal": {
     "_": "Logotipo de terminal: un archivo por juego de símbolos, con marcado de rich por papeles. Cada paso dice con qué estilo de recorder/cli/consola.py se pinta cada papel («oculto» = espacios).",

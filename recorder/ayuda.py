@@ -1062,6 +1062,28 @@ GLOSARIO: Textos = {
     ),
 }
 
+# La introducción (recorder/intro.py, ui/intro.py y cli/intro.py). Van aparte de las secciones de
+# arriba: no son (título, explicación) y no salen en los globos. Las claves son las del contrato,
+# recorder/assets/intro/intro.json, que remite aquí para el texto de cada una.
+INTRO: Dict[str, str] = {
+    "intro.nombre": "Recorder",
+    "intro.graba.titulo": "Graba tu daily",
+    "intro.graba.subtitulo": "Tu micrófono y la reunión, a la vez.",
+    "intro.transcribe.titulo": "Transcribe en tu equipo, sin nube",
+    "intro.transcribe.subtitulo": "El texto aparece mientras hablan.",
+    "intro.notas.titulo": "Notas en Markdown con capturas",
+    "intro.notas.subtitulo": "Cada frase, con su hora.",
+    "intro.comenzar.titulo": "Listo para tu próxima daily",
+    "intro.comenzar.subtitulo": "Está también en el menú «Más».",
+    "intro.saltar": "Saltar",
+    "intro.comenzar": "Comenzar",
+    "intro.pista": "Esc, Enter, Espacio o clic para saltar",
+    "intro.terminal.lema": "Transcribe tu daily en tu equipo, sin nube.",
+    "intro.ver": "Ver introducción",
+    "intro.sin_animaciones": "Con las animaciones en «ninguna» no hay introducción. Cámbialo en Opciones.",
+    "intro.opcion_sin_intro": "no muestra la introducción (el logotipo del primer daily)",
+}
+
 SECCIONES: Dict[str, Textos] = {"Ventana": VENTANA, "Terminal": TERMINAL, "Común": COMUN, "Glosario": GLOSARIO}
 _TODOS: Textos = {clave: valor for seccion in SECCIONES.values() for clave, valor in seccion.items()}
 
@@ -1069,6 +1091,11 @@ _TODOS: Textos = {clave: valor for seccion in SECCIONES.values() for clave, valo
 def entrada(clave: str) -> Tuple[str, str]:
     """(título, explicación) de `clave`. Una clave que no existe es un error de programación: KeyError."""
     return _TODOS[clave]
+
+
+def texto_intro(clave: str) -> str:
+    """El texto de una clave de la introducción (`intro.graba.titulo`…). KeyError si no existe."""
+    return INTRO[clave]
 
 
 def linea(clave: str) -> str:

@@ -336,7 +336,7 @@ class TestVentanaSinConsola(CasoInstalado):
                 mock.patch.object(sys, "stdout", None), mock.patch.object(sys, "stderr", None):
             self.assertEqual(app.arrancar(["menu"]), 0)
             sumideros = (sys.stdout, sys.stderr)
-        ventana.assert_called_once_with()
+        ventana.assert_called_once_with(con_intro=True)  # la primera vez abre antes la introducción
         self.assertIsNotNone(vistos["stdout"], "tqdm y compañía ya tienen dónde escribir")
         self.assertIsNotNone(vistos["stderr"])
         for s in sumideros:

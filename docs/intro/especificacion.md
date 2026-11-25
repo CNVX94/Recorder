@@ -51,9 +51,8 @@ Tipografía: `tipografia.familias` por orden de preferencia (Segoe UI Variable; 
 UI). Los títulos caben en una línea en el ancho de su columna; `generar_vistas.py` falla si alguno
 deja de caber.
 
-Los textos se nombran por clave (`intro.graba.titulo`…). El texto exacto de cada clave está en el
-bloque `textos` del contrato; en la aplicación su sitio es `recorder/ayuda.py`, con esas mismas
-claves.
+Los textos se nombran por clave (`intro.graba.titulo`…). El texto exacto de cada clave está en
+`recorder/ayuda.py` (`INTRO`).
 
 ## 3. Movimiento
 
@@ -224,6 +223,23 @@ python docs\intro\generar_vistas.py
 * Si falta `recorder/assets/intro/` o alguno de sus fotogramas, la introducción se omite sin error.
 * Saltar a mitad cancela todo lo pendiente y va directo al fundido de salida.
 * La ventana principal no debe verse hasta que acabe ese fundido.
-* Los textos de `textos` pasan a `recorder/ayuda.py` con sus claves; el contrato deja entonces de
-  llevarlos (y `generar_vistas.py` los toma de `ayuda.py`).
+* Los textos viven en `recorder/ayuda.py` (`INTRO`), con las claves del contrato, que ya no los
+  lleva; `generar_vistas.py` los toma de ahí.
 * Duración real a medir en la app: 7,5 s más `animacion.ENTRADA_MS` y `animacion.SALIDA_MS`.
+
+### Cómo quedó integrada
+
+| Pieza | Dónde |
+| :--- | :--- |
+| Contrato, guion (`Guion.estado(t)`), cuándo sale y `intro_seen` | `recorder/intro.py` (sin tkinter ni rich) |
+| Ventana: Toplevel sin bordes con un Canvas, un tic por reloj | `recorder/ui/intro.py` |
+| Logotipo de terminal: tres repintados con el cursor | `recorder/cli/intro.py` |
+| Primera vez | `intro_seen` (ventana) e `intro_terminal_seen` (terminal) en `config.json`; un config.json anterior carga como «no vista» y la intro sale una vez |
+| Bajo demanda | «Más» → «Ver introducción» |
+| Omitirla | `--sin-intro` (también en `Recorder.exe`); con `animations: ninguna` no hay |
+
+* La sesión (audio y modelo) arranca en el constructor de la ventana principal, antes de la
+  introducción: la introducción es una ventana más del mismo bucle de Tk, con la principal retirada
+  hasta que acaba. No retrasa la grabación y PortAudio sigue en el hilo principal.
+* Los 36 fotogramas se reducen al abrir (~0,5 s con 100 % de escala); con «reducidas» solo se carga
+  el estático.

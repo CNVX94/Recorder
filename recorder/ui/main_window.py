@@ -6,7 +6,7 @@ import tkinter.font as tkfont
 from tkinter import messagebox, scrolledtext
 from typing import Callable, Optional, Tuple
 
-from .. import ayuda, paleta, registro
+from .. import ayuda, intro, paleta, registro
 from ..config.manager import ConfigManager
 from ..config.options import THEME_LABELS
 from ..config.schema import AppConfig
@@ -19,6 +19,7 @@ from .dialogs.digest_dialog import DigestDialog
 from .dialogs.medir_dialog import MedirDialog
 from .dialogs.tuning_dialog import TuningDialog
 from . import animacion, tooltip
+from .intro import Introduccion
 from .rendimiento import COLUMNAS, Historial, PanelRendimiento
 from .theme import (
     BTN_STYLE, HEADER_STYLE, LABEL_STYLE, P, aplicar_tema, app_icon, boton_vivo, con_anillo, fit_window, scroll_nativo,
@@ -116,10 +117,14 @@ class MainWindow:
         self,
         config_manager: Optional[ConfigManager] = None,
         session: Optional[RecorderSession] = None,
+        con_intro: bool = False,
     ):
         # `session` se inyecta en las pruebas (núcleo de mentira, config temporal); si no, se construye.
+        # `con_intro`: al arrancar, la introducción de la primera vez (la pide `abrir_ventana`; con
+        # `--sin-intro`, y en las pruebas, no sale).
         self.session = session or RecorderSession(config_manager)
-
+        self._con_intro = con_intro
+        self._intro: Optional[Introduccion] = None  # la introducción a la vista, si hay una
         self._poll_id = None  # el `after` del próximo sondeo, para adelantarlo al volver a la vista
         self._painted: dict = {}  # lo último escrito en cada etiqueta, para no reescribir lo mismo
         self._estado: Tuple[str, str] = ("Iniciando…", P.texto_tenue)  # texto completo y color del estado
@@ -312,7 +317,11 @@ class MainWindow:
         temas.add_command(label="Alternar claro / oscuro", accelerator=ATAJO["tema_alternar"], command=self.alternar_tema)
         m.add_cascade(label="🎨 Tema", menu=temas)
         m.add_separator()
-        # Aquí irá «Ver introducción» cuando llegue la introducción animada (plan, paso 8).
+        m.add_command(
+            label=f"🎬 {ayuda.texto_intro('intro.ver')}", command=self.ver_introduccion,
+            # sin los fotogramas (ejecución desde el código sin ellos) no hay qué ver: se deshabilita
+            state="normal" if intro.cargar_contrato() else "disabled",
+        )
         m.add_command(label="❓ Ayuda", accelerator=ATAJO["ayuda"], command=self.abrir_ayuda)
 
     def _fallo_en_callback(self, tipo, valor, tb):
@@ -651,6 +660,60 @@ class MainWindow:
         self.session.shutdown()
         animacion.cerrar(self.root)
 
+    # ------------------------------------------------------------------ introducción
+    def _abrir_introduccion(self, al_terminar: Optional[Callable[[], None]] = None) -> bool:
+        """Abre la introducción, si se puede: con «ninguna» no hay animación y sin sus fotogramas se
+        omite sin error. Devuelve si salió; entonces `al_terminar` se llama cuando ya se fue."""
+        contrato = intro.cargar_contrato()
+        if contrato is None or animacion.modo == intro.NINGUNA:
+            return False
+        try:
+            self._intro = Introduccion(self.root, contrato, animacion.modo, lambda: self._intro_terminada(al_terminar))
+            self._intro.mostrar()
+        except Exception:  # la introducción nunca impide arrancar: queda en el registro y se sigue
+            registro.anotar("al abrir la introducción", sys.exc_info())
+            self._intro = None
+            return False
+        return True
+
+    def _intro_terminada(self, al_terminar: Optional[Callable[[], None]]):
+        self._intro = None
+        if al_terminar:
+            al_terminar()
+
+    def ver_introduccion(self):
+        """«Más» → «Ver introducción»: otra vez cuando se quiera, sobre la ventana."""
+        if self._intro is not None:
+            self._intro.win.lift()
+            return
+        if not self._abrir_introduccion(self.root.focus_force):  # al irse, el foco vuelve a la ventana
+            self.aviso(ayuda.texto_intro("intro.sin_animaciones"))
+
+    def _mostrar_principal(self):
+        """La introducción de la primera vez acabó (o se saltó): ahora sí se ve la ventana."""
+        self.root.deiconify()
+        self.root.focus_force()
+        if animacion.duracion(animacion.ENTRADA_MS):
+            animacion.entrar(self.root)
+        else:
+            self.root.attributes("-alpha", 1.0)
+
+    def _intro_primera_vez(self) -> bool:
+        """La introducción de la primera vez (`intro_seen`), con la ventana principal retirada hasta
+        que acabe. La sesión ya arrancó en el constructor: el audio y el modelo cargan mientras tanto."""
+        config = self.session.config
+        if not intro.debe_mostrarse(config.animations, config.intro_seen):
+            return False
+        animacion.cancelar(self.root, "alfa")  # el fundido de entrada que dejó fit_window: aún no toca
+        self.root.attributes("-alpha", 0.0)
+        self.root.withdraw()
+        if not self._abrir_introduccion(self._mostrar_principal):
+            self.root.deiconify()
+            return False
+        intro.marcar_vista(self.session.config_manager, config)
+        return True
+
     def run(self):
-        animacion.entrar(self.root)  # el fundido de entrada arranca con el bucle de Tk, no antes
+        if not (self._con_intro and self._intro_primera_vez()):
+            animacion.entrar(self.root)  # el fundido de entrada arranca con el bucle de Tk, no antes
         self.root.mainloop()

@@ -135,8 +135,15 @@ class AppConfig:
     # Prioridad del proceso en Windows (PRIORITIES). Un config.json viejo, o un valor desconocido
     # (p. ej. «alta», que no se ofrece), cae a «normal».
     process_priority: str = DEFAULT_PRIORITY
+    # Si ya se vio la introducción (recorder/intro.py): la de la ventana y el logotipo de la terminal
+    # van aparte, porque la primera vez de cada una es distinta. Un config.json anterior no los
+    # trae: cargan como «no vista» y la introducción sale una vez.
+    intro_seen: bool = False
+    intro_terminal_seen: bool = False
 
     def __post_init__(self):
+        self.intro_seen = self.intro_seen is True
+        self.intro_terminal_seen = self.intro_terminal_seen is True
         if self.process_priority not in PRIORITIES:
             self.process_priority = DEFAULT_PRIORITY
         if self.captures not in CAPTURE_QUALITIES:

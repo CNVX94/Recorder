@@ -12,7 +12,7 @@ por lo que da igual desde dónde se invoque.
 Qué va dentro y qué no:
   - faster-whisper con su VAD (silero_vad_v6.onnx), ctranslate2, onnxruntime, tokenizers, av,
     PyAudioWPatch, Pillow, numpy, rich y tkinter (la ventana lo necesita: no excluirlo).
-  - tools\\instalar_whispercpp.ps1, docs\\*.md, recorder\\assets\\* y config.example.json, con la
+  - tools\\instalar_whispercpp.ps1, docs\\*.md, recorder\\assets\\* (con intro\\) y config.example.json, con la
     misma ruta relativa que en el repositorio (el código los resuelve bajo sys._MEIPASS).
   - NO van los modelos de Whisper (se descargan al usarse, a la caché de Hugging Face), ni las
     DLL de CUDA (quien tenga NVIDIA instala CUDA/cuDNN aparte), ni whisper.cpp.
@@ -98,6 +98,9 @@ datas += [
     (os.path.join(RAIZ, "tools", "instalar_whispercpp.ps1"), "tools"),
     (os.path.join(RAIZ, "docs", "*.md"), "docs"),
     (os.path.join(RAIZ, "recorder", "assets", "*"), os.path.join("recorder", "assets")),
+    # La introducción: el contrato, los 36 fotogramas del logotipo y el de la terminal, en
+    # subcarpetas (el comodín de arriba no es recursivo de forma fiable). Sin ellos se omite sin error.
+    (os.path.join(RAIZ, "recorder", "assets", "intro"), os.path.join("recorder", "assets", "intro")),
     (os.path.join(RAIZ, "config.example.json"), "."),
 ]
 

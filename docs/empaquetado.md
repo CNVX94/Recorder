@@ -83,7 +83,7 @@ Dentro:
 * `PyAudioWPatch` (WASAPI loopback), `Pillow`, `numpy`, `rich` y **`tkinter`** (la ventana lo
   necesita; no se excluye nunca).
 * Los archivos del repositorio que el código busca por su ruta relativa, con esa misma ruta bajo
-  `_internal\`: `tools\instalar_whispercpp.ps1`, `docs\*.md`, `recorder\assets\*` y
+  `_internal\`: `tools\instalar_whispercpp.ps1`, `docs\*.md`, `recorder\assets\*` (con `intro\`: contrato, fotogramas y logotipos de terminal) y
   `config.example.json`. En el ejecutable se resuelven bajo `sys._MEIPASS` (que en onedir es
   `_internal`).
 * Los subcomandos de la terminal (`recorder.cli.configurar`, `calibrar`, `sintesis`,

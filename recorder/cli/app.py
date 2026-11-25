@@ -31,7 +31,8 @@ from typing import Dict, Optional, Sequence
 
 from rich.console import Console
 
-from .. import paleta, registro
+from .. import ayuda, paleta, registro
+from ..intro import OPCION_SIN_INTRO
 from ..rutas import ruta_config
 from . import vt
 from .consola import make_console
@@ -83,6 +84,7 @@ def construir_parser(comandos: Dict[str, ModuleType]) -> argparse.ArgumentParser
     )
     parser.add_argument("--ascii", action="store_true", help="símbolos ASCII (en la consola clásica se detecta solo)")
     parser.add_argument("--gui", action="store_true", help="abre la ventana en vez de usar la terminal")
+    parser.add_argument(OPCION_SIN_INTRO, action="store_true", help=ayuda.texto_intro("intro.opcion_sin_intro"))
     parser.add_argument(
         "--historial", action="store_true",
         help="al grabar, deja las frases en el historial de la terminal en vez de usar la pantalla completa",
@@ -148,8 +150,11 @@ def abrir_pantalla(clase: type, consola: Console, comandos: Dict[str, ModuleType
     return Terminal(consola, comandos, ConfigManager(), inicial=clase).run()
 
 
-def abrir_ventana() -> int:
+def abrir_ventana(sin_intro: Optional[bool] = None) -> int:
     """La ventana de siempre. Se importa aquí y no arriba: la terminal no carga tkinter.
+
+    La primera vez abre antes la introducción; `sin_intro` (`--sin-intro`) la omite. Sin decirlo,
+    se mira la línea de órdenes: así también la entiende `Recorder.exe`, que no pasa por argparse.
 
     Sin consola (Recorder.exe, pythonw) se le da un sumidero a stdout/stderr, que son None, y si
     la ventana no llega ni a abrirse se avisa con un cuadro de diálogo que señala el registro de
@@ -160,8 +165,10 @@ def abrir_ventana() -> int:
     sin_consola = sys.stdout is None
     if sin_consola:
         registro.sumidero_sin_consola()
+    if sin_intro is None:
+        sin_intro = OPCION_SIN_INTRO in sys.argv[1:]
     try:
-        ventana = MainWindow()
+        ventana = MainWindow(con_intro=not sin_intro)
     except Exception:
         if not sin_consola:
             raise
@@ -185,11 +192,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     comandos = cargar_comandos()
     args = construir_parser(comandos).parse_args(argv)
     if args.gui or args.comando == "ventana":
-        return abrir_ventana()
+        return abrir_ventana(args.sin_intro)
     consola = make_console(ascii_mode=True if args.ascii else None, tema=tema_guardado())
     if args.comando is None:
+        from .intro import primer_daily
         from .live import grabar
 
+        if not args.sin_intro:
+            primer_daily(consola)
         return grabar(consola=consola, historial=args.historial)
     if args.comando == "menu":
         from .menu import menu

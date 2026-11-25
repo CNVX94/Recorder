@@ -34,6 +34,11 @@ _spec = importlib.util.spec_from_file_location("paleta", RAIZ / "recorder" / "pa
 paleta = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(paleta)
 
+_spec = importlib.util.spec_from_file_location("ayuda", RAIZ / "recorder" / "ayuda.py")
+ayuda = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(ayuda)
+TEXTOS = ayuda.INTRO  # el texto de cada clave del contrato vive en recorder/ayuda.py
+
 C = json.loads((ASSETS / "intro.json").read_text(encoding="utf-8"))
 D = C["duraciones_ms"]
 CURVAS = {
@@ -150,18 +155,18 @@ def fotograma(t: float, tema: str, escala: float = 1.0) -> Image.Image:
     a_rotulo = avance(paso("logotipo", "rotulo", "fundido_entrada"), t) * (1 - avance(paso("graba", "rotulo", "fundido_salida"), t))
     if a_rotulo > 0:
         x, y = disp["rotulo"]["centro"]
-        d.text((x * s, y * s), C["textos"]["intro.nombre"], font=fuente(tipo["rotulo"], s), anchor="mm",
+        d.text((x * s, y * s), TEXTOS["intro.nombre"], font=fuente(tipo["rotulo"], s), anchor="mm",
                fill=tinta(tipo["rotulo"]["color"], a_rotulo))
     for elemento in ("titulo", "subtitulo"):
         clave, opacidad = texto_en(t, elemento)
         if clave and opacidad > 0:
             x, y = disp[elemento]["origen"]
             f = fuente(tipo[elemento], s)
-            if f.getlength(C["textos"][clave]) > disp[elemento]["ancho"] * s:
-                raise SystemExit(f"«{C['textos'][clave]}» no cabe en el ancho de «{elemento}»")
-            d.text((x * s, y * s), C["textos"][clave], font=f, fill=tinta(tipo[elemento]["color"], opacidad))
+            if f.getlength(TEXTOS[clave]) > disp[elemento]["ancho"] * s:
+                raise SystemExit(f"«{TEXTOS[clave]}» no cabe en el ancho de «{elemento}»")
+            d.text((x * s, y * s), TEXTOS[clave], font=f, fill=tinta(tipo[elemento]["color"], opacidad))
     x, y = disp["pista"]["origen"]
-    d.text((x * s, y * s), C["textos"]["intro.pista"], font=fuente(tipo["pista"], s), anchor="lm", fill=P[tipo["pista"]["color"]])
+    d.text((x * s, y * s), TEXTOS["intro.pista"], font=fuente(tipo["pista"], s), anchor="lm", fill=P[tipo["pista"]["color"]])
 
     # --- botón: «Saltar» desde el primer fotograma; al final pasa a «Comenzar»
     cambio = avance(paso("comenzar", "boton", "pasar_a_principal"), t)
@@ -170,7 +175,7 @@ def fotograma(t: float, tema: str, escala: float = 1.0) -> Image.Image:
     caja(x0, y0, x1, y1, fill=mezclar(P[sec["fondo"]], P[pri["fondo"]], cambio),
          outline=mezclar(P[sec["borde"]], P[pri["borde"]], cambio), width=round(s))
     estado = pri if cambio >= 0.5 else sec
-    d.text(((x0 + x1) / 2 * s, (y0 + y1) / 2 * s), C["textos"][estado["rotulo"]], font=fuente(tipo["boton"], s), anchor="mm",
+    d.text(((x0 + x1) / 2 * s, (y0 + y1) / 2 * s), TEXTOS[estado["rotulo"]], font=fuente(tipo["boton"], s), anchor="mm",
            fill=mezclar(P[sec["texto"]], P[pri["texto"]], cambio))
 
     img = img.resize((img.width // SOBREMUESTREO, img.height // SOBREMUESTREO), Image.LANCZOS)
@@ -223,7 +228,7 @@ def terminal() -> None:
     T = C["terminal"]
     final = T["pasos"][-1]["estilos"]
     for juego, archivo in T["juegos"].items():
-        lineas = (ASSETS / archivo).read_text(encoding="utf-8").replace("{lema}", C["textos"]["intro.terminal.lema"]).split("\n")
+        lineas = (ASSETS / archivo).read_text(encoding="utf-8").replace("{lema}", TEXTOS["intro.terminal.lema"]).split("\n")
         f = ImageFont.truetype(str(FUENTES / FUENTE_TERMINAL[juego]), CUERPO_TERMINAL)
         ancho_celda, alto_celda = f.getlength("M"), round(CUERPO_TERMINAL * 1.2)
         columnas = max(len(re.sub(r"\[/?\w*\]", "", l)) for l in lineas) + 2
